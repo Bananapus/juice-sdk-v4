@@ -112,10 +112,14 @@ describe("JBContractContext", () => {
     expect(value.contracts).toEqual({
       primaryNativeTerminal: { data: terminal, isLoading: false },
       controller: { data: controller, isLoading: false },
-      fundAccessLimits: { data: fundAccessLimits, isLoading: false },
-      rulesets: { data: rulesets, isLoading: false },
-      tokens: { data: tokens, isLoading: false },
-      splits: { data: splits, isLoading: false },
+      fundAccessLimits: {
+        data: fundAccessLimits,
+        isLoading: false,
+        error: null,
+      },
+      rulesets: { data: rulesets, isLoading: false, error: null },
+      tokens: { data: tokens, isLoading: false, error: null },
+      splits: { data: splits, isLoading: false, error: null },
     });
     expect(value.contractAddress(JBCoreContracts.JBTokens)).toBe(
       getJBContractAddress(JBCoreContracts.JBTokens, 6, 10),
@@ -205,6 +209,7 @@ describe("JBContractContext", () => {
       expect(element.props.value.contracts[contract]).toEqual({
         data: undefined,
         isLoading: true,
+        error: null,
       });
     }
   });

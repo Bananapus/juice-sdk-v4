@@ -1,21 +1,31 @@
-import { useCallback, useMemo, useState } from "react";
+import {
+  relayrProgress,
+  type RelayrProgressSummary,
+} from "@bananapus/nana-sdk-core/review/relayr";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "wagmi/query";
 import { API } from "../constants";
 import { RelayrGetBundleResponse } from "../types";
 
 const POLL_INTERVAL = 2000;
+/** How long a bundle is polled before the hook stops, as core's `pollRelayrBundle` does. */
+const POLL_TIMEOUT = 5 * 60_000;
 
-const transactionSucceeded = (state: string) =>
-  state === "Success" || state === "Completed";
+type Target = { uuid: string; expectedCount?: number; until: number };
 
-const areTransactionsComplete = (
+/** The bundle's progress by core's case-insensitive rules, with unreported rows counted as pending. */
+const progressOf = (
   response: RelayrGetBundleResponse | undefined,
-) =>
-  !!response?.transactions?.length &&
-  response.transactions.every((tx) => transactionSucceeded(tx.status.state));
+  expectedCount: number | undefined,
+): RelayrProgressSummary => {
+  const records = (response?.transactions ?? []).map((tx) => ({
+    status: { state: tx.status?.state },
+  }));
+  return relayrProgress(records, expectedCount ?? records.length);
+};
 
-const hasTransactionFailure = (response: RelayrGetBundleResponse | undefined) =>
-  !!response?.transactions?.some((tx) => tx.status.state === "Failed");
+const isComplete = ({ total, confirmed }: RelayrProgressSummary) =>
+  total > 0 && confirmed === total;
 
 const fetchTxBundle = async (
   uuid: string | undefined,
@@ -32,8 +42,27 @@ const fetchTxBundle = async (
   return response.json();
 };
 
+/**
+ * Polls one Relayr bundle until every transaction succeeded (`expectedCount`
+ * of them, when given), one failed, or five minutes passed. A failed read is
+ * polled again; `error` is the last one.
+ */
 export function useGetRelayrTxBundle() {
-  const [uuid, setUuid] = useState<string>();
+  const [target, setTarget] = useState<Target>();
+  /** The target whose five minutes ran out. */
+  const [expired, setExpired] = useState<Target>();
+  const uuid = target?.uuid;
+  const expectedCount = target?.expectedCount;
+  const timeUp = !!target && expired === target;
+
+  useEffect(() => {
+    if (!target) return;
+    const timer = setTimeout(
+      () => setExpired(target),
+      Math.max(0, target.until - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [target]);
 
   const getRelayrTxBundle = useQuery<
     RelayrGetBundleResponse,
@@ -44,43 +73,44 @@ export function useGetRelayrTxBundle() {
     queryKey: ["txBundle", uuid],
     queryFn: ({ signal }) => fetchTxBundle(uuid, signal),
     enabled: !!uuid,
-    refetchInterval: (query) =>
-      areTransactionsComplete(query.state.data) ||
-      hasTransactionFailure(query.state.data)
+    refetchInterval: (query) => {
+      const progress = progressOf(query.state.data, expectedCount);
+      return timeUp || isComplete(progress) || progress.failed > 0
         ? false
-        : POLL_INTERVAL,
+        : POLL_INTERVAL;
+    },
   });
 
   const startPolling = useCallback(
-    (bundleUuid: string) => {
-      if (bundleUuid === uuid) {
-        void getRelayrTxBundle.refetch();
-        return;
-      }
-
-      setUuid(bundleUuid);
+    (bundleUuid: string, expectedCount?: number) => {
+      setTarget({
+        uuid: bundleUuid,
+        ...(expectedCount === undefined ? {} : { expectedCount }),
+        until: Date.now() + POLL_TIMEOUT,
+      });
+      if (bundleUuid === uuid) void getRelayrTxBundle.refetch();
     },
     [getRelayrTxBundle.refetch, uuid],
   );
 
-  const isComplete = useMemo(
-    () => areTransactionsComplete(getRelayrTxBundle.data),
-    [getRelayrTxBundle.data],
+  const progress = useMemo(
+    () => progressOf(getRelayrTxBundle.data, expectedCount),
+    [getRelayrTxBundle.data, expectedCount],
   );
-  const hasFailed = useMemo(
-    () => hasTransactionFailure(getRelayrTxBundle.data),
-    [getRelayrTxBundle.data],
-  );
+  const complete = isComplete(progress);
+  const hasFailed = progress.failed > 0;
+  const timedOut = timeUp && !complete && !hasFailed;
 
   return {
     startPolling,
-    isComplete,
+    isComplete: complete,
     hasFailed,
+    /** Polling stopped after five minutes with the bundle still unfinished. */
+    timedOut,
+    progress,
     uuid,
     response: getRelayrTxBundle.data,
-    // A bundle whose fetches keep erroring is not still polling: without the
-    // error term a consumer's spinner never stops.
-    isPolling: !!uuid && !isComplete && !hasFailed && !getRelayrTxBundle.error,
+    isPolling: !!target && !complete && !hasFailed && !timedOut,
     isFetching: getRelayrTxBundle.isFetching,
     error: getRelayrTxBundle.error,
   };

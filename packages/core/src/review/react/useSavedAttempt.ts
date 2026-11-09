@@ -26,6 +26,24 @@ export type UseSavedAttemptOptions<T> = {
   client: WriteHoldClient | undefined;
   /** The check action's next step: "I checked it. <next>." ("Review it again" by default). */
   checkNext?: string;
+  /**
+   * Whether this attempt completes the flow: then only an authenticated
+   * success clears it, and a proven revert does not. Otherwise a revert clears
+   * it and a success leaves it for the app.
+   */
+  completion?: boolean;
+  /**
+   * Records a `done` outcome (the app's journal, its follow-up checks). True
+   * retires the attempt as settled; false or a throw leaves it to be offered
+   * again on the next outcome. Called once per outcome.
+   */
+  onDone?: (
+    outcome: Extract<SavedAttemptOutcome<T>, { status: "done" }>,
+  ) => Promise<boolean>;
+  /** The attempt was retired by the user's exit or check, or by a wallet rejection. Called once per outcome. */
+  onRetired?: (by: "exit" | "check" | "rejected") => void | Promise<void>;
+  /** Recover again on this interval while the outcome can still change (not while held, nor while the page is hidden). */
+  recheckMs?: number;
 };
 
 /** What a retirement returned: whether it took, and whether it outlives this tab. */
@@ -35,6 +53,11 @@ export type UseSavedAttemptResult<T> = {
   /** How recovery ended; null until it has, or with no attempt. */
   outcome: SavedAttemptOutcome<T> | null;
   recovering: boolean;
+  /**
+   * True when nothing saved stands in the way of a new send: no attempt, or
+   * one recovered as `none`, or done in a way `completion` says is over.
+   */
+  clear: boolean;
   /** Recover again now: also "Check again" on a success whose details are unavailable. */
   recover: () => Promise<SavedAttemptOutcome<T> | null>;
   /** On `check`: the one explicit action, which retires the attempt for every tab and reload. */
@@ -63,12 +86,22 @@ export type UseSavedAttemptResult<T> = {
   retire: (reason: SavedAttemptRetirement) => Promise<Retired>;
 };
 
+const markOf = (value: unknown) =>
+  JSON.stringify(value, (_, v) => (typeof v === "bigint" ? v.toString() : v));
+
 const keyOf = (attempt: SavedAttempt<unknown> | null | undefined) =>
-  attempt
-    ? JSON.stringify({ ...attempt, authenticate: undefined }, (_, value) =>
-        typeof value === "bigint" ? value.toString() : value,
-      )
-    : null;
+  attempt ? markOf({ ...attempt, authenticate: undefined }) : null;
+
+function clearOf<T>(
+  attempt: SavedAttempt<T> | null | undefined,
+  outcome: SavedAttemptOutcome<T> | null,
+  completion?: boolean,
+): boolean {
+  if (!attempt) return true;
+  if (!outcome || outcome.status !== "done") return outcome?.status === "none";
+  if (outcome.result === "failed") return !completion;
+  return outcome.authenticated && completion === true;
+}
 
 /**
  * One saved attempt's recovery, the one way every app runs it: recovered
@@ -80,7 +113,9 @@ const keyOf = (attempt: SavedAttempt<unknown> | null | undefined) =>
 export function useSavedAttempt<T>(
   options: UseSavedAttemptOptions<T>,
 ): UseSavedAttemptResult<T> {
-  const { recovery, client, checkNext } = options;
+  const { recovery, client, checkNext, completion, recheckMs } = options;
+  const callbacks = useRef(options);
+  callbacks.current = options;
   const key = keyOf(options.attempt);
   const attempt = options.attempt;
   /** The attempt as last rendered: the same saved fields, with the app's newest callbacks. */
@@ -140,12 +175,13 @@ export function useSavedAttempt<T>(
     void recover();
   }, [recover]);
 
-  const retire = useCallback(
-    async (reason: SavedAttemptRetirement): Promise<Retired> => {
-      const { recovery } = lifecycle;
-      const attempt = latest.current;
-      if (!attempt || !current(lifecycle)) return { retired: false };
-      const retired = await recovery.retire(attempt, reason);
+  /** Retires `attempt` of this lifecycle; only a current lifecycle shows what follows. */
+  const retireOf = useCallback(
+    async (
+      attempt: SavedAttempt<T>,
+      reason: SavedAttemptRetirement,
+    ): Promise<Retired> => {
+      const retired = await lifecycle.recovery.retire(attempt, reason);
       if (!current(lifecycle)) return retired;
       if (!retired.retired && retired.reason === "unreadable")
         setUnreadable(lifecycle);
@@ -155,10 +191,91 @@ export function useSavedAttempt<T>(
     [lifecycle, recover],
   );
 
+  const retire = useCallback(
+    async (reason: SavedAttemptRetirement): Promise<Retired> => {
+      const attempt = latest.current;
+      if (!attempt || !current(lifecycle)) return { retired: false };
+      return retireOf(attempt, reason);
+    },
+    [lifecycle, retireOf],
+  );
+
   const outcome = shown.of === lifecycle ? shown.outcome : null;
+
+  /**
+   * Every outcome handed to onDone or onRetired, by value and attempt, while
+   * its callback runs and after: each is handed once until it is rearmed.
+   */
+  const handed = useRef(new Set<string>());
+  useEffect(() => {
+    if (!outcome || (outcome.status !== "done" && outcome.status !== "none"))
+      return;
+    const mark = `${key}:${markOf(outcome)}`;
+    if (handed.current.has(mark)) return;
+    const rearm = () => void handed.current.delete(mark);
+    const { onDone, onRetired } = callbacks.current;
+    if (outcome.status === "done" && onDone) {
+      handed.current.add(mark);
+      const hash = outcome.hash;
+      // Handed only while its attempt is still the hook's: a replacement's
+      // never. The handed attempt is retired even if onDone cleared it.
+      let handedAttempt: SavedAttempt<T> | null | undefined;
+      void Promise.resolve()
+        .then(() => {
+          if (!current(lifecycle)) return false;
+          handedAttempt = latest.current;
+          return onDone(outcome);
+        })
+        .then(async (settled) => {
+          // A retirement another tab's lock refused is offered again.
+          if (
+            !settled ||
+            !handedAttempt ||
+            !(
+              await retireOf(handedAttempt, {
+                by: "settled",
+                ...(hash ? { hash } : {}),
+              })
+            ).retired
+          )
+            rearm();
+        })
+        .catch(rearm);
+    } else if (
+      outcome.status === "none" &&
+      outcome.retired &&
+      outcome.retired !== "settled" &&
+      onRetired
+    ) {
+      handed.current.add(mark);
+      const by = outcome.retired;
+      void Promise.resolve()
+        .then(() => (current(lifecycle) ? onRetired(by) : undefined))
+        .catch(rearm);
+    }
+  }, [key, lifecycle, outcome, retireOf]);
+
+  const status = outcome?.status;
+  const recovering = shown.of === lifecycle && shown.recovering;
+  const busy = useRef(recovering);
+  busy.current = recovering;
+  useEffect(() => {
+    if (!recheckMs || !status || status === "held") return;
+    // A slow recovery finishes before the next one starts.
+    const timer = setInterval(() => {
+      if (
+        !busy.current &&
+        (typeof document === "undefined" || !document.hidden)
+      )
+        void recover();
+    }, recheckMs);
+    return () => clearInterval(timer);
+  }, [recheckMs, status, recover]);
+
   return {
     outcome,
-    recovering: shown.of === lifecycle && shown.recovering,
+    recovering,
+    clear: clearOf(attempt, outcome, completion),
     recover,
     checkAction:
       outcome?.status === "check"

@@ -9,6 +9,7 @@ import {
   sponsorableChains,
   unsponsoredChains,
   type JBCenterClient,
+  type JBCenterDeployStatus,
   type JBCenterDeploymentCall,
   type JBCenterDeploymentInput,
   type JBCenterIntent,
@@ -25,13 +26,7 @@ const SELF_PAID_FALLBACK_STATUSES = new Set([400, 429, 503]);
 
 export type EnsureDeployedStep = {
   chainId: number;
-  status:
-    | "queued"
-    | "sent"
-    | "confirmed"
-    | "failed"
-    | "self-paid"
-    | "relay-paid";
+  status: JBCenterDeployStatus | "self-paid" | "relay-paid";
   transactionHash?: Hex;
 };
 

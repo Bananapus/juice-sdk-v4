@@ -6,11 +6,19 @@ import type { Address, Hex, PublicClient } from "viem";
  * Some Juicebox terminal calls catch a failed internal fee payment and keep
  * going. An RPC can therefore return an estimate for that cheaper recovery
  * path even though the intended fee route needs more gas. Unused gas is not
- * spent, so a 2x limit is a cheap guard against that under-estimation.
+ * spent, so a 2x limit is a cheap guard against that under-estimation. The
+ * doubled limit stops at `cap` when the estimate itself fits under it.
  */
-export function gasWithHeadroom(estimate: bigint): bigint {
-  return estimate * 2n;
+export function gasWithHeadroom(
+  estimate: bigint,
+  cap: bigint = TRANSACTION_GAS_CAP,
+): bigint {
+  const doubled = estimate * 2n;
+  return estimate <= cap && doubled > cap ? cap : doubled;
 }
+
+/** EIP-7825's per-transaction gas limit: a wallet can't send more. */
+export const TRANSACTION_GAS_CAP = 2n ** 24n;
 
 /**
  * The gas limit to send for a call that carries a reviewed cap.

@@ -10,7 +10,7 @@ import { isAddressEqual, zeroAddress } from "viem";
 import { useReadContract, useToken, UseTokenReturnType } from "wagmi";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
-import { AsyncData, AsyncDataNone } from "../types";
+import { AsyncData, AsyncDataNone, dependentAsyncData } from "../types";
 
 /**
  * Context for the token of a project.
@@ -81,16 +81,16 @@ export const JBTokenProvider = ({
     jbTokensAddress = undefined;
   }
 
-  const { data: tokenAddress, isLoading: isTokenAddressLoading } =
-    useReadContract({
-      address: jbTokensAddress,
-      abi: jbTokensAbi,
-      functionName: "tokenOf",
-      chainId,
-      args: [projectId],
-      query: { enabled: !!projectId && !!jbTokensAddress },
-    });
+  const tokenAddressRes = useReadContract({
+    address: jbTokensAddress,
+    abi: jbTokensAbi,
+    functionName: "tokenOf",
+    chainId,
+    args: [projectId],
+    query: { enabled: !!projectId && !!jbTokensAddress },
+  });
 
+  const tokenAddress = tokenAddressRes.data;
   const fetchTokenEnabled = Boolean(
     tokenAddress && !isAddressEqual(tokenAddress, zeroAddress),
   );
@@ -112,26 +112,22 @@ export const JBTokenProvider = ({
   });
 
   const totalOutstandingData =
-    totalOutstandingRes?.data !== undefined
-      ? new JBProjectToken(totalOutstandingRes?.data)
+    totalOutstandingRes.data !== undefined
+      ? new JBProjectToken(totalOutstandingRes.data)
       : undefined;
 
   return (
     <JBTokenContext.Provider
       value={{
-        // The ERC-20 read is disabled until `tokenOf` answers, which would
-        // otherwise publish `isLoading: false, data: undefined` — "this project
-        // has no token" — on every page load.
-        token: {
-          ...token,
-          isLoading: Boolean(token.isLoading || isTokenAddressLoading),
-        },
-        totalOutstanding: {
-          data: totalOutstandingData,
-          isLoading: Boolean(
-            totalOutstandingRes?.isLoading || controller?.isLoading,
-          ),
-        },
+        token: dependentAsyncData(token, tokenAddressRes),
+        totalOutstanding: dependentAsyncData(
+          {
+            data: totalOutstandingData,
+            isLoading: totalOutstandingRes.isLoading,
+            error: totalOutstandingRes.error,
+          },
+          controller,
+        ),
       }}
     >
       {children}

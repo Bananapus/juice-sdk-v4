@@ -40,6 +40,7 @@ describe("JBDataHookContext", () => {
     expect(element.props.value).toEqual({
       data: undefined,
       isLoading: false,
+      error: null,
     });
   });
 

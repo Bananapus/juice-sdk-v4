@@ -12,7 +12,7 @@ import { useReadContract } from "wagmi";
 import { useResolveDataHook } from "../../hooks/ruleset/useResolveDataHook";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
 import { useJBContractContext } from "../JBContractContext/JBContractContext";
-import { AsyncData, AsyncDataNone } from "../types";
+import { AsyncData, AsyncDataNone, dependentAsyncData } from "../types";
 
 /**
  * Context for the current ruleset of a project.
@@ -89,7 +89,7 @@ export const JBRulesetProvider = ({
 
   const controllerAddress = contracts.controller.data ?? undefined;
 
-  const { data: ruleset, isLoading } = useReadContract({
+  const rulesetRes = useReadContract({
     chainId,
     abi: jbControllerAbi,
     functionName: "currentRulesetOf",
@@ -122,33 +122,39 @@ export const JBRulesetProvider = ({
     },
   });
 
-  const { resolvedDataHook, isLoading: isDataHookLoading } = useResolveDataHook(
-    {
-      dataHookAddress: ruleset?.metadata?.dataHook,
-      projectId,
-      chainId,
-      rulesetId:
-        ruleset?.data.id === undefined ? undefined : BigInt(ruleset.data.id),
-    },
-  );
-
-  // A read that is disabled because its controller has not resolved yet reports
-  // `isLoading: false`, which reads downstream as "this project has no ruleset".
-  const isRulesetLoading = Boolean(isLoading || contracts.controller.isLoading);
+  const ruleset = rulesetRes.data;
+  const dataHook = useResolveDataHook({
+    dataHookAddress: ruleset?.metadata?.dataHook,
+    projectId,
+    chainId,
+    rulesetId:
+      ruleset?.data.id === undefined ? undefined : BigInt(ruleset.data.id),
+  });
 
   // `resolvedDataHook` is undefined while the hook behind the omnichain deployer
   // is still being resolved. Publishing the metadata with the deployer address in
   // that window makes a pay revert in `use721HookMetadataId`.
   const rulesetMetadataWithResolvedDataHook =
-    ruleset?.metadata && resolvedDataHook
-      ? { ...ruleset.metadata, dataHook: resolvedDataHook }
+    ruleset?.metadata && dataHook.resolvedDataHook
+      ? { ...ruleset.metadata, dataHook: dataHook.resolvedDataHook }
       : undefined;
 
-  const rulesetState = { data: ruleset?.data, isLoading: isRulesetLoading };
-  const rulesetMetadataState = {
-    data: rulesetMetadataWithResolvedDataHook,
-    isLoading: Boolean(isRulesetLoading || isDataHookLoading),
-  };
+  const rulesetState = dependentAsyncData(
+    {
+      data: ruleset?.data,
+      isLoading: rulesetRes.isLoading,
+      error: rulesetRes.error,
+    },
+    contracts.controller,
+  );
+  const rulesetMetadataState = dependentAsyncData(
+    {
+      data: rulesetMetadataWithResolvedDataHook,
+      isLoading: dataHook.isLoading,
+      error: dataHook.error,
+    },
+    rulesetState,
+  );
 
   debug("JBRulesetContext", {
     ruleset: rulesetState,

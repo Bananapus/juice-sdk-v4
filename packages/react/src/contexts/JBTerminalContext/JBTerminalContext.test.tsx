@@ -11,6 +11,8 @@ import { JBPrimaryNativeTerminalProvider } from "./JBPrimaryNativeTerminalProvid
 const mocks = vi.hoisted(() => ({
   chainId: 10,
   terminal: undefined as `0x${string}` | undefined,
+  terminalLoading: false,
+  terminalError: null as Error | null,
   readContract: vi.fn(),
 }));
 
@@ -27,7 +29,13 @@ vi.mock("../JBChainContext/JBChainContext", () => ({
 }));
 vi.mock("../JBContractContext/JBContractContext", () => ({
   useJBContractContext: () => ({
-    contracts: { primaryNativeTerminal: { data: mocks.terminal } },
+    contracts: {
+      primaryNativeTerminal: {
+        data: mocks.terminal,
+        isLoading: mocks.terminalLoading,
+        error: mocks.terminalError,
+      },
+    },
   }),
 }));
 
@@ -45,6 +53,8 @@ describe("JBTerminalContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.terminal = undefined;
+    mocks.terminalLoading = false;
+    mocks.terminalError = null;
     mocks.readContract.mockImplementation((config) =>
       config.functionName === "STORE"
         ? { data: store, isLoading: false }
@@ -63,8 +73,8 @@ describe("JBTerminalContext", () => {
     expect(element.props.children).toBe("child");
     expect(element.props.value).toEqual({
       address: terminal,
-      store: { data: store, isLoading: false },
-      accountingContexts: { data: contexts, isLoading: true },
+      store: { data: store, isLoading: false, error: null },
+      accountingContexts: { data: contexts, isLoading: true, error: null },
     });
     expect(mocks.readContract).toHaveBeenCalledTimes(2);
     expect(mocks.readContract.mock.calls[0][0]).toEqual({
@@ -102,7 +112,11 @@ describe("JBTerminalContext", () => {
     // The element type must not change when the address arrives, or React
     // remounts the whole subtree below it.
     expect(pending.type).toBe(JBTerminalProvider);
-    expect(pending.props).toEqual({ address: undefined, children: "child" });
+    expect(pending.props).toEqual({
+      address: undefined,
+      upstream: { isLoading: false, error: null },
+      children: "child",
+    });
 
     mocks.terminal = terminal;
     const element = JBPrimaryNativeTerminalProvider({
@@ -112,6 +126,54 @@ describe("JBTerminalContext", () => {
       props: { address: string; children: unknown };
     };
     expect(element.type).toBe(JBTerminalProvider);
-    expect(element.props).toEqual({ address: terminal, children: "child" });
+    expect(element.props).toEqual({
+      address: terminal,
+      upstream: { isLoading: false, error: null },
+      children: "child",
+    });
+  });
+
+  test("reports the terminal's reads loading while the terminal resolves, not none", () => {
+    // wagmi reports a read with no address as disabled: not loading.
+    mocks.readContract.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+    mocks.terminalLoading = true;
+    const wrapper = JBPrimaryNativeTerminalProvider({
+      children: null,
+    }) as unknown as { props: Parameters<typeof JBTerminalProvider>[0] };
+
+    const element = JBTerminalProvider(wrapper.props) as unknown as {
+      props: { value: Record<string, any> };
+    };
+
+    expect(element.props.value.store).toEqual({
+      data: undefined,
+      isLoading: true,
+      error: null,
+    });
+    expect(element.props.value.accountingContexts.isLoading).toBe(true);
+  });
+
+  test("reports a failed terminal lookup as an error, not none", () => {
+    const failure = new Error("RPC down");
+    mocks.readContract.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+    mocks.terminalError = failure;
+    const wrapper = JBPrimaryNativeTerminalProvider({
+      children: null,
+    }) as unknown as { props: Parameters<typeof JBTerminalProvider>[0] };
+
+    const element = JBTerminalProvider(wrapper.props) as unknown as {
+      props: { value: Record<string, any> };
+    };
+
+    expect(element.props.value.store.error).toBe(failure);
+    expect(element.props.value.accountingContexts.error).toBe(failure);
   });
 });

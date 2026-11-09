@@ -141,8 +141,34 @@ describe("JBRulesetContext", () => {
     expect(element.props.value.rulesetMetadata).toEqual({
       data: undefined,
       isLoading: true,
+      error: null,
     });
     expect(element.props.value.ruleset.data).toBeDefined();
+  });
+
+  test("reports a failed data hook lookup as an error, not as no metadata", () => {
+    const failure = new Error("deployer read failed");
+    mocks.resolveDataHook.mockReturnValue({
+      resolvedDataHook: undefined,
+      isLoading: false,
+      error: failure,
+    });
+    mocks.readContract.mockImplementation((config) => ({
+      data: config.query.select([rawRuleset, rawMetadata]),
+      isLoading: false,
+      error: null,
+    }));
+
+    const element = JBRulesetProvider({ children: null }) as unknown as {
+      props: { value: Record<string, any> };
+    };
+
+    expect(element.props.value.rulesetMetadata).toEqual({
+      data: undefined,
+      isLoading: false,
+      error: failure,
+    });
+    expect(element.props.value.ruleset.error).toBeNull();
   });
 
   test("keeps the ruleset read off an unresolved controller and reports it loading", () => {
@@ -160,6 +186,7 @@ describe("JBRulesetContext", () => {
     expect(element.props.value.ruleset).toEqual({
       data: undefined,
       isLoading: true,
+      error: null,
     });
     expect(mocks.resolveDataHook).toHaveBeenCalledWith(
       expect.objectContaining({ rulesetId: undefined }),

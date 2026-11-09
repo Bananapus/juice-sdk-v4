@@ -698,6 +698,17 @@ export interface JBSuckerMovement {
   proof: JBLeafProof | null;
 }
 
+/**
+ * A `JBSuckerMovement` narrowed by its status: only a `claimable` one carries
+ * its verified proof, and only a `pending` one can execute.
+ */
+export type JBSuckerMovementByStatus = JBSuckerMovement &
+  (
+    | { status: "claimable"; canExecute: false; proof: JBLeafProof }
+    | { status: "pending"; proof: null }
+    | { status: "claimed"; canExecute: false; proof: null }
+  );
+
 /** Pure status classification shared by bridge movement lists. */
 export function classifySuckerMovement({
   executed,
@@ -709,7 +720,10 @@ export function classifySuckerMovement({
   index: number;
   deliveredCount: number;
   sentCount: number;
-}): { status: JBSuckerMovementStatus; canExecute: boolean } {
+}):
+  | { status: "claimed"; canExecute: false }
+  | { status: "claimable"; canExecute: false }
+  | { status: "pending"; canExecute: boolean } {
   if (executed) return { status: "claimed", canExecute: false };
   if (index < deliveredCount) {
     return { status: "claimable", canExecute: false };
@@ -741,7 +755,7 @@ export async function getSuckerMovements(
      */
     remoteToken?: Address;
   } & JBSuckerOutboxScanOptions,
-): Promise<JBSuckerMovement[]> {
+): Promise<JBSuckerMovementByStatus[]> {
   const [outbox, remoteMapping] = await Promise.all([
     sourceClient.readContract({
       address: sourceSucker,
@@ -837,14 +851,14 @@ export async function getSuckerMovements(
         "The destination sucker's executed leaf does not match the reconstructed outbox.",
       );
     }
-    const { status, canExecute } = classifySuckerMovement({
+    const classified = classifySuckerMovement({
       executed: executedHash.toLowerCase() !== zeroHash,
       index,
       deliveredCount,
       sentCount,
     });
     const proof =
-      status === "claimable"
+      classified.status === "claimable"
         ? suckerLeafProof(leafHashes.slice(0, deliveredCount), index)
         : null;
     if (
@@ -870,9 +884,9 @@ export async function getSuckerMovements(
       leafHash: outboxLeaf.hashed,
       outboxRoot: outboxLeaf.root,
       blockNumber: outboxLeaf.blockNumber,
-      status,
-      canExecute,
-      proof,
+      ...(classified.status === "claimable"
+        ? { ...classified, proof: proof! }
+        : { ...classified, proof: null }),
     };
   });
 }

@@ -7,14 +7,31 @@ const mocks = vi.hoisted(() => ({
   queryConfig: undefined as any,
   queryError: null as unknown,
   refetch: vi.fn(),
-  setUuid: vi.fn(),
-  uuid: undefined as string | undefined,
+  setTarget: vi.fn(),
+  target: undefined as
+    | { uuid: string; expectedCount?: number; until: number }
+    | undefined,
+  expired: undefined as unknown,
+  setExpired: vi.fn(),
+  effect: undefined as undefined | (() => void | (() => void)),
+  states: 0,
 }));
+
+const select = (uuid: string, expectedCount?: number, until = Infinity) => {
+  mocks.target = { uuid, until, ...(expectedCount ? { expectedCount } : {}) };
+};
 
 vi.mock("react", () => ({
   useCallback: (callback: unknown) => callback,
   useMemo: (factory: () => unknown) => factory(),
-  useState: () => [mocks.uuid, mocks.setUuid],
+  // The hook's states in order: its target, then the target that expired.
+  useState: () =>
+    mocks.states++ % 2 === 0
+      ? [mocks.target, mocks.setTarget]
+      : [mocks.expired, mocks.setExpired],
+  useEffect: (effect: () => void | (() => void)) => {
+    mocks.effect = effect;
+  },
 }));
 
 vi.mock("wagmi/query", () => ({
@@ -41,7 +58,10 @@ describe("useGetRelayrTxBundle", () => {
     mocks.data = undefined;
     mocks.isFetching = true;
     mocks.queryError = null;
-    mocks.uuid = undefined;
+    mocks.target = undefined;
+    mocks.expired = undefined;
+    mocks.effect = undefined;
+    mocks.states = 0;
   });
 
   test("keeps the query disabled until a bundle UUID is selected", async () => {
@@ -64,25 +84,29 @@ describe("useGetRelayrTxBundle", () => {
   });
 
   test("starts a new query without refetching the render's stale UUID", () => {
-    mocks.uuid = "bundle-old";
+    select("bundle-old");
 
-    useGetRelayrTxBundle().startPolling("bundle-new");
+    useGetRelayrTxBundle().startPolling("bundle-new", 2);
 
-    expect(mocks.setUuid).toHaveBeenCalledWith("bundle-new");
+    expect(mocks.setTarget).toHaveBeenCalledWith({
+      uuid: "bundle-new",
+      expectedCount: 2,
+      until: expect.any(Number),
+    });
     expect(mocks.refetch).not.toHaveBeenCalled();
   });
 
-  test("allows an explicit refresh when polling the current bundle again", () => {
-    mocks.uuid = "bundle-current";
+  test("refreshes, with a new five-minute window, when polling the current bundle again", () => {
+    select("bundle-current", undefined, 0);
 
     useGetRelayrTxBundle().startPolling("bundle-current");
 
-    expect(mocks.setUuid).not.toHaveBeenCalled();
+    expect(mocks.setTarget.mock.calls[0][0].until).toBeGreaterThan(Date.now());
     expect(mocks.refetch).toHaveBeenCalledOnce();
   });
 
   test("fetches the selected bundle and returns the Relayr JSON payload", async () => {
-    mocks.uuid = "bundle-123";
+    select("bundle-123");
     mocks.isFetching = false;
     const bundle = {
       bundle_uuid: "bundle-123",
@@ -112,7 +136,7 @@ describe("useGetRelayrTxBundle", () => {
   });
 
   test("surfaces Relayr HTTP response text as the polling error", async () => {
-    mocks.uuid = "bundle-expired";
+    select("bundle-expired");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -130,13 +154,14 @@ describe("useGetRelayrTxBundle", () => {
 
   test("exposes the query's polling error to consumers", () => {
     const queryError = new Error("Relayr unavailable");
-    mocks.uuid = "bundle-unavailable";
+    select("bundle-unavailable");
     mocks.queryError = queryError;
 
     expect(useGetRelayrTxBundle().error).toBe(queryError);
   });
 
   test("polls pending, missing, and empty transaction sets", () => {
+    select("bundle-pending");
     useGetRelayrTxBundle();
     const interval = mocks.queryConfig.refetchInterval;
 
@@ -159,7 +184,7 @@ describe("useGetRelayrTxBundle", () => {
   test.each(["Success", "Completed"])(
     "stops polling and reports completion when every transaction is %s",
     (state) => {
-      mocks.uuid = "bundle-complete";
+      select("bundle-complete");
       mocks.data = {
         bundle_uuid: "bundle-complete",
         transactions: [transaction(state), transaction(state)],
@@ -177,7 +202,7 @@ describe("useGetRelayrTxBundle", () => {
   );
 
   test("stops polling and exposes a terminal transaction failure", () => {
-    mocks.uuid = "bundle-failed";
+    select("bundle-failed");
     mocks.data = {
       bundle_uuid: "bundle-failed",
       transactions: [transaction("Success"), transaction("Failed")],
@@ -191,6 +216,102 @@ describe("useGetRelayrTxBundle", () => {
     expect(relayr.isComplete).toBe(false);
     expect(relayr.hasFailed).toBe(true);
     expect(relayr.isPolling).toBe(false);
+  });
+
+  test.each(["success", "completed", " SUCCESS "])(
+    "reports completion when Relayr says %j, in any case",
+    (state) => {
+      select("bundle-lower");
+      mocks.data = {
+        bundle_uuid: "bundle-lower",
+        transactions: [transaction(state)],
+      };
+
+      const relayr = useGetRelayrTxBundle();
+
+      expect(
+        mocks.queryConfig.refetchInterval({ state: { data: mocks.data } }),
+      ).toBe(false);
+      expect(relayr.isComplete).toBe(true);
+      expect(relayr.isPolling).toBe(false);
+    },
+  );
+
+  test("reports a lowercase failure as final", () => {
+    select("bundle-lower-failed");
+    mocks.data = {
+      bundle_uuid: "bundle-lower-failed",
+      transactions: [transaction("failed")],
+    };
+
+    const relayr = useGetRelayrTxBundle();
+
+    expect(relayr.hasFailed).toBe(true);
+    expect(relayr.isPolling).toBe(false);
+  });
+
+  test("keeps polling until every expected transaction is reported", () => {
+    select("bundle-partial", 2);
+    mocks.data = {
+      bundle_uuid: "bundle-partial",
+      transactions: [transaction("Success")],
+    };
+
+    const relayr = useGetRelayrTxBundle();
+
+    expect(
+      mocks.queryConfig.refetchInterval({ state: { data: mocks.data } }),
+    ).toBe(2000);
+    expect(relayr.isComplete).toBe(false);
+    expect(relayr.isPolling).toBe(true);
+    expect(relayr.progress).toEqual({
+      confirmed: 1,
+      failed: 0,
+      pending: 1,
+      total: 2,
+    });
+  });
+
+  test("keeps polling through a failed read, and stops after five minutes", () => {
+    vi.useFakeTimers();
+    select("bundle-slow", 1, Date.now() + 1_000);
+    mocks.queryError = new Error("offline");
+
+    const polling = useGetRelayrTxBundle();
+    expect(polling.isPolling).toBe(true);
+    expect(polling.error).toBe(mocks.queryError);
+    expect(
+      mocks.queryConfig.refetchInterval({ state: { data: undefined } }),
+    ).toBe(2000);
+
+    // The deadline is a timer of its own: no read has to land after it.
+    const stop = mocks.effect!();
+    vi.advanceTimersByTime(999);
+    expect(mocks.setExpired).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(mocks.setExpired).toHaveBeenCalledWith(mocks.target);
+    mocks.expired = mocks.target;
+    const stopped = useGetRelayrTxBundle();
+    expect(
+      mocks.queryConfig.refetchInterval({ state: { data: undefined } }),
+    ).toBe(false);
+    expect(stopped.timedOut).toBe(true);
+    expect(stopped.isPolling).toBe(false);
+
+    // A new bundle's window clears the old one's timer.
+    (stop as () => void)();
+    select("bundle-past", 1, Date.now() - 5);
+    mocks.setExpired.mockClear();
+    useGetRelayrTxBundle();
+    mocks.effect!();
+    vi.advanceTimersByTime(0);
+    expect(mocks.setExpired).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+
+  test("schedules no deadline before a bundle is chosen", () => {
+    useGetRelayrTxBundle();
+    expect(mocks.effect!()).toBeUndefined();
   });
 
   test("does not treat an empty bundle as complete", () => {

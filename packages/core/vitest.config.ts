@@ -28,6 +28,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/review/runStatus.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/actions/dataHook.ts": {
           statements: 100,
           branches: 100,
@@ -173,6 +179,36 @@ export default defineConfig({
           lines: 100,
         },
         "src/review/react/useSavedAttempt.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/useFeeBuybackReview.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/reviewDialogQueue.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/relayrLaunch.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/useStartOnce.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        "src/review/react/useMobileWallet.ts": {
           statements: 100,
           branches: 100,
           functions: 100,

@@ -4595,3 +4595,422 @@ describe("resetting Safe Relayr between tests", () => {
     ).rejects.toThrow("left the page");
   });
 });
+
+describe("Safe Relayr controller view", () => {
+  it("shows each call's result, checks, executions and error, and clears on reset", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const h = harness();
+    const listener = vi.fn();
+    const failing = vi.fn(() => {
+      throw new Error("view");
+    });
+    const unsubscribe = h.controller.subscribe(listener);
+    h.controller.subscribe(failing);
+    expect(h.controller.getState()).toEqual({
+      phase: null,
+      checks: {},
+      executions: {},
+      result: null,
+      running: null,
+      error: null,
+      session: null,
+    });
+    const onStatus = vi.fn();
+    const preparing = h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+      onStatus,
+    });
+    expect(h.controller.getState().running).toBe("prepare");
+    const ready = await preparing;
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      result: ready,
+      checks: { 0: "ready" },
+      phase: expect.any(String),
+      session: { id: ready.session.id, paymentStatus: "unfunded" },
+    });
+    expect(h.controller.getState().session?.executions[0]?.entry.chain).toBe(
+      ready.session.executions[0]!.entry.chain,
+    );
+    expect(onStatus).toHaveBeenCalledWith(0, "ready", expect.anything());
+    const call = execution();
+    mineSafe(h, call, HASH);
+    h.setRecords(destinationRecords([call], [HASH]));
+    h.afterVerified.mockRejectedValueOnce(
+      new Error("Safe nonce did not advance"),
+    );
+    await expect(
+      h.controller.check({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      error: expect.any(SafeRelayrRecoveryError),
+      executions: {
+        0: { status: "failed", hash: HASH, message: expect.any(String) },
+      },
+    });
+    expect(failing).toHaveBeenCalled();
+    const before = listener.mock.calls.length;
+    unsubscribe();
+    h.controller.reset();
+    expect(listener).toHaveBeenCalledTimes(before);
+    expect(h.controller.getState()).toMatchObject({
+      executions: {},
+      error: null,
+      result: null,
+    });
+  });
+
+  it("shows watch updates and only the latest call since the last reset", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const onUpdate = vi.fn();
+    const watched = await h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      timeoutMs: 0,
+      onUpdate,
+    });
+    expect(onUpdate).toHaveBeenCalledWith(watched);
+    expect(h.controller.getState().result).toBe(watched);
+    const gate = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await gate.promise;
+        return run();
+      },
+    );
+    const first = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    const failed = h.controller
+      .exit({ account: ACCOUNT, sessionId: "missing" })
+      .catch((error: unknown) => error);
+    const second = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    expect(await failed).toBeInstanceOf(Error);
+    expect(h.controller.getState()).toMatchObject({
+      running: "check",
+      error: null,
+    });
+    const latest = await second;
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      result: latest,
+    });
+    gate.resolve();
+    await first;
+    expect(h.controller.getState().result).toBe(latest);
+    const slow = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await slow.promise;
+        return run();
+      },
+    );
+    const stale = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    slow.resolve();
+    await stale;
+    expect(h.controller.getState()).toEqual({
+      phase: null,
+      checks: {},
+      executions: {},
+      result: null,
+      running: null,
+      error: null,
+      session: null,
+    });
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      error: null,
+      session: null,
+    });
+    // An earlier session's progress stays out of a newer call's view.
+    const holdNext = () => {
+      const gate = deferred();
+      vi.mocked(h.store.withLock).mockImplementationOnce(
+        async (_account, run) => {
+          await gate.promise;
+          return run();
+        },
+      );
+      return gate;
+    };
+    h.sessions.get(ready.session.id)!.paymentStatus = "sending";
+    const gateA = holdNext();
+    const earlier = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    const gateB = holdNext();
+    const newer = h.controller
+      .check({ account: ACCOUNT, sessionId: "another" })
+      .catch((error: unknown) => error);
+    gateA.resolve();
+    await earlier;
+    expect(h.controller.getState()).toMatchObject({
+      phase: null,
+      running: "check",
+    });
+    gateB.resolve();
+    expect(await newer).toBeInstanceOf(Error);
+    // Nor a new preparation's, though its session isn't known until it returns.
+    const gateC = holdNext();
+    const again = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    const gateD = holdNext();
+    const preparing = h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution(10)],
+    });
+    gateC.resolve();
+    await again;
+    expect(h.controller.getState()).toMatchObject({
+      phase: null,
+      running: "prepare",
+    });
+    gateD.resolve();
+    expect((await preparing).session.id).not.toBe(ready.session.id);
+  });
+
+  it("shows a new run's progress that a call from before the reset already reported", async () => {
+    const h = harness();
+    const calls = [execution(), execution(10)];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH, undefined]));
+    const gate = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await gate.promise;
+        return run();
+      },
+    );
+    const stale = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    const later = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await later.promise;
+        return run();
+      },
+    );
+    const current = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    gate.resolve();
+    await stale;
+    expect(h.controller.getState().executions).toEqual({});
+    later.resolve();
+    await current;
+    expect(h.controller.getState().executions).toMatchObject({
+      0: { status: "executed", hash: HASH },
+    });
+  });
+
+  it("shows a recovery check's hash while a watch waits between polls, then the watch's next poll", async () => {
+    const h = harness();
+    const calls = [execution(), execution(10)];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    h.mined();
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      const paid = await adapter(options);
+      h.setPaymentReceived(true);
+      h.setRecords(destinationRecords(calls, [undefined, undefined]));
+      return paid;
+    });
+    expect(
+      (
+        await h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        })
+      ).state,
+    ).toBe("pending");
+    const polled = deferred();
+    const resume = deferred();
+    let polls = 0;
+    const watching = h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      intervalMs: 1,
+      timeoutMs: 60_000,
+      onUpdate: async () => {
+        if ((polls += 1) > 1) return;
+        polled.resolve();
+        await resume.promise;
+      },
+    });
+    await polled.promise;
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH, undefined]));
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("pending");
+    expect(h.controller.getState()).toMatchObject({
+      executions: { 0: { status: "executed", hash: HASH } },
+      running: "watch",
+    });
+    mineSafe(h, calls[1], BLOCK);
+    h.setRecords(destinationRecords(calls, [HASH, BLOCK]));
+    resume.resolve();
+    expect((await watching).state).toBe("complete");
+    expect(polls).toBeGreaterThan(1);
+    expect(h.controller.getState()).toMatchObject({
+      phase: "complete",
+      result: { state: "complete" },
+      running: null,
+    });
+    expect(h.controller.getState().executions).toMatchObject({
+      0: { status: "executed", hash: HASH },
+      1: { status: "executed", hash: BLOCK },
+    });
+  });
+
+  it("clears a failed check's error once the watch it overlapped verifies completion", async () => {
+    const h = harness();
+    const calls = [execution()];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    h.mined();
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      const paid = await adapter(options);
+      h.setPaymentReceived(true);
+      h.setRecords(destinationRecords(calls, [undefined]));
+      return paid;
+    });
+    expect(
+      (
+        await h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        })
+      ).state,
+    ).toBe("pending");
+    const polled = deferred();
+    const resume = deferred();
+    let polls = 0;
+    const watching = h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      intervalMs: 1,
+      timeoutMs: 60_000,
+      onUpdate: async () => {
+        if ((polls += 1) > 1) return;
+        polled.resolve();
+        await resume.promise;
+      },
+    });
+    await polled.promise;
+    vi.mocked(h.store.list).mockRejectedValueOnce(
+      new Error("storage unavailable"),
+    );
+    await expect(
+      h.controller.check({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).rejects.toThrow("storage unavailable");
+    expect(h.controller.getState().error).toBeInstanceOf(Error);
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH]));
+    resume.resolve();
+    expect((await watching).state).toBe("complete");
+    expect(h.controller.getState()).toMatchObject({
+      result: { state: "complete" },
+      error: null,
+      running: null,
+    });
+  });
+
+  it("shows a new run's progress while a watch from before the reset still runs", async () => {
+    const h = harness();
+    const calls = [execution()];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    h.mined();
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      const paid = await adapter(options);
+      h.setPaymentReceived(true);
+      h.setRecords(destinationRecords(calls, [undefined]));
+      return paid;
+    });
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    const polled = deferred();
+    const resume = deferred();
+    let polls = 0;
+    const watching = h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      intervalMs: 1,
+      timeoutMs: 60_000,
+      onUpdate: async () => {
+        if ((polls += 1) > 1) return;
+        polled.resolve();
+        await resume.promise;
+      },
+    });
+    await polled.promise;
+    h.controller.reset();
+    const next = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution(10)],
+    });
+    expect(h.controller.getState()).toMatchObject({
+      result: next,
+      phase: expect.any(String),
+      session: { id: next.session.id },
+    });
+    // The old watch's later polls and its end change nothing shown.
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH]));
+    resume.resolve();
+    expect((await watching).state).toBe("complete");
+    expect(h.controller.getState()).toMatchObject({
+      result: next,
+      executions: {},
+      session: { id: next.session.id },
+    });
+    expect(h.controller.getState().phase).not.toBe("complete");
+  });
+});

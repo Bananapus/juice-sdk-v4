@@ -497,3 +497,202 @@ export function createFeeWatch(
     },
   };
 }
+
+/** The RPC a review's fee check reads and watches for new blocks. */
+export type FeeWatchClient = FeeRpc & {
+  watchBlockNumber(args: {
+    pollingInterval: number;
+    onBlockNumber: () => void;
+    onError: (error: Error) => void;
+  }): () => void;
+};
+export type FeeReviewCall = FeeCall & {
+  chainId: number;
+  functionName?: string;
+};
+/** The client and trusted contracts for a call's chain, or undefined when the chain is unsupported (throwing counts as unsupported). */
+export type FeeReviewContext = (
+  chainId: number,
+  from: Address,
+) => { client: FeeWatchClient; options: FeeOptions } | undefined;
+export type FeeReviewStatus = FeeResult["status"] | "checking" | "confirming";
+export type FeeReviewState = {
+  /** Whether a call pays a fee ({@link isFeePayingCall}). */
+  enabled: boolean;
+  status: FeeReviewStatus;
+  result: FeeResult;
+  busy: boolean;
+  /** Every fee-paying call's first check has reported. */
+  settled: boolean;
+  /** The person chose to wait for the fee return. */
+  waiting: boolean;
+  /** Every fee-paying call's chain is watched for new blocks. */
+  autoRefresh: boolean;
+  confirmLabel: string | undefined;
+};
+
+const FEE_WATCH_POLL_MS = 4_000;
+
+/** How far a fee's route is from settling: swap or issuance, unknown, fallback. */
+const routeRank = { swap: 0, issuance: 0, unknown: 1, fallback: 2 } as const;
+
+/**
+ * `fresh` reads worse than `seen`: a worse status, a fee that reads worse
+ * than `seen` showed it (a new unsettled fee included), or a settled fee
+ * `seen` showed that is gone. Per fee, so another call's fallback cannot mask
+ * a change.
+ */
+const worse = (seen: FeeResult, fresh: FeeResult) => {
+  const shown = new Map(
+    seen.fees.map((fee) => [fee.key, routeRank[fee.route]]),
+  );
+  const kept = new Set(fresh.fees.map((fee) => fee.key));
+  return (
+    severity[fresh.status] > severity[seen.status] ||
+    fresh.fees.some(
+      (fee) => routeRank[fee.route] > (shown.get(fee.key) ?? 0),
+    ) ||
+    seen.fees.some((fee) => routeRank[fee.route] === 0 && !kept.has(fee.key))
+  );
+};
+
+/**
+ * One review's fee return check: every fee-paying call simulated alone on its
+ * own chain, rechecked on each new block. `confirm` resolves true only when the
+ * fresh result is the one the person saw.
+ */
+export function createFeeBuybackReview(
+  calls: readonly FeeReviewCall[],
+  context: FeeReviewContext,
+  changed: (state: FeeReviewState) => void,
+) {
+  const checked = calls.filter(isFeePayingCall).map((call) => {
+    try {
+      return {
+        call,
+        context: call.from ? context(call.chainId, call.from) : undefined,
+      };
+    } catch {
+      return { call, context: undefined };
+    }
+  });
+  const enabled = checked.length > 0;
+  const results: FeeResult[] = checked.map(unknownResult);
+  let alive = true;
+  /** The monitors this round still waits on: each counts once, however often it answers. */
+  let pending = new Set(checked.keys());
+  let confirming = false;
+  let state: FeeReviewState;
+  const view = (patch: Partial<FeeReviewState>): FeeReviewState => {
+    const next = { ...state, ...patch };
+    const status: FeeReviewStatus = !enabled
+      ? "none"
+      : confirming
+        ? "confirming"
+        : next.busy
+          ? "checking"
+          : next.result.status;
+    return {
+      ...next,
+      status,
+      confirmLabel: feeReviewConfirmLabel({
+        enabled,
+        busy: next.busy,
+        status: next.result.status,
+      }),
+    };
+  };
+  state = view({
+    enabled,
+    result: unknownResult(),
+    busy: enabled,
+    settled: false,
+    waiting: false,
+    autoRefresh: false,
+  } as FeeReviewState);
+  const set = (patch: Partial<FeeReviewState>) => {
+    if (!alive) return;
+    state = view(patch);
+    changed(state);
+  };
+  const publish = () =>
+    set({
+      autoRefresh: checked.every((item) => item.context),
+      result: combineFeeResults(results),
+    });
+
+  const monitors = checked.map(({ call, context }, index) =>
+    createFeeWatch(
+      async () =>
+        context
+          ? checkFeeBuyback(context.client, call, context.options)
+          : unknownResult(),
+      (next) => {
+        results[index] = next;
+        publish();
+        if (alive && pending.delete(index) && pending.size === 0)
+          set({ busy: false, settled: true });
+      },
+    ),
+  );
+  for (const monitor of monitors) void monitor.refresh();
+  const chains = new Map<number, number[]>();
+  checked.forEach(({ call, context }, index) => {
+    if (context)
+      chains.set(call.chainId, [...(chains.get(call.chainId) ?? []), index]);
+  });
+  const stops = [...chains.values()].map((indexes) =>
+    checked[indexes[0]].context!.client.watchBlockNumber({
+      pollingInterval: FEE_WATCH_POLL_MS,
+      onBlockNumber: () => {
+        for (const index of indexes) void monitors[index].refresh();
+      },
+      onError: () => {
+        for (const index of indexes) results[index] = unknownResult();
+        publish();
+      },
+    }),
+  );
+
+  return {
+    getState: () => state,
+    /**
+     * True when the person may submit, until the review stops: nothing pays a
+     * fee, or every fresh check holds and the batch reads no worse than `seen`, the result they
+     * were shown.
+     */
+    async confirm(seen: FeeResult = state.result): Promise<boolean> {
+      if (!alive) return false;
+      if (!enabled) return true;
+      if (state.busy || confirming) return false;
+      confirming = true;
+      set({ busy: true });
+      try {
+        const confirmed = await Promise.all(
+          monitors.map((monitor) => monitor.confirm()),
+        );
+        // A block refresh between one chain's check and another's can still degrade the batch.
+        return (
+          alive &&
+          confirmed.every(Boolean) &&
+          !worse(seen, combineFeeResults(results))
+        );
+      } finally {
+        confirming = false;
+        set({ busy: false });
+      }
+    },
+    retry() {
+      if (!enabled) return;
+      set({ busy: true });
+      pending = new Set(monitors.keys());
+      for (const monitor of monitors) void monitor.refresh();
+    },
+    wait: () => set({ waiting: true }),
+    stop() {
+      alive = false;
+      for (const monitor of monitors) monitor.stop();
+      for (const stop of stops) stop();
+    },
+  };
+}

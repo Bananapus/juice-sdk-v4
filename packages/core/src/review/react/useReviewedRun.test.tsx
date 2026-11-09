@@ -21,7 +21,7 @@ import {
 } from "../messages.js";
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import { openStepHold, safeBatchCall } from "../writeHold.js";
-import { viemWalletAdapter } from "../wallet.js";
+import { selfReviewingAdapter, viemWalletAdapter } from "../wallet.js";
 import {
   createWalletClient,
   custom,
@@ -153,20 +153,32 @@ describe("useReviewedRun", () => {
     wallet.adapter.sendTransaction.mockRejectedValueOnce(
       new Error("Header not found."),
     );
-    await expect(run({ calls: [payCall(7n)] })).resolves.toMatchObject({
+    const onCancelled = vi.fn();
+    await expect(
+      run({ calls: [payCall(7n)], onCancelled }),
+    ).resolves.toMatchObject({
       status: "failed",
       error: NETWORK_ERROR_LINE,
     });
     expect(seen.current!.phase).toBe("idle");
+    // Its step may have been sent: held, with no cancel told.
+    expect(seen.current).toMatchObject({ status: "held", busy: false });
+    await rendered(() => expect(onCancelled).not.toHaveBeenCalled());
 
     // A closed review or a wallet's refusal is no error.
     reviewUi(async () => null);
-    await expect(run({ calls: [payCall(6n)] })).resolves.toBeNull();
+    await expect(
+      run({ calls: [payCall(6n)], onCancelled }),
+    ).resolves.toBeNull();
     expect(seen.current!.error).toBeNull();
     expect(seen.current!.failure).toBeNull();
+    expect(seen.current).toMatchObject({ status: "cancelled", busy: false });
+    await rendered(() => expect(onCancelled).toHaveBeenCalledOnce());
 
     act(() => seen.current!.reset());
     expect(seen.current!.phase).toBe("idle");
+    expect(seen.current!.status).toBe("idle");
+    expect(seen.current!.lastSubmittedStep).toBeNull();
   });
 
   test("shows its own line when the send engine does not load", async () => {
@@ -260,6 +272,9 @@ describe("useReviewedRun", () => {
     );
     expect(seen.current).toMatchObject({
       phase: "signing",
+      status: "signing",
+      busy: true,
+      lastSubmittedStep: 0,
       step: 1,
       total: 2,
       hash: `0x${"1".padStart(64, "0")}`,
@@ -271,6 +286,9 @@ describe("useReviewedRun", () => {
     await expect(running).resolves.toMatchObject({ status: "done" });
     expect(seen.current).toMatchObject({
       phase: "done",
+      status: "done",
+      busy: false,
+      lastSubmittedStep: 1,
       step: 1,
       total: 2,
       error: null,
@@ -298,6 +316,10 @@ describe("useReviewedRun", () => {
       state: { status: "held-no-hash" },
     });
     expect(seen.current!.error).toBe(seen.current!.held!.line);
+    // A send with no hash is not counted as submitted.
+    expect(seen.current!.lastSubmittedStep).toBeNull();
+    // Held wins over the failure that left it: the hold's line and exit show.
+    expect(seen.current!.status).toBe("held");
 
     // Other calls under the same scope are refused, not resumed in their name.
     await expect(
@@ -341,6 +363,8 @@ describe("useReviewedRun", () => {
     });
     expect(prompts).toHaveLength(1);
     expect(seen.current).toMatchObject({ phase: "done", step: 1, total: 2 });
+    // The last step, sent while away, counts as submitted.
+    expect(seen.current!.lastSubmittedStep).toBe(1);
   });
 
   test("follows the held step as its hold changes", async () => {
@@ -382,16 +406,107 @@ describe("useReviewedRun", () => {
     });
     await act(() => vi.waitFor(() => expect(prompts).toHaveLength(1)));
     expect(seen.current!.phase).toBe("review");
+    expect(seen.current).toMatchObject({ status: "review", busy: true });
     await act(async () => {
       controller.abort();
       await expect(running).resolves.toBeNull();
     });
-    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+    expect(seen.current).toMatchObject({
+      phase: "idle",
+      error: null,
+      status: "cancelled",
+    });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     reviewUi();
     await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
       status: "done",
     });
+  });
+
+  test("a wallet refusal after an earlier step was sent is no cancel", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (wallet.adapter.sendTransaction.mock.calls.length === 2)
+        throw Object.assign(new Error("User rejected"), { code: 4001 });
+      return send(tx);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const onCancelled = vi.fn();
+    await expect(
+      run({
+        calls: [approveCall(), payCall()],
+        scope: "pay:project-1",
+        onCancelled,
+      }),
+    ).resolves.toBeNull();
+    await rendered(() => expect(seen.current!.status).not.toBe("cancelled"));
+    expect(onCancelled).not.toHaveBeenCalled();
+  });
+
+  test("a wallet that reviews on its own page ends done, not busy", async () => {
+    const prompts = reviewUi();
+    const { deps } = setup();
+    const submit = vi.fn(async () => `0x${"ab".repeat(32)}` as ViemHex);
+    const { seen, run } = harness({
+      ...deps,
+      account: ACCOUNT,
+      adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+    });
+    await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(prompts).toHaveLength(0);
+    expect(seen.current).toMatchObject({
+      phase: "done",
+      status: "done",
+      busy: false,
+    });
+  });
+
+  test("closing a resumed sequence's review after its approval is no cancel", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (wallet.adapter.sendTransaction.mock.calls.length === 2)
+        throw Object.assign(new Error("User rejected"), { code: 4001 });
+      return send(tx);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const action = { calls: [approveCall(), payCall()], scope: "pay:p1" };
+    await run(action);
+    reviewUi(async () => null);
+    const onCancelled = vi.fn();
+    await expect(run({ ...action, onCancelled })).resolves.toBeNull();
+    await rendered(() => expect(seen.current!.status).not.toBe("cancelled"));
+    expect(onCancelled).not.toHaveBeenCalled();
+  });
+
+  test("tells a cancel once the cancelled run has rendered", async () => {
+    reviewUi(async () => null);
+    const { deps } = setup();
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const shown: string[] = [];
+    const onCancelled = vi.fn(() => {
+      shown.push(seen.current!.status);
+    });
+    await expect(run({ calls: [payCall()], onCancelled })).resolves.toBeNull();
+    await rendered(() => expect(onCancelled).toHaveBeenCalledOnce());
+    expect(shown).toEqual(["cancelled"]);
+  });
+
+  test("a cancel callback that fails is contained", async () => {
+    reviewUi(async () => null);
+    const { deps } = setup();
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const onCancelled = vi.fn(async () => {
+      throw new Error("the site's cancel failed");
+    });
+    await expect(run({ calls: [payCall()], onCancelled })).resolves.toBeNull();
+    await rendered(() => expect(onCancelled).toHaveBeenCalledOnce());
+    expect(seen.current!.status).toBe("cancelled");
   });
 
   test("an abort while the engine loads ends the run cancelled", async () => {
@@ -416,6 +531,65 @@ describe("useReviewedRun", () => {
     });
     expect(seen.current).toMatchObject({ phase: "idle", error: null });
     expect(prompts).toHaveLength(0);
+  });
+
+  test("a cancel whose held step can't be read yet is no cancel: the step shows once the wallet answers", async () => {
+    reviewUi();
+    const { chain, deps } = setup();
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const first = harness({ ...deps, account: ACCOUNT });
+    await expect(
+      first.run({ follow: { timeoutMs: 0 }, calls: [payCall()] }),
+    ).resolves.toMatchObject({ status: "receipt" });
+    act(() => root!.unmount());
+    // Reopened: the wallet reconnects, the engine still loads.
+    let ready = false;
+    const adapter = {
+      ...deps.adapter,
+      ready: () =>
+        ready ? Promise.resolve() : Promise.reject(new Error("reconnecting")),
+    };
+    const { seen } = harness({
+      ...deps,
+      adapter,
+      account: ACCOUNT,
+      engine: () => new Promise(() => {}),
+    });
+    const onCancelled = vi.fn();
+    const controller = new AbortController();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let running!: ReturnType<UseReviewedRunResult["run"]>;
+      act(() => {
+        running = seen.current!.run({
+          calls: [payCall()],
+          signal: controller.signal,
+          onCancelled,
+        });
+      });
+      await act(async () => {
+        controller.abort();
+        await expect(running).resolves.toBeNull();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(onCancelled).not.toHaveBeenCalled();
+      expect(seen.current!.status).not.toBe("cancelled");
+      ready = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    await rendered(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    expect(onCancelled).not.toHaveBeenCalled();
+    expect(seen.current!.status).not.toBe("cancelled");
   });
 
   test("preloads the engine once, and again only after a failed load", async () => {
@@ -530,6 +704,9 @@ describe("useReviewedRun", () => {
     ).resolves.toMatchObject({ status: "failed" });
     expect(seen.current!.error).toBe(
       "The connected account changed. Review again.",
+    );
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ status: "failed", busy: false }),
     );
     expect(prompts).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
@@ -675,6 +852,29 @@ describe("useReviewedRun", () => {
     expect(
       findReviewedSequence(scope, ACCOUNT, { storage })?.sending,
     ).toMatchObject({ step: 0 });
+  });
+
+  test("a settled Safe step counts as submitted on the next run, and closing its next review is no cancel", async () => {
+    const approval = await proposedThenExecuted(Infinity, {
+      calls: [approveCall(), payCall()],
+    });
+    await rendered(() =>
+      expect(approval.seen.current!.settled).toEqual({
+        step: 0,
+        finished: false,
+      }),
+    );
+    act(() => root?.unmount());
+    const again = harness({ ...approval.deps, account: ACCOUNT });
+    reviewUi(async () => null);
+    const onCancelled = vi.fn();
+    await again.run({
+      calls: [approveCall(), payCall()],
+      scope: approval.scope,
+      onCancelled,
+    });
+    await rendered(() => expect(again.seen.current!.lastSubmittedStep).toBe(0));
+    expect(onCancelled).not.toHaveBeenCalled();
   });
 
   test("ends a followed Safe proposal's run when its hold settles it", async () => {
@@ -839,6 +1039,9 @@ describe("useReviewedRun", () => {
       safeTxHash: `0x${"1".padStart(64, "0")}`,
       hash: null,
     });
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ status: "proposed", busy: false }),
+    );
   });
 
   test("follows a Safe app batch as its one proposal", async () => {
@@ -991,6 +1194,34 @@ describe("useReviewedRun", () => {
     await expect(run(action)).resolves.toMatchObject({ status: "done" });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(4);
     expect(onConfirmed).toHaveBeenCalledTimes(4);
+  });
+
+  test("a resumed run counts its sent step still confirming as submitted", async () => {
+    reviewUi();
+    const { chain, deps } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const payment = `0x${"2".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === payment) throw new Error("lagging node");
+      return read(args);
+    });
+    const action = {
+      ...HANDED_BACK,
+      calls: [approveCall(), payCall()],
+      scope: "pay:project-1",
+    };
+    const first = harness({ ...deps, account: ACCOUNT });
+    await expect(first.run(action)).resolves.toMatchObject({
+      status: "receipt",
+      step: 1,
+    });
+    act(() => root!.unmount());
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await run(action);
+    await rendered(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    expect(seen.current!.lastSubmittedStep).toBe(1);
   });
 
   test("a sped-up send the hold verified is acknowledged by its mined hash, so the next run sends", async () => {

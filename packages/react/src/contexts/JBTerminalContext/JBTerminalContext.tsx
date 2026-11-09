@@ -7,7 +7,7 @@ import {
   zeroAddress,
 } from "viem";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
-import { AsyncData, AsyncDataNone } from "../types";
+import { AsyncData, AsyncDataNone, dependentAsyncData } from "../types";
 import { useReadContract } from "wagmi";
 
 /**
@@ -39,6 +39,8 @@ export function useJBTerminalContext() {
 
 type JBTerminalProviderProps = PropsWithChildren<{
   address: Address | undefined;
+  /** The read that resolves `address`: while it loads or after it failed, the terminal's reads say so instead of "none". */
+  upstream?: { isLoading: boolean; error?: Error | null };
 }>;
 
 /**
@@ -46,11 +48,12 @@ type JBTerminalProviderProps = PropsWithChildren<{
  */
 export const JBTerminalProvider = ({
   address,
+  upstream = AsyncDataNone,
   children,
 }: JBTerminalProviderProps) => {
   const chainId = useJBChainId();
 
-  const { data: store, isLoading: isStoreLoading } = useReadContract({
+  const store = useReadContract({
     abi: jbMultiTerminalAbi,
     functionName: "STORE",
     chainId,
@@ -58,27 +61,34 @@ export const JBTerminalProvider = ({
       address && isAddressEqual(address, zeroAddress) ? undefined : address,
   });
 
-  const { data: accountingContexts, isLoading: accountingContextsLoading } =
-    useReadContract({
-      abi: jbMultiTerminalAbi,
-      functionName: "accountingContextsOf",
-      chainId,
-      address:
-        address && isAddressEqual(address, zeroAddress) ? undefined : address,
-    });
+  const accountingContexts = useReadContract({
+    abi: jbMultiTerminalAbi,
+    functionName: "accountingContextsOf",
+    chainId,
+    address:
+      address && isAddressEqual(address, zeroAddress) ? undefined : address,
+  });
 
   return (
     <JBTerminalContext.Provider
       value={{
         address,
-        store: {
-          data: store,
-          isLoading: isStoreLoading,
-        },
-        accountingContexts: {
-          data: accountingContexts,
-          isLoading: accountingContextsLoading,
-        },
+        store: dependentAsyncData(
+          {
+            data: store.data,
+            isLoading: store.isLoading,
+            error: store.error,
+          },
+          upstream,
+        ),
+        accountingContexts: dependentAsyncData(
+          {
+            data: accountingContexts.data,
+            isLoading: accountingContexts.isLoading,
+            error: accountingContexts.error,
+          },
+          upstream,
+        ),
       }}
     >
       {children}

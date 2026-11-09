@@ -1,3 +1,37 @@
+# State machines, SDK wave 1 (2026-11-09)
+
+Brief: `/private/tmp/claude-501/-Users-jango-Documents-jb-v6-evm/841613e6-d825-45ae-bbd3-8d81a47b700b/scratchpad/sm/BRIEF.md`, items sdk-1, 2, 3, 4, 5, 8, 9, 11, 17, 18 of `sdk.md` there, plus the display-phase mapping asked by jbm-14, homerun-4 and sticky-5. Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`.
+
+## Plan refinement
+
+- **Objective:** Fix the Relayr bundle hook that never stops on lowercase states, the false "none" from React contexts, and the poll listener leak; add additive single-owner exports (run status and busy, connect status, named unions) so clients stop deriving the send lifecycle three ways. No breaking field changes.
+- **System fit:** Core `review` owns the send lifecycle (`ReviewedProgress`, `HeldWriteView`); one pure `reviewedRunStatus` there maps it to the status every client shows, and `useReviewedRun` exposes it. React contexts own read loading; connect owns sign-in state. Clients keep rendering.
+- **Reuse and simplicity:** Reuse core `relayrProgress`/`relayrStateIs*` in the React hook; collapse three local copies of the dependent-loading rule into one helper in `contexts/types.ts`; status words reuse `ReviewedProgress` and `HeldWritePhase` vocabulary. Refactors (sdk-8, 9, 17) are separate commits from fixes.
+- **Evidence and unknowns:** Each FIX starts with a failing test. Signa 0.4.0 does not export its `isSettledPayment`; the passkey set gains `refused` to match it and the export is requested from Signa.
+- **Verification:** Focused vitest per change, then full `npm run check` serially (Node 22.23.4, npm 10.9.9), two Codex passes, packed tarballs for consumer gating.
+- **Resource budget:** One writer in the `sm-sdk` worktree; package budget overruns are reported, not raised. Replan if a change would break an existing field.
+
+- [x] sdk-11, sdk-1, sdk-2 fixes with regression tests
+- [x] sdk-3 + display phase + onCancelled; sdk-4; sdk-5
+- [x] sdk-8, sdk-9, sdk-17, sdk-18 refactors
+- [x] changeset, `npm run check`, Codex x2, draft PR, tarballs
+
+## Review
+
+Every gate in `npm run check` passes except `check:package`: core is over its ceilings by 1,975 B packed, 14,893 B unpacked and 8 files (the new `review/runStatus` module's ESM/CJS outputs). The ceilings were not raised. Two Codex passes found six issues, all fixed with regression tests: onCancelled after a sent step or on a resumed sequence, an uncontained onCancelled, isPolling stuck after a rerender past the deadline, the `JBSuckerMovement` interface-to-union break (now `JBSuckerMovementByStatus`), and a self-reviewing wallet's run left busy in review.
+
+## Round 2 plan refinement (SDK_SPEC.md A to G)
+
+- **Objective:** Finish the batched spec so each client deletes its copy with no behavior change: `lastSubmittedStep` (A), saved-attempt `clear`/`onDone`/`onRetired`/`recheckMs` (B), one review queue (C), fee buyback review (D), Relayr launch journal and Safe Relayr controller view (E), `useStartOnce` (F), `useMobileWallet` (G), plus light `review/locks` and `review/machines` subpaths.
+- **System fit:** Pure machines in core `review` (React-free, on a light subpath); thin hooks in `review/react`; the fee check beside its owner in `v6/feeBuyback`; the Safe view on the controller instance that already shows progress.
+- **Reuse and simplicity:** Port the fullest client copy (Sticky's queue, jbm's fee hook, Sticky's recorded-mark effects) and settle differences toward the user. Skip one-client items: the jbm-only pending status union, revnet-only `useRelayrRun`, `payFlow`, `useSentWrites` and `batchTransition`.
+- **Evidence and unknowns:** Each machine gets transition tests and a 100% per-file coverage gate. Connect stays deprecated; Signa owns the connect controller.
+- **Verification:** Focused vitest, full `npm run check` with pinned env (check:package expected over its ceilings, jango raises them), two Codex passes, packed tarballs.
+- **Resource budget:** One writer in `sm-sdk`; replan if a client copy cannot be replaced without a behavior change.
+
+- [x] A to G as scoped above, light subpaths and graph gate
+- [x] changeset, `npm run check`, Codex (10 passes), PR update, tarballs. Review: all gates pass but check:package (ceilings raised separately); metalog items 1 and 2 dropped by ruling, item 3 (gas cap) landed.
+
 # Four-client shared SDK rules
 
 Current independent review follow-up: [Safe proposal uncertainty](safe-proposal-uncertainty-20261009.md) tracks the stale-indexer duplicate-retry regression, shared watcher fix and scoped verification. Root owns combined integration and release authority.

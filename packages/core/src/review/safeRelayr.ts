@@ -186,8 +186,45 @@ export function canReplaceSafeRelayrQuote(session: SafeRelayrSession): boolean {
   }
 }
 
+/** Where a Safe Relayr action stands once it is published or resumed. */
+export type SafeRelayrResultState =
+  | "ready"
+  | "pending"
+  | "complete"
+  | "released";
+
+/** Why a saved publication can't identify an exact quote. */
+export type SafeRelayrRecoveryReason =
+  | "missing-execution-proof"
+  | "safe-nonces-live"
+  | "safe-nonces-mixed"
+  | "safe-nonces-unavailable"
+  | "safe-nonces-consumed"
+  | "funding-unresolved"
+  /** The payment's status couldn't be read: unknown, never paid or free to pay. Retry. */
+  | "status-unknown"
+  /** The browser's clock closed the payment window before the chain's: wait for a new quote. */
+  | "quote-closing";
+
+/** One Safe's nonce check in a recovery: its execution's nonce consumed, still live, or unread. */
+export type SafeRelayrNonceCheckState = "consumed" | "live" | "unavailable";
+
+/** One Safe execution's check before it is sent. */
+export type SafeRelayrExecutionCheckState =
+  | "checking"
+  | "ready"
+  | "rechecking"
+  | "failed";
+
+/** One Safe execution's progress once sent. */
+export type SafeRelayrExecutionStatus =
+  | "pending"
+  | "confirming"
+  | "executed"
+  | "failed";
+
 export type SafeRelayrResult = {
-  state: "ready" | "pending" | "complete" | "released";
+  state: SafeRelayrResultState;
   session: SafeRelayrSession;
   payments: RelayrPayment[];
   recovery?: SafeRelayrRecovery;
@@ -195,17 +232,7 @@ export type SafeRelayrResult = {
 
 /** Read-only evidence when the saved publication cannot identify an exact quote. */
 export type SafeRelayrRecovery = {
-  reason:
-    | "missing-execution-proof"
-    | "safe-nonces-live"
-    | "safe-nonces-mixed"
-    | "safe-nonces-unavailable"
-    | "safe-nonces-consumed"
-    | "funding-unresolved"
-    /** The payment's status couldn't be read: unknown, never paid or free to pay. Retry. */
-    | "status-unknown"
-    /** The browser's clock closed the payment window before the chain's: wait for a new quote. */
-    | "quote-closing";
+  reason: SafeRelayrRecoveryReason;
   message: string;
   /** A later check may clear it: try again in a moment. */
   retryable?: true;
@@ -220,7 +247,7 @@ export type SafeRelayrRecovery = {
     safe: Address;
     nonce: number;
     currentNonce?: string;
-    state: "consumed" | "live" | "unavailable";
+    state: SafeRelayrNonceCheckState;
   }[];
 };
 
@@ -231,7 +258,7 @@ export type SafeRelayrReady = SafeRelayrResult & {
 
 export type SafeRelayrStatus = (
   index: number,
-  state: "checking" | "ready" | "rechecking" | "failed",
+  state: SafeRelayrExecutionCheckState,
   execution: SafeRelayrExecution,
 ) => void;
 
@@ -253,10 +280,43 @@ export type SafeRelayrProgress =
       session: SafeRelayrSession;
       index: number;
       execution: SafeRelayrExecution;
-      status: "pending" | "confirming" | "executed" | "failed";
+      status: SafeRelayrExecutionStatus;
       hash?: Hex;
       message?: string;
     };
+
+/**
+ * What a controller has shown since its last `reset`, for
+ * `useSyncExternalStore`: the latest phase, each execution's check and status
+ * by index, and the last result or error of a call. A new object on every
+ * change; display evidence only, like {@link SafeRelayrProgress}.
+ */
+export type SafeRelayrView = {
+  phase: SafeRelayrPhase | null;
+  checks: Readonly<Record<number, SafeRelayrExecutionCheckState>>;
+  executions: Readonly<
+    Record<
+      number,
+      { status: SafeRelayrExecutionStatus; hash?: Hex; message?: string }
+    >
+  >;
+  result: SafeRelayrResult | null;
+  /** The call running now, the latest one started. */
+  running: "prepare" | "check" | "fund" | "watch" | "exit" | null;
+  error: unknown;
+  /** The latest session progress carried (its payment, funding and executions), a copy. */
+  session: SafeRelayrSession | null;
+};
+
+const SAFE_RELAYR_VIEW: SafeRelayrView = {
+  phase: null,
+  checks: {},
+  executions: {},
+  result: null,
+  running: null,
+  error: null,
+  session: null,
+};
 
 export type SafeRelayrOptions = {
   store: SafeRelayrStore;
@@ -707,7 +767,26 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   };
   const fetchRelayr = options.fetch ?? globalThis.fetch;
   const displayedExecutions = new Map<string, string>();
-  const notify = (progress: SafeRelayrProgress, rechecking = false) => {
+  let view = SAFE_RELAYR_VIEW;
+  /** The calls in flight with what each runs, and the last call started before the last reset. */
+  const flying = new Map<number, NonNullable<SafeRelayrView["running"]>>();
+  let since = 0;
+  /** Each call's own signal, to that call: its progress names the call it came from. */
+  const callOf = new WeakMap<AbortSignal, number>();
+  const listeners = new Set<() => void>();
+  const show = (patch: Partial<SafeRelayrView>) => {
+    view = { ...view, ...patch };
+    for (const listener of listeners) void tell(listener);
+  };
+  const notify = (
+    progress: SafeRelayrProgress,
+    rechecking: boolean,
+    signal: AbortSignal | undefined,
+  ) => {
+    // A call's progress shows once it started since the last reset: a call
+    // from before it changes nothing shown. Overlapping calls of one run all show.
+    const call = signal && callOf.get(signal);
+    const shows = call !== undefined && call > since;
     if (progress.type === "execution") {
       const key = `${progress.session.id}:${progress.index}`;
       const display = JSON.stringify([
@@ -724,8 +803,27 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           previous === JSON.stringify(["executed", progress.hash, undefined]))
       )
         return;
-      displayedExecutions.set(key, display);
+      // Only a shown row is a repeat, so a held one shows from the next call.
+      if (shows) displayedExecutions.set(key, display);
     }
+    if (shows)
+      show({
+        ...(progress.session
+          ? { session: structuredClone(progress.session) }
+          : {}),
+        ...(progress.type === "phase"
+          ? { phase: progress.phase }
+          : {
+              executions: {
+                ...view.executions,
+                [progress.index]: {
+                  status: progress.status,
+                  ...(progress.hash ? { hash: progress.hash } : {}),
+                  ...(progress.message ? { message: progress.message } : {}),
+                },
+              },
+            }),
+      });
     // A view must not mutate frozen calls or turn a submitted payment into a
     // rejected operation: it gets a copy, and its failure is only logged.
     void tell(
@@ -738,7 +836,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     session?: SafeRelayrSession,
     signal?: AbortSignal,
   ) => {
-    if (!signal?.aborted) notify({ type: "phase", phase, session });
+    if (!signal?.aborted)
+      notify({ type: "phase", phase, session }, false, signal);
   };
   const savedPhase = (session: SafeRelayrSession, signal?: AbortSignal) => {
     if (session.state === "released") return;
@@ -1227,7 +1326,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     signal?: AbortSignal,
   ): Promise<SafeRelayrResult> {
     const report = (progress: SafeRelayrProgress, rechecking = false) => {
-      if (!signal?.aborted) notify(progress, rechecking);
+      if (!signal?.aborted) notify(progress, rechecking, signal);
     };
     try {
       savedPhase(session, signal);
@@ -2003,6 +2102,9 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     signal?.addEventListener("abort", stop, { once: true });
     if (signal?.aborted) stop();
     const halted = halt.signal;
+    // Its checks' progress is the watch's own.
+    const call = signal && callOf.get(signal);
+    if (call !== undefined) callOf.set(halted, call);
     try {
       const started = Date.now();
       while (true) {
@@ -2067,5 +2169,88 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     });
   }
 
-  return { prepare, check, fund, watch, exit };
+  let calls = 0;
+  /**
+   * Runs one call with its result, error and execution checks shown in the
+   * view: the latest call since the last reset shows, and so does a watch of
+   * the current run throughout, since the run waits on its polls.
+   */
+  const shown =
+    <A, R extends SafeRelayrResult>(
+      running: NonNullable<SafeRelayrView["running"]>,
+      run: (args: A) => Promise<R>,
+    ) =>
+    async (args: A): Promise<R> => {
+      const given = args as A & {
+        signal?: AbortSignal;
+        onStatus?: SafeRelayrStatus;
+        onUpdate?: (result: SafeRelayrResult) => void | Promise<void>;
+      };
+      const call = ++calls;
+      const shows = () =>
+        call === calls || (running === "watch" && call > since);
+      // What still runs once this call ends: the latest call, else a watch of the current run.
+      const still = () =>
+        flying.get(calls) ??
+        ([...flying].some(([id, kind]) => kind === "watch" && id > since)
+          ? "watch"
+          : null);
+      flying.set(call, running);
+      // A signal of its own, even when the caller shares one between calls.
+      const signal = given.signal
+        ? AbortSignal.any([given.signal])
+        : new AbortController().signal;
+      callOf.set(signal, call);
+      show({ running, error: null });
+      try {
+        const result = await run({
+          ...args,
+          signal,
+          onStatus: (
+            index: number,
+            state: SafeRelayrExecutionCheckState,
+            execution: SafeRelayrExecution,
+          ) => {
+            if (shows()) show({ checks: { ...view.checks, [index]: state } });
+            given.onStatus?.(index, state, execution);
+          },
+          ...(running === "watch"
+            ? {
+                onUpdate: (result: SafeRelayrResult) => {
+                  if (shows()) show({ result, error: null });
+                  return given.onUpdate?.(result);
+                },
+              }
+            : {}),
+        } as A);
+        flying.delete(call);
+        if (shows()) show({ result, error: null, running: still() });
+        return result;
+      } catch (error) {
+        flying.delete(call);
+        if (shows()) show({ error, running: still() });
+        throw error;
+      }
+    };
+
+  return {
+    prepare: shown("prepare", prepare),
+    check: shown("check", check),
+    fund: shown("fund", fund),
+    watch: shown("watch", watch),
+    exit: shown("exit", exit),
+    getState: () => view,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    /** Clears the view, as a new run starts. */
+    reset() {
+      since = calls += 1;
+      displayedExecutions.clear();
+      show(SAFE_RELAYR_VIEW);
+    },
+  };
 }
