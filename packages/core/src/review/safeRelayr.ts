@@ -767,6 +767,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   let view = SAFE_RELAYR_VIEW;
   /** The session the latest call is about, when its arguments name one. */
   let viewing: string | undefined;
+  /** Sessions only an earlier call (before a reset or a newer call) is about: their progress stays out. */
+  const stale = new Set<string>();
   const listeners = new Set<() => void>();
   const show = (patch: Partial<SafeRelayrView>) => {
     view = { ...view, ...patch };
@@ -794,7 +796,11 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     // After a reset, nothing shows until the next call starts, and then only
     // that call's session (a prepare's is known once it returns).
     const id = progress.session?.id;
-    if (view.running && (!viewing || !id || id === viewing))
+    if (
+      view.running &&
+      !(id && stale.has(id)) &&
+      (!viewing || !id || id === viewing)
+    )
       show(
         progress.type === "phase"
           ? { phase: progress.phase }
@@ -2167,7 +2173,9 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       };
       const call = ++calls;
       const latest = () => call === calls;
+      if (viewing) stale.add(viewing);
       viewing = (args as { sessionId?: string }).sessionId;
+      if (viewing) stale.delete(viewing);
       show({ running, error: null });
       try {
         const result = await run({
@@ -2191,6 +2199,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         } as A);
         if (latest()) {
           viewing = result.session.id;
+          stale.delete(viewing);
           show({ result, running: null });
         }
         return result;
@@ -2216,6 +2225,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     /** Clears the view, as a new run starts. */
     reset() {
       calls += 1;
+      if (viewing) stale.add(viewing);
       viewing = undefined;
       displayedExecutions.clear();
       show(SAFE_RELAYR_VIEW);

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import type { FeeReviewCall, FeeReviewContext } from "../../v6/feeBuyback.js";
@@ -82,6 +82,30 @@ describe("useFeeBuybackReview", () => {
     await render([{ ...pay }]);
     expect(await act(() => first.confirm())).toBe(false);
     expect(await act(() => seen.current!.confirm())).toBe(true);
+  });
+
+  test("approves nothing for calls whose review hasn't started", async () => {
+    const { client } = harness();
+    act(() => root!.unmount());
+    const context: FeeReviewContext = () => ({
+      client,
+      options: { trustedHooks: [], beneficiary: user },
+    });
+    const answers: boolean[] = [];
+    function Probe({ calls }: { calls: readonly FeeReviewCall[] }) {
+      const review = useFeeBuybackReview(calls, context);
+      // A consumer that confirms during the render the calls changed in.
+      useEffect(() => {
+        void review.confirm().then((ok) => answers.push(ok));
+      }, [calls]);
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () =>
+      root!.render(<Probe calls={[{ ...pay, functionName: "launch" }]} />),
+    );
+    await act(async () => root!.render(<Probe calls={[pay]} />));
+    expect(answers).toEqual([true, false]);
   });
 
   test("approves at once when nothing pays a fee", async () => {

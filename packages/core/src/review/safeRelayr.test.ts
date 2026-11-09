@@ -4759,5 +4759,25 @@ describe("Safe Relayr controller view", () => {
     });
     gateB.resolve();
     expect(await newer).toBeInstanceOf(Error);
+    // Nor a new preparation's, though its session isn't known until it returns.
+    const gateC = holdNext();
+    const again = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    const gateD = holdNext();
+    const preparing = h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution(10)],
+    });
+    gateC.resolve();
+    await again;
+    expect(h.controller.getState()).toMatchObject({
+      phase: null,
+      running: "prepare",
+    });
+    gateD.resolve();
+    expect((await preparing).session.id).not.toBe(ready.session.id);
   });
 });

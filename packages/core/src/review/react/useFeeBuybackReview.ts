@@ -19,6 +19,7 @@ export function useFeeBuybackReview(
   /** The state shown, with the review that made it: an action answers for that review only. */
   const [shown, setShown] = useState<{
     of: FeeReview | null;
+    calls: readonly FeeReviewCall[];
     state: FeeReviewState;
   }>(() => {
     const first = createFeeBuybackReview(
@@ -27,28 +28,31 @@ export function useFeeBuybackReview(
       () => undefined,
     );
     first.stop();
-    return { of: null, state: first.getState() };
+    return { of: null, calls, state: first.getState() };
   });
   useEffect(() => {
     const current: FeeReview = createFeeBuybackReview(
       calls,
       (chainId, from) => contextRef.current(chainId, from),
-      (state) => setShown({ of: current, state }),
+      (state) => setShown({ of: current, calls, state }),
     );
     review.current = current;
-    setShown({ of: current, state: current.getState() });
+    setShown({ of: current, calls, state: current.getState() });
     return () => {
       current.stop();
       review.current = null;
     };
   }, [calls]);
   const { of, state } = shown;
+  /** Rendered with calls whose review hasn't started yet: nothing may be approved. */
+  const behind = shown.calls !== calls;
   /** The review this render showed, while it is still the hook's. */
   const live = () => (of && of === review.current ? of : null);
   return {
     ...state,
     confirm: async () =>
-      !state.enabled || ((await live()?.confirm(state.result)) ?? false),
+      !behind &&
+      (!state.enabled || ((await live()?.confirm(state.result)) ?? false)),
     retry: () => live()?.retry(),
     wait: () => live()?.wait(),
   };
