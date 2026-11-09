@@ -531,6 +531,65 @@ describe("useReviewedRun", () => {
     expect(prompts).toHaveLength(0);
   });
 
+  test("a cancel whose held step can't be read yet is no cancel: the step shows once the wallet answers", async () => {
+    reviewUi();
+    const { chain, deps } = setup();
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const first = harness({ ...deps, account: ACCOUNT });
+    await expect(
+      first.run({ follow: { timeoutMs: 0 }, calls: [payCall()] }),
+    ).resolves.toMatchObject({ status: "receipt" });
+    act(() => root!.unmount());
+    // Reopened: the wallet reconnects, the engine still loads.
+    let ready = false;
+    const adapter = {
+      ...deps.adapter,
+      ready: () =>
+        ready ? Promise.resolve() : Promise.reject(new Error("reconnecting")),
+    };
+    const { seen } = harness({
+      ...deps,
+      adapter,
+      account: ACCOUNT,
+      engine: () => new Promise(() => {}),
+    });
+    const onCancelled = vi.fn();
+    const controller = new AbortController();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let running!: ReturnType<UseReviewedRunResult["run"]>;
+      act(() => {
+        running = seen.current!.run({
+          calls: [payCall()],
+          signal: controller.signal,
+          onCancelled,
+        });
+      });
+      await act(async () => {
+        controller.abort();
+        await expect(running).resolves.toBeNull();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(onCancelled).not.toHaveBeenCalled();
+      expect(seen.current!.status).not.toBe("cancelled");
+      ready = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    await rendered(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    expect(onCancelled).not.toHaveBeenCalled();
+    expect(seen.current!.status).not.toBe("cancelled");
+  });
+
   test("preloads the engine once, and again only after a failed load", async () => {
     reviewUi();
     const { deps } = setup();

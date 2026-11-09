@@ -472,16 +472,23 @@ export function useReviewedRun(
         };
         return finish;
       };
-      /** The step a run that did not finish leaves held, if any: whether it found one. */
+      /**
+       * The step a run that did not finish leaves held, if any: whether it
+       * found one, or null when the wallet could not say (its Safe mode unknown).
+       */
       const follow = async (
         finish?: (typeof watched & {})["finish"],
         released?: () => void,
-      ): Promise<boolean> => {
+      ): Promise<boolean | null> => {
         if (latest.current !== id || !deps?.account) return false;
+        const { account, adapter, hold, storage } = deps;
+        // Its Safe mode is read only once the wallet says it is known.
         try {
-          const { account, adapter, hold, storage } = deps;
-          // Its Safe mode is read only once the wallet says it is known.
           await walletReady(adapter);
+        } catch {
+          return null;
+        }
+        try {
           if (latest.current !== id) return false;
           const safe = adapter.isSafe();
           const saved = !action.scope
@@ -775,18 +782,19 @@ export function useReviewedRun(
           lastSubmittedStep: submitted,
           error: line,
           failure: cancelled ? null : error,
-          cancelled: cancelled && !sentAny,
         });
-        void follow().then((found) => {
-          if (
-            cancelled &&
-            !sentAny &&
-            !found &&
-            latest.current === id &&
-            mounted.current
-          )
-            setCancelling(onCancelled ? { onCancelled } : null);
-        });
+        // A cancel only once its hold is read and holds nothing: until the
+        // wallet says, it is read again.
+        const settle = () =>
+          void follow().then((found) => {
+            if (latest.current !== id || !mounted.current) return;
+            if (found === null) setTimeout(settle, RECEIPT_RETRY_MS);
+            else if (cancelled && !sentAny && !found) {
+              update({ cancelled: true });
+              setCancelling(onCancelled ? { onCancelled } : null);
+            }
+          });
+        settle();
         return line === null
           ? null
           : { status: "failed", error: line, failure: error };
