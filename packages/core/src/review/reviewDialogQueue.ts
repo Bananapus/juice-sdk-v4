@@ -109,11 +109,13 @@ export function createReviewQueue<P, R>(): ReviewQueue<P, R> {
           payload,
           scope: context.scope,
           account: context.account,
-          resolve,
+          resolve: (result) => {
+            request.signal?.removeEventListener("abort", abort);
+            resolve(result);
+          },
         };
-        request.signal?.addEventListener("abort", () => cancel(entry.id), {
-          once: true,
-        });
+        const abort = () => cancel(entry.id);
+        request.signal?.addEventListener("abort", abort, { once: true });
         if (active) queue.push(entry);
         else active = entry;
         emit();
@@ -126,7 +128,10 @@ export function createReviewQueue<P, R>(): ReviewQueue<P, R> {
       if (approved && entry.scope) {
         checking = true;
         emit();
-        const verified = await entry.scope.verify().catch(() => false);
+        const scope = entry.scope;
+        const verified = await Promise.resolve()
+          .then(() => scope.verify())
+          .catch(() => false);
         // A cancellation while the proof was pending already resolved it.
         if (active !== entry) return;
         approved = verified && belongs(entry);

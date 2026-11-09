@@ -533,6 +533,15 @@ export type FeeReviewState = {
 
 const FEE_WATCH_POLL_MS = 4_000;
 
+/** `fresh` reads worse than `seen`: a worse status, or a fallback fee `seen` did not show. */
+const worse = (seen: FeeResult, fresh: FeeResult) =>
+  severity[fresh.status] > severity[seen.status] ||
+  fresh.fees.some(
+    (fee) =>
+      fee.route === "fallback" &&
+      !seen.fees.some((old) => old.key === fee.key && old.route === "fallback"),
+  );
+
 /**
  * One review's fee return check: every fee-paying call simulated alone on its
  * own chain, rechecked on each new block. `confirm` resolves true only when the
@@ -632,8 +641,12 @@ export function createFeeBuybackReview(
 
   return {
     getState: () => state,
-    /** True when the person may submit: nothing pays a fee, or a fresh check matches what they saw. */
-    async confirm(): Promise<boolean> {
+    /**
+     * True when the person may submit: nothing pays a fee, or every fresh
+     * check holds and the batch reads no worse than `seen`, the result they
+     * were shown.
+     */
+    async confirm(seen: FeeResult = state.result): Promise<boolean> {
       if (!enabled) return true;
       if (!alive || state.busy || confirming) return false;
       confirming = true;
@@ -642,7 +655,10 @@ export function createFeeBuybackReview(
         const confirmed = await Promise.all(
           monitors.map((monitor) => monitor.confirm()),
         );
-        return confirmed.every(Boolean);
+        // A block refresh between one chain's check and another's can still degrade the batch.
+        return (
+          confirmed.every(Boolean) && !worse(seen, combineFeeResults(results))
+        );
       } finally {
         confirming = false;
         set({ busy: false });

@@ -41,7 +41,7 @@ export function useFeeBuybackReview(
   return {
     ...state,
     confirm: async () =>
-      review.current ? review.current.confirm() : !state.enabled,
+      review.current ? review.current.confirm(state.result) : !state.enabled,
     retry: () => review.current?.retry(),
     wait: () => review.current?.wait(),
   };

@@ -789,20 +789,22 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         return;
       displayedExecutions.set(key, display);
     }
-    show(
-      progress.type === "phase"
-        ? { phase: progress.phase }
-        : {
-            executions: {
-              ...view.executions,
-              [progress.index]: {
-                status: progress.status,
-                ...(progress.hash ? { hash: progress.hash } : {}),
-                ...(progress.message ? { message: progress.message } : {}),
+    // After a reset, nothing shows until the next call starts.
+    if (view.running)
+      show(
+        progress.type === "phase"
+          ? { phase: progress.phase }
+          : {
+              executions: {
+                ...view.executions,
+                [progress.index]: {
+                  status: progress.status,
+                  ...(progress.hash ? { hash: progress.hash } : {}),
+                  ...(progress.message ? { message: progress.message } : {}),
+                },
               },
             },
-          },
-    );
+      );
     // A view must not mutate frozen calls or turn a submitted payment into a
     // rejected operation: it gets a copy, and its failure is only logged.
     void tell(
@@ -2145,7 +2147,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   }
 
   let calls = 0;
-  /** Runs one call with its result, error and execution checks shown in the view. */
+  /**
+   * Runs one call with its result, error and execution checks shown in the
+   * view; only the latest call since the last reset shows.
+   */
   const shown =
     <A, R extends SafeRelayrResult>(
       running: NonNullable<SafeRelayrView["running"]>,
@@ -2167,19 +2172,19 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
             state: SafeRelayrExecutionCheckState,
             execution: SafeRelayrExecution,
           ) => {
-            show({ checks: { ...view.checks, [index]: state } });
+            if (latest()) show({ checks: { ...view.checks, [index]: state } });
             given.onStatus?.(index, state, execution);
           },
           ...(running === "watch"
             ? {
                 onUpdate: (result: SafeRelayrResult) => {
-                  show({ result });
+                  if (latest()) show({ result });
                   return given.onUpdate?.(result);
                 },
               }
             : {}),
         } as A);
-        show(latest() ? { result, running: null } : { result });
+        if (latest()) show({ result, running: null });
         return result;
       } catch (error) {
         if (latest()) show({ error, running: null });
@@ -2202,6 +2207,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     },
     /** Clears the view, as a new run starts. */
     reset() {
+      calls += 1;
       displayedExecutions.clear();
       show(SAFE_RELAYR_VIEW);
     },

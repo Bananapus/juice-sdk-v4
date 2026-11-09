@@ -4657,7 +4657,7 @@ describe("Safe Relayr controller view", () => {
     });
   });
 
-  it("shows watch updates, keeps the latest call running and leaves an earlier call's error out", async () => {
+  it("shows watch updates and only the latest call since the last reset", async () => {
     const h = harness();
     const ready = await h.controller.prepare({
       account: ACCOUNT,
@@ -4701,8 +4701,30 @@ describe("Safe Relayr controller view", () => {
       result: latest,
     });
     gate.resolve();
-    const earlier = await first;
-    expect(h.controller.getState().result).toBe(earlier);
+    await first;
+    expect(h.controller.getState().result).toBe(latest);
+    const slow = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await slow.promise;
+        return run();
+      },
+    );
+    const stale = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    slow.resolve();
+    await stale;
+    expect(h.controller.getState()).toEqual({
+      phase: null,
+      checks: {},
+      executions: {},
+      result: null,
+      running: null,
+      error: null,
+    });
     expect(h.controller.getState()).toMatchObject({
       running: null,
       error: null,

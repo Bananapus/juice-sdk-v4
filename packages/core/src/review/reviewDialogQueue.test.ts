@@ -129,7 +129,9 @@ describe("createReviewQueue", () => {
     await queue.finish(1, true);
     expect(await failed).toBe(false);
     queue.setContext({
-      scope: scope("p1", () => Promise.reject(new Error("rpc"))),
+      scope: scope("p1", () => {
+        throw new Error("no client");
+      }),
     });
     const thrown = queue.request("b", review);
     await queue.finish(2, true);
@@ -186,5 +188,15 @@ describe("createReviewQueue", () => {
     expect(await first).toBe(false);
     expect(await second).toBeNull();
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  test("drops its abort listener once the request resolves", async () => {
+    const queue = createReviewQueue<string, Result>();
+    const controller = new AbortController();
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const answer = queue.request("a", { ...review, signal: controller.signal });
+    await queue.finish(1, true);
+    expect(await answer).toBe(true);
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
   });
 });

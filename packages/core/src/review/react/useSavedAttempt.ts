@@ -208,9 +208,13 @@ export function useSavedAttempt<T>(
       const hash = outcome.hash;
       void onDone(outcome)
         .then(async (settled) => {
-          if (settled)
-            await retire({ by: "settled", ...(hash ? { hash } : {}) });
-          else rearm();
+          // A retirement another tab's lock refused is offered again.
+          if (
+            !settled ||
+            !(await retire({ by: "settled", ...(hash ? { hash } : {}) }))
+              .retired
+          )
+            rearm();
         })
         .catch(rearm);
     } else if (
@@ -228,17 +232,25 @@ export function useSavedAttempt<T>(
   }, [key, outcome, retire]);
 
   const status = outcome?.status;
+  const recovering = shown.of === lifecycle && shown.recovering;
+  const busy = useRef(recovering);
+  busy.current = recovering;
   useEffect(() => {
     if (!recheckMs || !status || status === "held") return;
+    // A slow recovery finishes before the next one starts.
     const timer = setInterval(() => {
-      if (typeof document === "undefined" || !document.hidden) void recover();
+      if (
+        !busy.current &&
+        (typeof document === "undefined" || !document.hidden)
+      )
+        void recover();
     }, recheckMs);
     return () => clearInterval(timer);
   }, [recheckMs, status, recover]);
 
   return {
     outcome,
-    recovering: shown.of === lifecycle && shown.recovering,
+    recovering,
     clear: clearOf(attempt, outcome, completion),
     recover,
     checkAction:

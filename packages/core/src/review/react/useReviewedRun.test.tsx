@@ -780,6 +780,29 @@ describe("useReviewedRun", () => {
     ).toMatchObject({ step: 0 });
   });
 
+  test("a settled Safe step counts as submitted on the next run, and closing its next review is no cancel", async () => {
+    const approval = await proposedThenExecuted(Infinity, {
+      calls: [approveCall(), payCall()],
+    });
+    await rendered(() =>
+      expect(approval.seen.current!.settled).toEqual({
+        step: 0,
+        finished: false,
+      }),
+    );
+    act(() => root?.unmount());
+    const again = harness({ ...approval.deps, account: ACCOUNT });
+    reviewUi(async () => null);
+    const onCancelled = vi.fn();
+    await again.run({
+      calls: [approveCall(), payCall()],
+      scope: approval.scope,
+      onCancelled,
+    });
+    await rendered(() => expect(again.seen.current!.lastSubmittedStep).toBe(0));
+    expect(onCancelled).not.toHaveBeenCalled();
+  });
+
   test("ends a followed Safe proposal's run when its hold settles it", async () => {
     // The approval settling is not the action done: running it again resumes.
     const approval = await proposedThenExecuted(Infinity, {

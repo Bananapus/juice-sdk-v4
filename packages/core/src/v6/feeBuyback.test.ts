@@ -908,6 +908,28 @@ describe("createFeeBuybackReview", () => {
     expect(await review.confirm()).toBe(false);
   });
 
+  it("refuses a confirmation when the batch reads worse than the result the person saw", async () => {
+    let swaps = true;
+    const { client, watchers } = chain();
+    client.request.mockImplementation(async ({ method }: { method: string }) =>
+      method === "eth_blockNumber" ? "0x1" : simulation(swaps),
+    );
+    const review = createFeeBuybackReview(
+      [pay],
+      () => ({ client, options: opts }),
+      vi.fn(),
+    );
+    await flush();
+    const seen = review.getState().result;
+    expect(seen.status).toBe("ready");
+    swaps = false;
+    watchers[0].onBlockNumber();
+    await flush();
+    expect(review.getState().status).toBe("fallback");
+    expect(await review.confirm(seen)).toBe(false);
+    expect(await review.confirm()).toBe(true);
+  });
+
   it("reads an unsupported chain or a call without a sender as unknown and watches nothing", async () => {
     const { client } = chain();
     const review = createFeeBuybackReview(

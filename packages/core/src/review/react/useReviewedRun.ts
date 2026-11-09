@@ -738,6 +738,24 @@ export function useReviewedRun(
               }),
           };
         }
+        // A resume can complete a step the wallet sent before the reload.
+        try {
+          const after =
+            action.scope === undefined || !deps?.account
+              ? null
+              : findReviewedSequence(action.scope, deps.account, {
+                  storage: deps.storage,
+                });
+          if (
+            after?.completed.length &&
+            keyOf(after.calls.map(sent)) === keyOf(action.calls.map(sent))
+          ) {
+            sentAny = true;
+            submit(after.completed.length - 1);
+          }
+        } catch {
+          /* An unreadable sequence adds nothing to what this run saw. */
+        }
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);

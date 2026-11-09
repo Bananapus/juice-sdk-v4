@@ -628,6 +628,27 @@ describe("useSavedAttempt", () => {
     expect(recovery.retire).toHaveBeenCalledWith(attempt, { by: "settled" });
   });
 
+  test("offers a done outcome again when its settled retirement is refused", async () => {
+    const { recovery, answer } = fakeRecovery();
+    recovery.retire.mockResolvedValueOnce({ retired: false } as Retired);
+    const attempt = attemptOf();
+    const onDone = vi.fn(async () => true);
+    const { seen, start } = harness({ recovery, attempt, client, onDone });
+    await start();
+    const done: SavedAttemptOutcome<string> = {
+      status: "done",
+      result: "failed",
+      hash: "0xab",
+    };
+    await answer(done);
+    // The refused retirement's own recovery, then the next one offers it again.
+    await answer({ ...done });
+    await act(async () => void seen.current!.recover());
+    await answer({ ...done });
+    expect(onDone).toHaveBeenCalledTimes(2);
+    expect(recovery.retire).toHaveBeenCalledTimes(2);
+  });
+
   test("tells onRetired once per retirement that was not a settlement", async () => {
     const { recovery, answer } = fakeRecovery();
     const onRetired = vi
@@ -670,6 +691,9 @@ describe("useSavedAttempt", () => {
       expect(recovery.recover).toHaveBeenCalledTimes(1);
       await answer(check);
       await act(async () => vi.advanceTimersByTime(1000));
+      expect(recovery.recover).toHaveBeenCalledTimes(2);
+      // The pending recovery finishes before another starts.
+      await act(async () => vi.advanceTimersByTime(3000));
       expect(recovery.recover).toHaveBeenCalledTimes(2);
       const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
       await act(async () => vi.advanceTimersByTime(1000));
