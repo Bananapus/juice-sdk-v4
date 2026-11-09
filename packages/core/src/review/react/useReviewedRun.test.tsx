@@ -416,6 +416,40 @@ describe("useReviewedRun", () => {
     });
   });
 
+  test("a wallet refusal after an earlier step was sent is no cancel", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (wallet.adapter.sendTransaction.mock.calls.length === 2)
+        throw Object.assign(new Error("User rejected"), { code: 4001 });
+      return send(tx);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const onCancelled = vi.fn();
+    await expect(
+      run({
+        calls: [approveCall(), payCall()],
+        scope: "pay:project-1",
+        onCancelled,
+      }),
+    ).resolves.toBeNull();
+    await rendered(() => expect(seen.current!.status).not.toBe("cancelled"));
+    expect(onCancelled).not.toHaveBeenCalled();
+  });
+
+  test("a cancel callback that fails is contained", async () => {
+    reviewUi(async () => null);
+    const { deps } = setup();
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const onCancelled = vi.fn(async () => {
+      throw new Error("the site's cancel failed");
+    });
+    await expect(run({ calls: [payCall()], onCancelled })).resolves.toBeNull();
+    await rendered(() => expect(onCancelled).toHaveBeenCalledOnce());
+    expect(seen.current!.status).toBe("cancelled");
+  });
+
   test("an abort while the engine loads ends the run cancelled", async () => {
     const prompts = reviewUi();
     const { deps } = setup();

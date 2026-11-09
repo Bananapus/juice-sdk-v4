@@ -379,6 +379,8 @@ export function useReviewedRun(
       };
       setState({ ...IDLE, phase: "review", total: action.calls.length });
       let loaded: ReviewedEngine | undefined;
+      /** A step of the action was sent before this run, or by it: never a cancel. */
+      let sentAny = false;
       setWatched(null);
       /**
        * Completes a sent step once its hold settled it, as the run would
@@ -546,6 +548,7 @@ export function useReviewedRun(
         const tracked: ReviewedSendDeps = {
           ...deps,
           onProgress: (progress) => {
+            sentAny ||= progress.step > 0 || !!progress.hash;
             tell(deps.onProgress, progress);
             update({
               phase: progress.phase,
@@ -697,11 +700,17 @@ export function useReviewedRun(
           ...IDLE,
           error: line,
           failure: cancelled ? null : error,
-          cancelled,
+          cancelled: cancelled && !sentAny,
         });
         void follow().then((found) => {
-          if (cancelled && !found && latest.current === id && mounted.current)
-            onCancelled?.();
+          if (
+            cancelled &&
+            !sentAny &&
+            !found &&
+            latest.current === id &&
+            mounted.current
+          )
+            void tell(onCancelled);
         });
         return line === null
           ? null
