@@ -1,7 +1,7 @@
 {
   "name": "@bananapus/nana-sdk-connect",
   "version": "0.6.1",
-  "description": "Connect logic shared by Juicebox clients and Signa: controller, passkey option, popup sign-in and the wagmi connector",
+  "description": "Moved to @me.jango/signa (/core, /wagmi, /react)",
   "type": "module",
   "repository": {
     "type": "git",

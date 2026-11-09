@@ -21,19 +21,12 @@ export type PasskeyWallet = {
   disconnect(): void;
   payments(): { pendingPayment(): { status: string } | null };
 };
-/** The payment states that end a payment, as Signa's wallet client defines them (`isSettledPayment`). */
-const settled = new Set([
-  "paid",
-  "reverted",
-  "cancelled",
-  "expired",
-  "refused",
-]);
+const settled = new Set(["paid", "reverted", "cancelled", "expired"]);
 
-/** The built-in way in: a passkey account at Signa. By default Signa opens in a popup
+/** The built-in way in: a passkey account at Juicebox Center. By default Center opens in a popup
  * and the page stays; the callback comes back by message and the exchange finishes here, then
- * `connected` runs. With `frame: true` Signa opens in a frame the app shows instead (the modal
- * renders it under the name the option asks for); Signa serves the sign-in framed only for apps
+ * `connected` runs. With `frame: true` Center opens in a frame the app shows instead (the modal
+ * renders it under the name the option asks for); Center serves the sign-in framed only for apps
  * its operator admits, and the page inside offers "Open as a page" when it cannot continue there.
  * When the popup is blocked, or with `popup: false`, connecting is a full-page redirect, so
  * `beforeLaunch` is where the app saves what it needs to come back to. */
@@ -49,14 +42,8 @@ export function passkeyOption(input: {
 }): ConnectOption {
   return {
     id: "juicebox-center",
-    name: "Signa account",
+    name: "Juicebox account",
     async connect({ signal, frame }) {
-      // A sign-in closed while its exchange finished must not connect the app: the person may
-      // already have chosen another wallet. The connection stays saved for their next tap.
-      const connected = async (connection: unknown) => {
-        signal.throwIfAborted();
-        await input.connected?.(connection);
-      };
       signal.throwIfAborted();
       const win = input.window ?? globalThis.window;
       // Before any await: browsers only allow the window inside the click itself.
@@ -67,7 +54,7 @@ export function passkeyOption(input: {
         const payment = wallet.payments().pendingPayment();
         if (payment && !settled.has(payment.status))
           throw new Error(
-            "Finish your pending Signa payment before signing in again.",
+            "Finish your pending Juicebox payment before signing in again.",
           );
         input.beforeLaunch?.();
         let prepared = await wallet
@@ -76,7 +63,7 @@ export function passkeyOption(input: {
             const code = (error as { code?: string } | null)?.code;
             // A callback already delivered whose exchange did not complete is finished here,
             // popup or not: the page that received it may never run again (a hand-back that
-            // failed on the way in), and a retry only replays Signa's receipt. A tab that is
+            // failed on the way in), and a retry only replays Center's receipt. A tab that is
             // already connected (a `connected` hook that failed last time) only needs telling again.
             if (
               code === "WALLET_HANDOFF_PENDING" ||
@@ -88,8 +75,8 @@ export function passkeyOption(input: {
             // settling); it is settled now, so prepare once more before reporting anything.
             if (code === "WALLET_HANDOFF_CHANGED")
               return wallet.prepareConnection();
-            // A record this tap cannot use (an abandoned handoff, a connection whose grant has
-            // run out, a record an older client wrote) is dropped and a fresh sign-in prepared.
+            // A record this tap cannot use — an abandoned handoff, a connection whose grant has
+            // run out, a record an older client wrote — is dropped and a fresh sign-in prepared.
             if (
               code !== "WALLET_HANDOFF_EXPIRED" &&
               code !== "WALLET_ALREADY_CONNECTED" &&
@@ -102,7 +89,7 @@ export function passkeyOption(input: {
         if (!prepared) {
           const restored = wallet.restoreConnection?.();
           if (restored) {
-            await connected(restored);
+            await input.connected?.(restored);
             return;
           }
           let connection: unknown;
@@ -117,17 +104,17 @@ export function passkeyOption(input: {
                 ? wallet.restoreConnection?.()
                 : null;
             if (raced) {
-              await connected(raced);
+              await input.connected?.(raced);
               return;
             }
             if (code !== "WALLET_REQUEST_REJECTED") throw error;
-            // Signa refused the replay (its window closed, or policy changed): the record can
+            // Center refused the replay (its window closed, or policy changed): the record can
             // never finish, so this same tap drops it and signs in afresh.
             wallet.disconnect();
             prepared = await wallet.prepareConnection();
           }
           if (!prepared) {
-            await connected(connection);
+            await input.connected?.(connection);
             return;
           }
         }
@@ -139,7 +126,7 @@ export function passkeyOption(input: {
           prepared.launch({ target: frameName });
           const url = await awaitFrameCallback(win!, element, signal);
           const connection = await wallet.completeConnection(url);
-          await connected(connection);
+          await input.connected?.(connection);
           return;
         }
         if (!popup) {
@@ -155,7 +142,7 @@ export function passkeyOption(input: {
         prepared.launch({ target: popupName });
         const url = await awaitPopupCallback(win!, popup, signal);
         const connection = await wallet.completeConnection(url);
-        await connected(connection);
+        await input.connected?.(connection);
       } finally {
         popup?.close();
       }

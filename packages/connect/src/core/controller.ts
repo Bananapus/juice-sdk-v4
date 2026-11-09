@@ -1,5 +1,5 @@
 /** One way in. The passkey account and every external wallet share this shape, so the modal and
- * the apps never special-case Signa. `handoff` publishes a pairing URI (WalletConnect, a mobile
+ * the apps never special-case Center. `handoff` publishes a pairing URI (WalletConnect, a mobile
  * deep link) for the app to render as a QR code or a link. */
 export type ConnectOption = {
   id: string;
@@ -11,21 +11,13 @@ export type ConnectOption = {
     signal: AbortSignal;
     handoff(uri: string): void;
     /** Asks the app to show a frame under this name for the option to continue in (the passkey
-     * sign-in at Signa, when Signa admits the app to frame it). `origin` is the page that will
+     * sign-in at Center, when Center admits the app to frame it). `origin` is the page that will
      * load in it, named in the frame's `allow` so the browser delegates passkeys to it: a frame
-     * without a `src` (Signa's launch form posts into it by name) delegates nothing otherwise. */
+     * without a `src` (Center's launch form posts into it by name) delegates nothing otherwise. */
     frame(name: string, origin: string): void;
   }): Promise<void>;
 };
-/**
- * Where a connection stands: `connecting` while an option runs, `connected`
- * once it finished (a passkey redirect may still be leaving the page, so
- * `pending` stays set), `failed` with `error`. A user's own rejection is
- * `idle`.
- */
-export type ConnectStatus = "idle" | "connecting" | "connected" | "failed";
 export type ConnectState = {
-  status: ConnectStatus;
   /** The option being connected, or null when idle. A passkey connection leaves the page, so it
    * stays pending until the browser returns. */
   pending: string | null;
@@ -47,7 +39,6 @@ export type ConnectController = {
 };
 
 const idle: ConnectState = {
-  status: "idle",
   pending: null,
   error: null,
   handoffUri: null,
@@ -77,7 +68,6 @@ export function createConnectController(
       if (!option || option.disabled || current) return;
       const controller = (current = new AbortController());
       set({
-        status: "connecting",
         pending: id,
         error: null,
         handoffUri: null,
@@ -95,19 +85,15 @@ export function createConnectController(
               set({ frameName: name, frameOrigin: origin });
           },
         });
-        if (current === controller) set({ status: "connected" });
       } catch (error) {
-        if (current === controller) {
-          const message = messageOf(error);
+        if (current === controller)
           set({
-            status: message === null ? "idle" : "failed",
             pending: null,
             handoffUri: null,
             frameName: null,
             frameOrigin: null,
-            error: message,
+            error: messageOf(error),
           });
-        }
       } finally {
         if (current === controller) current = null;
       }

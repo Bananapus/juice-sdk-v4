@@ -338,9 +338,12 @@ const budgets = {
     // A run's cancellation at the adapter's last check: 1,797,510 B packed,
     // 24,144,501 B unpacked.
     // One ending for a sent step: 1,798,864 B packed, 24,152,624 B unpacked.
-    packed: 1_802_000,
-    unpacked: 24_390_000,
-    entries: 1_843,
+    // Shared state machines (run status, review queue, fee buyback review,
+    // saved-attempt options, Relayr launch journal, light locks and machines
+    // subpaths): 1,826,211 B packed, 24,550,823 B unpacked, 1,907 files.
+    packed: 1_830_000,
+    unpacked: 24_560_000,
+    entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

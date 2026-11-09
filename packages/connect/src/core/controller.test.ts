@@ -23,7 +23,6 @@ describe("createConnectController", () => {
     );
     const first = controller.choose("wc");
     expect(controller.getState()).toEqual({
-      status: "connecting",
       pending: "wc",
       error: null,
       handoffUri: "wc:uri",
@@ -37,14 +36,13 @@ describe("createConnectController", () => {
     // A finished option keeps its pending state: a passkey launch leaves the page and the
     // app decides when the dialog goes away.
     expect(controller.getState()).toEqual({
-      status: "connected",
       pending: "wc",
       error: null,
       handoffUri: "wc:uri",
       frameName: null,
       frameOrigin: null,
     });
-    expect(seen).toHaveLength(3);
+    expect(seen).toHaveLength(2);
   });
   test("a failed option reports its message and frees the controller; an unknown or disabled option is ignored", async () => {
     const controller = createConnectController([
@@ -64,7 +62,6 @@ describe("createConnectController", () => {
     ]);
     await controller.choose("bad");
     expect(controller.getState()).toEqual({
-      status: "failed",
       pending: null,
       error: "Wallet closed.",
       handoffUri: null,
@@ -93,7 +90,6 @@ describe("createConnectController", () => {
     ]);
     await quiet.choose("rejected");
     expect(quiet.getState()).toEqual({
-      status: "idle",
       pending: null,
       error: null,
       handoffUri: null,
@@ -126,7 +122,6 @@ describe("createConnectController", () => {
     controller.cancel();
     expect(seenSignal.aborted).toBe(true);
     expect(controller.getState()).toEqual({
-      status: "idle",
       pending: null,
       error: null,
       handoffUri: null,
@@ -138,7 +133,6 @@ describe("createConnectController", () => {
     fail(new Error("aborted"));
     await run;
     expect(controller.getState()).toEqual({
-      status: "idle",
       pending: null,
       error: null,
       handoffUri: null,
@@ -147,7 +141,6 @@ describe("createConnectController", () => {
     });
     await controller.choose("ok");
     expect(controller.getState().pending).toBe("ok");
-    expect(controller.getState().status).toBe("connected");
     const unsubscribe = controller.subscribe(() => {
       throw new Error("should not run");
     });

@@ -74,35 +74,6 @@ describe("passkeyOption", () => {
     expect(connected).toHaveBeenCalledWith({ url });
     expect(p.popup.close).toHaveBeenCalled();
   });
-  test("a sign-in closed while its exchange finished does not connect the app", async () => {
-    const w = wallet(),
-      p = page(),
-      connected = vi.fn();
-    let finish!: (value: unknown) => void;
-    w.wallet.completeConnection.mockImplementation(
-      () => new Promise((resolve) => (finish = resolve)) as never,
-    );
-    const controller = new AbortController();
-    const option = passkeyOption({
-      wallet: () => w.wallet,
-      connected,
-      window: p.win,
-    });
-    const connecting = option.connect({
-      signal: controller.signal,
-      handoff: () => {},
-      frame: () => {},
-    });
-    await vi.waitFor(() => expect(w.launch).toHaveBeenCalled());
-    p.callback(url);
-    await vi.waitFor(() =>
-      expect(w.wallet.completeConnection).toHaveBeenCalled(),
-    );
-    controller.abort();
-    finish({ url });
-    await expect(connecting).rejects.toThrow();
-    expect(connected).not.toHaveBeenCalled();
-  });
   test("a blocked popup, or popup: false, falls back to the full-page redirect", async () => {
     const blocked = wallet(),
       p = page(false),
@@ -388,7 +359,7 @@ describe("passkeyOption", () => {
     });
     expect(option).toMatchObject({
       id: "juicebox-center",
-      name: "Signa account",
+      name: "Juicebox account",
     });
     await option.connect({
       signal: new AbortController().signal,
@@ -401,13 +372,7 @@ describe("passkeyOption", () => {
     expect(w.launch).toHaveBeenCalledOnce();
   });
   test("a settled payment does not block sign-in, and an expired handoff is disconnected and retried once", async () => {
-    for (const status of [
-      "paid",
-      "reverted",
-      "cancelled",
-      "expired",
-      "refused",
-    ]) {
+    for (const status of ["paid", "reverted", "cancelled", "expired"]) {
       const settled = wallet({ status });
       await passkeyOption({ wallet: () => settled.wallet }).connect({
         signal: new AbortController().signal,
@@ -459,7 +424,7 @@ describe("passkeyOption", () => {
         handoff: () => {},
         frame: () => {},
       }),
-    ).rejects.toThrow(/pending Signa payment/);
+    ).rejects.toThrow(/pending Juicebox payment/);
     const w = wallet();
     const abort = new AbortController();
     w.wallet.prepareConnection.mockImplementation(async () => {

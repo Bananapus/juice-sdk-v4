@@ -11,7 +11,7 @@ export type CenterCallbackResult =
   | { kind: "connection"; connection: unknown }
   | { kind: "payment"; status: unknown };
 
-/** Finishes whatever Signa sent the browser back for: a connection (`code`) or a payment
+/** Finishes whatever Center sent the browser back for: a connection (`code`) or a payment
  * review (`review`). Without parameters it retries the pending exchange, so a reload of the
  * callback page after a failed exchange resumes instead of starting over. */
 export async function completeCenterCallback(

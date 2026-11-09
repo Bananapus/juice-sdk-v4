@@ -1,9 +1,9 @@
-/** The passkey sign-in in a popup: the app page opens a named window, Signa's launch form targets
+/** The passkey sign-in in a popup: the app page opens a named window, Center's launch form targets
  * it, and the callback lands on the app's own origin inside that window. The callback page hands
  * its URL back to the page by message, the page finishes the exchange, and the popup closes. Every
  * message is same-origin: the page and the callback page are both the app. */
 export const popupName = "juicebox-center";
-/** The frame the sign-in continues in when Signa admits the app to frame it. */
+/** The frame the sign-in continues in when Center admits the app to frame it. */
 export const frameName = "juicebox-center-frame";
 const callbackType = "juicebox-center:callback";
 const receivedType = "juicebox-center:received";
@@ -80,7 +80,7 @@ export function awaitPopupCallback(
   });
 }
 
-/** The passkey sign-in in a frame the app shows: Signa's launch form targets it, the callback lands
+/** The passkey sign-in in a frame the app shows: Center's launch form targets it, the callback lands
  * on the app's own origin inside it, and the callback page hands its URL up by message. Resolves
  * with that URL; rejects with an AbortError when the signal aborts. Same-origin messages only. */
 export function awaitFrameCallback(
@@ -122,17 +122,13 @@ export function awaitFrameCallback(
  * window (a popup sign-in) or frames it (a framed sign-in or payment review), and closes a popup
  * once that page acknowledges. The page may be slow to answer (a backgrounded
  * tab on a phone), so the offer repeats until it is acknowledged or the opener closes. The cap
- * (default fifteen minutes, the life of a Signa request) covers an opener that navigated away;
+ * (default fifteen minutes, the life of a Center request) covers an opener that navigated away;
  * after it the callback page completes the exchange itself, as it does after a full-page
  * redirect, while still closing on a late acknowledgement. False when there is no same-origin
  * opener. */
 export function deliverCenterCallback(
   url: string,
-  options: {
-    window?: Window | undefined;
-    timeoutMs?: number;
-    retryMs?: number;
-  } = {},
+  options: { window?: Window; timeoutMs?: number; retryMs?: number } = {},
 ): Promise<boolean> {
   const win = options.window;
   if (!win) return Promise.resolve(false);
