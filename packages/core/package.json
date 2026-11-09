@@ -111,6 +111,16 @@
       "import": "./dist/esm/review/safeRelayr.js",
       "require": "./dist/cjs/review/safeRelayr.js"
     },
+    "./review/locks": {
+      "types": "./dist/esm/review/locks.d.ts",
+      "import": "./dist/esm/review/locks.js",
+      "require": "./dist/cjs/review/locks.js"
+    },
+    "./review/machines": {
+      "types": "./dist/esm/review/machines.d.ts",
+      "import": "./dist/esm/review/machines.js",
+      "require": "./dist/cjs/review/machines.js"
+    },
     "./review/react": {
       "types": "./dist/esm/review/react/index.d.ts",
       "import": "./dist/esm/review/react/index.js",

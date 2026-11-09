@@ -64,7 +64,7 @@ function walk(entry) {
       }
     }
   }
-  return { bare, files: seen.size };
+  return { bare, files: seen.size, seen };
 }
 
 let failed = false;
@@ -80,13 +80,39 @@ for (const format of ["esm", "cjs"]) {
     );
 }
 
+// The light subpaths load no Safe, Relayr or decoding module.
+for (const format of ["esm", "cjs"])
+  for (const entry of ["locks", "machines"]) {
+    const { bare, seen } = walk(`${dist}/${format}/review/${entry}.js`);
+    const heavy = [...seen].filter((file) =>
+      /\/(?:safe\w*|relayr|relayrSend|relayrRelease|decode\w*|send|writeRecovery)\.js$|\/index\.js$/.test(
+        file.slice(dist.length),
+      ),
+    );
+    if (
+      heavy.length ||
+      bare.size > 1 ||
+      [...bare].some((name) => name !== "viem")
+    ) {
+      failed = true;
+      console.error(
+        `${format}: review/${entry} reaches ${[...heavy, ...bare].join(", ")}`,
+      );
+    } else console.log(`${format}: review/${entry}, ${seen.size} files`);
+  }
+
 // Import and require it as the app would, from the fixture.
 const load = `const esm = await import("@bananapus/nana-sdk-core/review/react");
 const cjs = (await import("node:module")).createRequire(import.meta.url)("@bananapus/nana-sdk-core/review/react");
-for (const name of ["useHeldWrite", "useHeldIntents", "useHeldWrites", "HeldWritesNotice", "useSavedAttempt", "useHeldSend", "useReviewedRun"])
+for (const name of ["useHeldWrite", "useHeldIntents", "useHeldWrites", "HeldWritesNotice", "useSavedAttempt", "useHeldSend", "useReviewedRun", "useFeeBuybackReview", "useStartOnce"])
   if (typeof esm[name] !== "function" || typeof cjs[name] !== "function") throw new Error("missing " + name);
 try { (await import("node:module")).createRequire(import.meta.url).resolve("wagmi"); throw new Error("wagmi is installed"); }
-catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }`;
+catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
+const locks = await import("@bananapus/nana-sdk-core/review/locks");
+const machines = await import("@bananapus/nana-sdk-core/review/machines");
+for (const name of ["reviewedRunStatus", "createReviewQueue", "advanceRelayrLaunch"])
+  if (typeof machines[name] !== "function") throw new Error("missing " + name);
+if (typeof locks.browserLocks !== "function") throw new Error("missing browserLocks");`;
 const run = spawnSync(
   process.execPath,
   ["--input-type=module", "--eval", load],
