@@ -768,8 +768,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   const fetchRelayr = options.fetch ?? globalThis.fetch;
   const displayedExecutions = new Map<string, string>();
   let view = SAFE_RELAYR_VIEW;
-  /** The calls in flight, and the last call started before the last reset. */
-  const flying = new Set<number>();
+  /** The calls in flight with what each runs, and the last call started before the last reset. */
+  const flying = new Map<number, NonNullable<SafeRelayrView["running"]>>();
   let since = 0;
   const listeners = new Set<() => void>();
   const show = (patch: Partial<SafeRelayrView>) => {
@@ -780,7 +780,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     // Progress names no call: while a call from before the last reset still
     // runs, it could be that call's, so it shows only when every call in
     // flight started since. Overlapping calls of one run all show.
-    const shows = flying.size > 0 && [...flying].every((call) => call > since);
+    const shows =
+      flying.size > 0 && [...flying.keys()].every((call) => call > since);
     if (progress.type === "execution") {
       const key = `${progress.session.id}:${progress.index}`;
       const display = JSON.stringify([
@@ -2162,7 +2163,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   let calls = 0;
   /**
    * Runs one call with its result, error and execution checks shown in the
-   * view; only the latest call since the last reset shows.
+   * view: the latest call since the last reset shows, and so does a watch of
+   * the current run throughout, since the run waits on its polls.
    */
   const shown =
     <A, R extends SafeRelayrResult>(
@@ -2175,8 +2177,15 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         onUpdate?: (result: SafeRelayrResult) => void | Promise<void>;
       };
       const call = ++calls;
-      const latest = () => call === calls;
-      flying.add(call);
+      const shows = () =>
+        call === calls || (running === "watch" && call > since);
+      // What still runs once this call ends: the latest call, else a watch of the current run.
+      const still = () =>
+        flying.get(calls) ??
+        ([...flying].some(([id, kind]) => kind === "watch" && id > since)
+          ? "watch"
+          : null);
+      flying.set(call, running);
       show({ running, error: null });
       try {
         const result = await run({
@@ -2186,25 +2195,25 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
             state: SafeRelayrExecutionCheckState,
             execution: SafeRelayrExecution,
           ) => {
-            if (latest()) show({ checks: { ...view.checks, [index]: state } });
+            if (shows()) show({ checks: { ...view.checks, [index]: state } });
             given.onStatus?.(index, state, execution);
           },
           ...(running === "watch"
             ? {
                 onUpdate: (result: SafeRelayrResult) => {
-                  if (latest()) show({ result });
+                  if (shows()) show({ result });
                   return given.onUpdate?.(result);
                 },
               }
             : {}),
         } as A);
-        if (latest()) show({ result, running: null });
+        flying.delete(call);
+        if (shows()) show({ result, running: still() });
         return result;
       } catch (error) {
-        if (latest()) show({ error, running: null });
-        throw error;
-      } finally {
         flying.delete(call);
+        if (shows()) show({ error, running: still() });
+        throw error;
       }
     };
 

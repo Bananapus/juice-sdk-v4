@@ -4879,14 +4879,20 @@ describe("Safe Relayr controller view", () => {
         })
       ).state,
     ).toBe("pending");
-    expect(h.controller.getState().executions).toMatchObject({
-      0: { status: "executed", hash: HASH },
+    expect(h.controller.getState()).toMatchObject({
+      executions: { 0: { status: "executed", hash: HASH } },
+      running: "watch",
     });
     mineSafe(h, calls[1], BLOCK);
     h.setRecords(destinationRecords(calls, [HASH, BLOCK]));
     resume.resolve();
     expect((await watching).state).toBe("complete");
     expect(polls).toBeGreaterThan(1);
+    expect(h.controller.getState()).toMatchObject({
+      phase: "complete",
+      result: { state: "complete" },
+      running: null,
+    });
     expect(h.controller.getState().executions).toMatchObject({
       0: { status: "executed", hash: HASH },
       1: { status: "executed", hash: BLOCK },
