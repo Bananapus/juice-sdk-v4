@@ -765,10 +765,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   const fetchRelayr = options.fetch ?? globalThis.fetch;
   const displayedExecutions = new Map<string, string>();
   let view = SAFE_RELAYR_VIEW;
-  /** The session the latest call is about, when its arguments name one. */
-  let viewing: string | undefined;
-  /** Sessions only an earlier call (before a reset or a newer call) is about: their progress stays out. */
-  const stale = new Set<string>();
+  /** The calls in flight: progress shows only while the latest call is the only one. */
+  const flying = new Set<number>();
   const listeners = new Set<() => void>();
   const show = (patch: Partial<SafeRelayrView>) => {
     view = { ...view, ...patch };
@@ -793,14 +791,9 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         return;
       displayedExecutions.set(key, display);
     }
-    // After a reset, nothing shows until the next call starts, and then only
-    // that call's session (a prepare's is known once it returns).
-    const id = progress.session?.id;
-    if (
-      view.running &&
-      !(id && stale.has(id)) &&
-      (!viewing || !id || id === viewing)
-    )
+    // Progress names no call: with overlapping calls, or after a reset, it
+    // could be another operation's, so it shows only from the latest call alone.
+    if (flying.size === 1 && flying.has(calls))
       show(
         progress.type === "phase"
           ? { phase: progress.phase }
@@ -2173,9 +2166,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       };
       const call = ++calls;
       const latest = () => call === calls;
-      if (viewing) stale.add(viewing);
-      viewing = (args as { sessionId?: string }).sessionId;
-      if (viewing) stale.delete(viewing);
+      flying.add(call);
       show({ running, error: null });
       try {
         const result = await run({
@@ -2197,15 +2188,13 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
               }
             : {}),
         } as A);
-        if (latest()) {
-          viewing = result.session.id;
-          stale.delete(viewing);
-          show({ result, running: null });
-        }
+        if (latest()) show({ result, running: null });
         return result;
       } catch (error) {
         if (latest()) show({ error, running: null });
         throw error;
+      } finally {
+        flying.delete(call);
       }
     };
 
@@ -2225,8 +2214,6 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     /** Clears the view, as a new run starts. */
     reset() {
       calls += 1;
-      if (viewing) stale.add(viewing);
-      viewing = undefined;
       displayedExecutions.clear();
       show(SAFE_RELAYR_VIEW);
     },

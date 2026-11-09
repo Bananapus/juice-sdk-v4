@@ -77,7 +77,10 @@ describe("useFeeBuybackReview", () => {
 
   test("an earlier render's actions answer for its own calls only", async () => {
     const { seen, render } = harness();
+    await render([{ ...pay, functionName: "launch" }]);
+    const noFee = seen.current!;
     await render([pay]);
+    expect(await act(() => noFee.confirm())).toBe(false);
     const first = seen.current!;
     await render([{ ...pay }]);
     expect(await act(() => first.confirm())).toBe(false);

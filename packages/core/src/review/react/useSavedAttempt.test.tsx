@@ -9,7 +9,7 @@ import {
   type SavedAttemptRecovery,
   type WriteHoldClient,
 } from "../index.js";
-import { act, StrictMode, useLayoutEffect } from "react";
+import { act, StrictMode, useEffect, useLayoutEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Address } from "viem";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
@@ -649,6 +649,43 @@ describe("useSavedAttempt", () => {
     await answer({ ...done });
     expect(onDone).toHaveBeenCalledTimes(2);
     expect(recovery.retire).toHaveBeenCalledTimes(2);
+  });
+
+  test("tells nothing for an attempt the app replaced before the callback ran", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const onRetired = vi.fn();
+    function Swap() {
+      const [attempt, setAttempt] = useState(() => attemptOf("launch:a"));
+      const result = useSavedAttempt({ recovery, attempt, client, onRetired });
+      useEffect(() => {
+        if (result.outcome?.status === "none")
+          setAttempt(attemptOf("launch:b"));
+      }, [result.outcome]);
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Swap />));
+    await answer({ status: "none", retired: "check" });
+    expect(onRetired).not.toHaveBeenCalled();
+  });
+
+  test("hands no done outcome for an attempt the app replaced before the callback ran", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const onDone = vi.fn(async () => true);
+    function Swap() {
+      const [attempt, setAttempt] = useState(() => attemptOf("launch:a"));
+      const result = useSavedAttempt({ recovery, attempt, client, onDone });
+      useEffect(() => {
+        if (result.outcome?.status === "done")
+          setAttempt(attemptOf("launch:b"));
+      }, [result.outcome]);
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Swap />));
+    await answer({ status: "done", result: "failed", hash: "0x1" });
+    expect(onDone).not.toHaveBeenCalled();
+    expect(recovery.retire).not.toHaveBeenCalled();
   });
 
   test("tells onRetired once per retirement that was not a settlement", async () => {

@@ -206,8 +206,9 @@ export function useSavedAttempt<T>(
     if (outcome.status === "done" && onDone) {
       handed.current = mark;
       const hash = outcome.hash;
+      // Handed only while its attempt is still the hook's: a replacement's never.
       void Promise.resolve()
-        .then(() => onDone(outcome))
+        .then(() => (current(lifecycle) ? onDone(outcome) : true))
         .then(async (settled) => {
           // A retirement another tab's lock refused is offered again.
           if (
@@ -227,10 +228,10 @@ export function useSavedAttempt<T>(
       handed.current = mark;
       const by = outcome.retired;
       void Promise.resolve()
-        .then(() => onRetired(by))
+        .then(() => (current(lifecycle) ? onRetired(by) : undefined))
         .catch(rearm);
     }
-  }, [key, outcome, retire]);
+  }, [key, lifecycle, outcome, retire]);
 
   const status = outcome?.status;
   const recovering = shown.of === lifecycle && shown.recovering;

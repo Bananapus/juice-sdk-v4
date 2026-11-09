@@ -16,6 +16,9 @@ export function useFeeBuybackReview(
   const contextRef = useRef(context);
   contextRef.current = context;
   const review = useRef<FeeReview | null>(null);
+  /** The calls last rendered: an action from an earlier render answers for nothing. */
+  const rendered = useRef(calls);
+  rendered.current = calls;
   /** The state shown, with the review that made it: an action answers for that review only. */
   const [shown, setShown] = useState<{
     of: FeeReview | null;
@@ -44,14 +47,14 @@ export function useFeeBuybackReview(
     };
   }, [calls]);
   const { of, state } = shown;
-  /** Rendered with calls whose review hasn't started yet: nothing may be approved. */
-  const behind = shown.calls !== calls;
+  /** These calls are the latest and their review has started. */
+  const current = () => rendered.current === calls && shown.calls === calls;
   /** The review this render showed, while it is still the hook's. */
   const live = () => (of && of === review.current ? of : null);
   return {
     ...state,
     confirm: async () =>
-      !behind &&
+      current() &&
       (!state.enabled || ((await live()?.confirm(state.result)) ?? false)),
     retry: () => live()?.retry(),
     wait: () => live()?.wait(),
