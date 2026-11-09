@@ -683,20 +683,28 @@ export type JBSuckerMovementStatus = "pending" | "claimable" | "claimed";
 /** Bridge family used by a sucker. Unknown values must fail closed for fees. */
 export type JBSuckerTransport = "ccip" | "native" | "unknown";
 
-/** Verified movement reconstructed from sucker logs and destination state. */
-export interface JBSuckerMovement {
+/**
+ * Verified movement reconstructed from sucker logs and destination state:
+ * only a `claimable` one carries the proof verified against the destination
+ * inbox root, and only a `pending` one can be executed.
+ */
+export type JBSuckerMovement = {
   sourceToken: Address;
   remoteToken: Address;
   leaf: JBLeaf;
   leafHash: Hex;
   outboxRoot: Hex;
   blockNumber: bigint;
-  status: JBSuckerMovementStatus;
-  /** True when a pending leaf has not yet been included in a toRemote send. */
-  canExecute: boolean;
-  /** Present only when verified against the destination inbox root. */
-  proof: JBLeafProof | null;
-}
+} & (
+  | { status: "claimable"; canExecute: false; proof: JBLeafProof }
+  | {
+      status: "pending";
+      /** True when the leaf has not yet been included in a toRemote send. */
+      canExecute: boolean;
+      proof: null;
+    }
+  | { status: "claimed"; canExecute: false; proof: null }
+);
 
 /** Pure status classification shared by bridge movement lists. */
 export function classifySuckerMovement({
@@ -709,7 +717,10 @@ export function classifySuckerMovement({
   index: number;
   deliveredCount: number;
   sentCount: number;
-}): { status: JBSuckerMovementStatus; canExecute: boolean } {
+}):
+  | { status: "claimed"; canExecute: false }
+  | { status: "claimable"; canExecute: false }
+  | { status: "pending"; canExecute: boolean } {
   if (executed) return { status: "claimed", canExecute: false };
   if (index < deliveredCount) {
     return { status: "claimable", canExecute: false };
@@ -837,14 +848,14 @@ export async function getSuckerMovements(
         "The destination sucker's executed leaf does not match the reconstructed outbox.",
       );
     }
-    const { status, canExecute } = classifySuckerMovement({
+    const classified = classifySuckerMovement({
       executed: executedHash.toLowerCase() !== zeroHash,
       index,
       deliveredCount,
       sentCount,
     });
     const proof =
-      status === "claimable"
+      classified.status === "claimable"
         ? suckerLeafProof(leafHashes.slice(0, deliveredCount), index)
         : null;
     if (
@@ -870,9 +881,9 @@ export async function getSuckerMovements(
       leafHash: outboxLeaf.hashed,
       outboxRoot: outboxLeaf.root,
       blockNumber: outboxLeaf.blockNumber,
-      status,
-      canExecute,
-      proof,
+      ...(classified.status === "claimable"
+        ? { ...classified, proof: proof! }
+        : { ...classified, proof: null }),
     };
   });
 }
