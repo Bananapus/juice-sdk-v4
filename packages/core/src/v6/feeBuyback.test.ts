@@ -970,6 +970,25 @@ describe("createFeeBuybackReview", () => {
     ]);
   });
 
+  it("stays checking while one chain is unanswered, however often another answers", async () => {
+    const a = chain();
+    const b = chain();
+    b.client.request.mockImplementation(() => new Promise(() => {}));
+    const review = createFeeBuybackReview(
+      [pay, { ...pay, chainId: 2 }],
+      (chainId) => (chainId === 1 ? a : b).context(),
+      vi.fn(),
+    );
+    await flush();
+    a.watchers[0].onBlockNumber();
+    await flush();
+    expect(review.getState()).toMatchObject({
+      status: "checking",
+      busy: true,
+      settled: false,
+    });
+  });
+
   it("answers false for a confirmation its review stopped during", async () => {
     const { context } = chain();
     const review = createFeeBuybackReview([pay], context, vi.fn());

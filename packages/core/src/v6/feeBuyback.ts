@@ -579,7 +579,8 @@ export function createFeeBuybackReview(
   const enabled = checked.length > 0;
   const results: FeeResult[] = checked.map(unknownResult);
   let alive = true;
-  let pending = checked.length;
+  /** The monitors this round still waits on: each counts once, however often it answers. */
+  let pending = new Set(checked.keys());
   let confirming = false;
   let state: FeeReviewState;
   const view = (patch: Partial<FeeReviewState>): FeeReviewState => {
@@ -629,7 +630,7 @@ export function createFeeBuybackReview(
       (next) => {
         results[index] = next;
         publish();
-        if (alive && pending > 0 && --pending === 0)
+        if (alive && pending.delete(index) && pending.size === 0)
           set({ busy: false, settled: true });
       },
     ),
@@ -684,7 +685,7 @@ export function createFeeBuybackReview(
     retry() {
       if (!enabled) return;
       set({ busy: true });
-      pending = monitors.length;
+      pending = new Set(monitors.keys());
       for (const monitor of monitors) void monitor.refresh();
     },
     wait: () => set({ waiting: true }),
