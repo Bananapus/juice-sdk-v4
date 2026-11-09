@@ -218,9 +218,19 @@ export type JBCenterRelayRequest = {
   setup: JBCenterRelayCall[];
 };
 
+const JBCENTER_DEPLOY_STATUSES = [
+  "queued",
+  "sent",
+  "confirmed",
+  "failed",
+] as const;
+
+/** Where Center's deploy of an intent stands on one chain. */
+export type JBCenterDeployStatus = (typeof JBCENTER_DEPLOY_STATUSES)[number];
+
 export type JBCenterIntentDeploy = {
   chainId: number;
-  status: "queued" | "sent" | "confirmed" | "failed";
+  status: JBCenterDeployStatus;
   transactionHash: Hex | null;
   bundleUuid: string | null;
   error: string | null;
@@ -432,13 +442,6 @@ function isDeployment(value: unknown): value is JBCenterDeployment {
     (value.forwarded === undefined || typeof value.forwarded === "boolean")
   );
 }
-
-const JBCENTER_DEPLOY_STATUSES = [
-  "queued",
-  "sent",
-  "confirmed",
-  "failed",
-] as const;
 
 function isIntentDeploy(value: unknown): value is JBCenterIntentDeploy {
   return (
