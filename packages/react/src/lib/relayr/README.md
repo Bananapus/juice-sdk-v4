@@ -20,6 +20,6 @@ DOCS: https://relayr-docs-staging.up.railway.app
    - use `payment_info[selected_chain_id]` from the `getRelayrTxQuote` response as argument
 
 4. Poll for the transaction bundle's status with `useGetRelayrTxBundle`
-   - call `startPolling` with `bundle_uuid` from `getRelayrTxQuote` response
+   - call `startPolling` with `bundle_uuid` from `getRelayrTxQuote` response, and the number of destination transactions, so a bundle Relayr has reported only part of is not complete
    - `isPolling` remains true while a selected bundle is pending; `isFetching` identifies the individual HTTP request in flight
-5. Check `isComplete` or `hasFailed` on `useGetRelayrTxBundle` to determine when all destination transactions have reached a terminal state. Relayr's `Success` and `Completed` states are both successful.
+5. Check `isComplete` or `hasFailed` on `useGetRelayrTxBundle` to determine when all destination transactions have reached a terminal state. Relayr's `success` and `completed` states, in any case, are both successful. Polling stops after five minutes (`timedOut`); a failed read is polled again.
