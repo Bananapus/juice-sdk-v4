@@ -1,4 +1,5 @@
 import type { HeldWritePhase } from "./heldWrite.js";
+import { HELD_CONFIRMING_LINE } from "./messages.js";
 import type { ReviewedProgress } from "./send.js";
 
 /**
@@ -37,18 +38,23 @@ export type ReviewedRunStatusInput = {
   phase: ReviewedProgress["phase"] | "idle";
   error: string | null;
   settled: { step: number; finished: boolean } | null;
-  held: { phase: HeldWritePhase } | null;
+  held: { phase: HeldWritePhase; line?: string | null } | null;
   /** The last run ended cancelled. */
   cancelled?: boolean;
 };
 
 /** A held step's status, or null when its hold holds nothing to show. */
-function heldStatus(phase: HeldWritePhase): ReviewedRunStatus | null {
-  switch (phase) {
+function heldStatus(
+  held: NonNullable<ReviewedRunStatusInput["held"]>,
+): ReviewedRunStatus | null {
+  switch (held.phase) {
     case "awaiting":
       return "proposed";
     case "confirming":
-      return "receipt";
+      // Confirming that has waited long enough to say more (still in the wallet, say) shows its line and exit.
+      return held.line && held.line !== HELD_CONFIRMING_LINE
+        ? "held"
+        : "receipt";
     case "held":
     case "succeeded":
       return "held";
@@ -67,7 +73,7 @@ export function reviewedRunStatus(run: ReviewedRunStatusInput): {
   status: ReviewedRunStatus;
   busy: boolean;
 } {
-  const held = run.held ? heldStatus(run.held.phase) : null;
+  const held = run.held ? heldStatus(run.held) : null;
   const status: ReviewedRunStatus =
     run.phase === "done"
       ? "done"

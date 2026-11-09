@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { HELD_CONFIRMING_LINE, WRITE_HOLD_PENDING_LINE } from "./messages.js";
 import {
   reviewedRunStatus,
   type ReviewedRunStatus,
@@ -35,6 +36,30 @@ describe("reviewedRunStatus", () => {
       { phase: "receipt", held: { phase: "confirming" } },
       "receipt",
       true,
+    ],
+    [
+      "confirming, its hold's line confirming",
+      {
+        phase: "receipt",
+        held: { phase: "confirming", line: HELD_CONFIRMING_LINE },
+      },
+      "receipt",
+      true,
+    ],
+    [
+      "confirming, still pending in the wallet",
+      {
+        phase: "receipt",
+        held: { phase: "confirming", line: WRITE_HOLD_PENDING_LINE },
+      },
+      "held",
+      false,
+    ],
+    [
+      "still pending in the wallet after the run",
+      { held: { phase: "confirming", line: WRITE_HOLD_PENDING_LINE } },
+      "held",
+      false,
     ],
     ["proposed", { phase: "proposed" }, "proposed", false],
     [
