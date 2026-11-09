@@ -316,6 +316,8 @@ describe("useReviewedRun", () => {
       state: { status: "held-no-hash" },
     });
     expect(seen.current!.error).toBe(seen.current!.held!.line);
+    // A send with no hash is not counted as submitted.
+    expect(seen.current!.lastSubmittedStep).toBeNull();
     // Held wins over the failure that left it: the hold's line and exit show.
     expect(seen.current!.status).toBe("held");
 
@@ -1192,6 +1194,34 @@ describe("useReviewedRun", () => {
     await expect(run(action)).resolves.toMatchObject({ status: "done" });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(4);
     expect(onConfirmed).toHaveBeenCalledTimes(4);
+  });
+
+  test("a resumed run counts its sent step still confirming as submitted", async () => {
+    reviewUi();
+    const { chain, deps } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const payment = `0x${"2".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === payment) throw new Error("lagging node");
+      return read(args);
+    });
+    const action = {
+      ...HANDED_BACK,
+      calls: [approveCall(), payCall()],
+      scope: "pay:project-1",
+    };
+    const first = harness({ ...deps, account: ACCOUNT });
+    await expect(first.run(action)).resolves.toMatchObject({
+      status: "receipt",
+      step: 1,
+    });
+    act(() => root!.unmount());
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await run(action);
+    await rendered(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    expect(seen.current!.lastSubmittedStep).toBe(1);
   });
 
   test("a sped-up send the hold verified is acknowledged by its mined hash, so the next run sends", async () => {

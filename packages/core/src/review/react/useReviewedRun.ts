@@ -6,6 +6,7 @@ import {
   errorLine,
   findReviewedSequence,
   isDefiniteWalletRejection,
+  listReviewedWrites,
   openStepHold,
   RECEIPT_RETRY_MS,
   REVIEWED_ACCOUNT_CHANGED_LINE,
@@ -617,6 +618,20 @@ export function useReviewedRun(
           submit(saved.completed.length - 1);
         }
         if (saved?.proposed) submit(saved.proposed.step);
+        // Its step in flight counts once the wallet returned its hash.
+        const sending = saved?.sending;
+        if (
+          sending &&
+          listReviewedWrites(
+            { chainId: saved.calls[sending.step].chainId, account },
+            { storage: deps.storage },
+          ).some(
+            ({ record }) => record.id === sending.reservation && !!record.hash,
+          )
+        ) {
+          sentAny = true;
+          submit(sending.step);
+        }
         const onSubmitted: ReviewedAction["onSubmitted"] = (
           call,
           step,
