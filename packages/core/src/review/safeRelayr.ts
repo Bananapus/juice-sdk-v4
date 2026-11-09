@@ -771,17 +771,22 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   /** The calls in flight with what each runs, and the last call started before the last reset. */
   const flying = new Map<number, NonNullable<SafeRelayrView["running"]>>();
   let since = 0;
+  /** Each call's own signal, to that call: its progress names the call it came from. */
+  const callOf = new WeakMap<AbortSignal, number>();
   const listeners = new Set<() => void>();
   const show = (patch: Partial<SafeRelayrView>) => {
     view = { ...view, ...patch };
     for (const listener of listeners) void tell(listener);
   };
-  const notify = (progress: SafeRelayrProgress, rechecking = false) => {
-    // Progress names no call: while a call from before the last reset still
-    // runs, it could be that call's, so it shows only when every call in
-    // flight started since. Overlapping calls of one run all show.
-    const shows =
-      flying.size > 0 && [...flying.keys()].every((call) => call > since);
+  const notify = (
+    progress: SafeRelayrProgress,
+    rechecking: boolean,
+    signal: AbortSignal | undefined,
+  ) => {
+    // A call's progress shows once it started since the last reset: a call
+    // from before it changes nothing shown. Overlapping calls of one run all show.
+    const call = signal && callOf.get(signal);
+    const shows = call !== undefined && call > since;
     if (progress.type === "execution") {
       const key = `${progress.session.id}:${progress.index}`;
       const display = JSON.stringify([
@@ -831,7 +836,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     session?: SafeRelayrSession,
     signal?: AbortSignal,
   ) => {
-    if (!signal?.aborted) notify({ type: "phase", phase, session });
+    if (!signal?.aborted)
+      notify({ type: "phase", phase, session }, false, signal);
   };
   const savedPhase = (session: SafeRelayrSession, signal?: AbortSignal) => {
     if (session.state === "released") return;
@@ -1320,7 +1326,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     signal?: AbortSignal,
   ): Promise<SafeRelayrResult> {
     const report = (progress: SafeRelayrProgress, rechecking = false) => {
-      if (!signal?.aborted) notify(progress, rechecking);
+      if (!signal?.aborted) notify(progress, rechecking, signal);
     };
     try {
       savedPhase(session, signal);
@@ -2096,6 +2102,9 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     signal?.addEventListener("abort", stop, { once: true });
     if (signal?.aborted) stop();
     const halted = halt.signal;
+    // Its checks' progress is the watch's own.
+    const call = signal && callOf.get(signal);
+    if (call !== undefined) callOf.set(halted, call);
     try {
       const started = Date.now();
       while (true) {
@@ -2173,6 +2182,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     ) =>
     async (args: A): Promise<R> => {
       const given = args as A & {
+        signal?: AbortSignal;
         onStatus?: SafeRelayrStatus;
         onUpdate?: (result: SafeRelayrResult) => void | Promise<void>;
       };
@@ -2186,10 +2196,16 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           ? "watch"
           : null);
       flying.set(call, running);
+      // A signal of its own, even when the caller shares one between calls.
+      const signal = given.signal
+        ? AbortSignal.any([given.signal])
+        : new AbortController().signal;
+      callOf.set(signal, call);
       show({ running, error: null });
       try {
         const result = await run({
           ...args,
+          signal,
           onStatus: (
             index: number,
             state: SafeRelayrExecutionCheckState,

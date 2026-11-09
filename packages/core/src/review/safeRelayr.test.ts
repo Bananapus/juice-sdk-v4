@@ -4898,4 +4898,62 @@ describe("Safe Relayr controller view", () => {
       1: { status: "executed", hash: BLOCK },
     });
   });
+
+  it("shows a new run's progress while a watch from before the reset still runs", async () => {
+    const h = harness();
+    const calls = [execution()];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    h.mined();
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      const paid = await adapter(options);
+      h.setPaymentReceived(true);
+      h.setRecords(destinationRecords(calls, [undefined]));
+      return paid;
+    });
+    await h.controller.fund({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      paymentChainId: 1,
+    });
+    const polled = deferred();
+    const resume = deferred();
+    let polls = 0;
+    const watching = h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      intervalMs: 1,
+      timeoutMs: 60_000,
+      onUpdate: async () => {
+        if ((polls += 1) > 1) return;
+        polled.resolve();
+        await resume.promise;
+      },
+    });
+    await polled.promise;
+    h.controller.reset();
+    const next = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution(10)],
+    });
+    expect(h.controller.getState()).toMatchObject({
+      result: next,
+      phase: expect.any(String),
+      session: { id: next.session.id },
+    });
+    // The old watch's later polls and its end change nothing shown.
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH]));
+    resume.resolve();
+    expect((await watching).state).toBe("complete");
+    expect(h.controller.getState()).toMatchObject({
+      result: next,
+      executions: {},
+      session: { id: next.session.id },
+    });
+    expect(h.controller.getState().phase).not.toBe("complete");
+  });
 });
