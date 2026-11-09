@@ -4595,3 +4595,117 @@ describe("resetting Safe Relayr between tests", () => {
     ).rejects.toThrow("left the page");
   });
 });
+
+describe("Safe Relayr controller view", () => {
+  it("shows each call's result, checks, executions and error, and clears on reset", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const h = harness();
+    const listener = vi.fn();
+    const failing = vi.fn(() => {
+      throw new Error("view");
+    });
+    const unsubscribe = h.controller.subscribe(listener);
+    h.controller.subscribe(failing);
+    expect(h.controller.getState()).toEqual({
+      phase: null,
+      checks: {},
+      executions: {},
+      result: null,
+      running: null,
+      error: null,
+    });
+    const onStatus = vi.fn();
+    const preparing = h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+      onStatus,
+    });
+    expect(h.controller.getState().running).toBe("prepare");
+    const ready = await preparing;
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      result: ready,
+      checks: { 0: "ready" },
+      phase: expect.any(String),
+    });
+    expect(onStatus).toHaveBeenCalledWith(0, "ready", expect.anything());
+    const call = execution();
+    mineSafe(h, call, HASH);
+    h.setRecords(destinationRecords([call], [HASH]));
+    h.afterVerified.mockRejectedValueOnce(
+      new Error("Safe nonce did not advance"),
+    );
+    await expect(
+      h.controller.check({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).rejects.toBeInstanceOf(SafeRelayrRecoveryError);
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      error: expect.any(SafeRelayrRecoveryError),
+      executions: {
+        0: { status: "failed", hash: HASH, message: expect.any(String) },
+      },
+    });
+    expect(failing).toHaveBeenCalled();
+    const before = listener.mock.calls.length;
+    unsubscribe();
+    h.controller.reset();
+    expect(listener).toHaveBeenCalledTimes(before);
+    expect(h.controller.getState()).toMatchObject({
+      executions: {},
+      error: null,
+      result: null,
+    });
+  });
+
+  it("shows watch updates, keeps the latest call running and leaves an earlier call's error out", async () => {
+    const h = harness();
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const onUpdate = vi.fn();
+    const watched = await h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      timeoutMs: 0,
+      onUpdate,
+    });
+    expect(onUpdate).toHaveBeenCalledWith(watched);
+    expect(h.controller.getState().result).toBe(watched);
+    const gate = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await gate.promise;
+        return run();
+      },
+    );
+    const first = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    const failed = h.controller
+      .exit({ account: ACCOUNT, sessionId: "missing" })
+      .catch((error: unknown) => error);
+    const second = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    expect(await failed).toBeInstanceOf(Error);
+    expect(h.controller.getState()).toMatchObject({
+      running: "check",
+      error: null,
+    });
+    const latest = await second;
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      result: latest,
+    });
+    gate.resolve();
+    const earlier = await first;
+    expect(h.controller.getState().result).toBe(earlier);
+    expect(h.controller.getState()).toMatchObject({
+      running: null,
+      error: null,
+    });
+  });
+});
