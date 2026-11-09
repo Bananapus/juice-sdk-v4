@@ -175,12 +175,13 @@ export function useSavedAttempt<T>(
     void recover();
   }, [recover]);
 
-  const retire = useCallback(
-    async (reason: SavedAttemptRetirement): Promise<Retired> => {
-      const { recovery } = lifecycle;
-      const attempt = latest.current;
-      if (!attempt || !current(lifecycle)) return { retired: false };
-      const retired = await recovery.retire(attempt, reason);
+  /** Retires `attempt` of this lifecycle; only a current lifecycle shows what follows. */
+  const retireOf = useCallback(
+    async (
+      attempt: SavedAttempt<T>,
+      reason: SavedAttemptRetirement,
+    ): Promise<Retired> => {
+      const retired = await lifecycle.recovery.retire(attempt, reason);
       if (!current(lifecycle)) return retired;
       if (!retired.retired && retired.reason === "unreadable")
         setUnreadable(lifecycle);
@@ -188,6 +189,15 @@ export function useSavedAttempt<T>(
       return retired;
     },
     [lifecycle, recover],
+  );
+
+  const retire = useCallback(
+    async (reason: SavedAttemptRetirement): Promise<Retired> => {
+      const attempt = latest.current;
+      if (!attempt || !current(lifecycle)) return { retired: false };
+      return retireOf(attempt, reason);
+    },
+    [lifecycle, retireOf],
   );
 
   const outcome = shown.of === lifecycle ? shown.outcome : null;
@@ -206,15 +216,26 @@ export function useSavedAttempt<T>(
     if (outcome.status === "done" && onDone) {
       handed.current = mark;
       const hash = outcome.hash;
-      // Handed only while its attempt is still the hook's: a replacement's never.
+      // Handed only while its attempt is still the hook's: a replacement's
+      // never. The handed attempt is retired even if onDone cleared it.
+      let handedAttempt: SavedAttempt<T> | null | undefined;
       void Promise.resolve()
-        .then(() => (current(lifecycle) ? onDone(outcome) : true))
+        .then(() => {
+          if (!current(lifecycle)) return false;
+          handedAttempt = latest.current;
+          return onDone(outcome);
+        })
         .then(async (settled) => {
           // A retirement another tab's lock refused is offered again.
           if (
             !settled ||
-            !(await retire({ by: "settled", ...(hash ? { hash } : {}) }))
-              .retired
+            !handedAttempt ||
+            !(
+              await retireOf(handedAttempt, {
+                by: "settled",
+                ...(hash ? { hash } : {}),
+              })
+            ).retired
           )
             rearm();
         })
@@ -231,7 +252,7 @@ export function useSavedAttempt<T>(
         .then(() => (current(lifecycle) ? onRetired(by) : undefined))
         .catch(rearm);
     }
-  }, [key, lifecycle, outcome, retire]);
+  }, [key, lifecycle, outcome, retireOf]);
 
   const status = outcome?.status;
   const recovering = shown.of === lifecycle && shown.recovering;

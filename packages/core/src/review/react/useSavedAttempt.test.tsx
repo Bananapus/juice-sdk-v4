@@ -688,6 +688,48 @@ describe("useSavedAttempt", () => {
     expect(recovery.retire).not.toHaveBeenCalled();
   });
 
+  test("retires a done outcome as settled when onDone clears the attempt before it returns true", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const attempt = attemptOf();
+    let saved: Promise<void> | undefined;
+    function Clears() {
+      const [current, setCurrent] = useState<SavedAttempt<string> | null>(
+        attempt,
+      );
+      useSavedAttempt({
+        recovery,
+        attempt: current,
+        client,
+        onDone: async () => {
+          setCurrent(null);
+          await (saved = new Promise((resolve) => setTimeout(resolve, 0)));
+          return true;
+        },
+      });
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Clears />));
+    await answer({
+      status: "done",
+      result: "success",
+      authenticated: false,
+      hash: "0xab",
+      reason: "r",
+    });
+    await act(async () => {
+      await saved;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(recovery.retire).toHaveBeenCalledTimes(1);
+    expect(recovery.retire).toHaveBeenCalledWith(attempt, {
+      by: "settled",
+      hash: "0xab",
+    });
+    // The cleared attempt is not recovered again.
+    expect(recovery.recover).toHaveBeenCalledTimes(1);
+  });
+
   test("tells onRetired once per retirement that was not a settlement", async () => {
     const { recovery, answer } = fakeRecovery();
     const onRetired = vi
