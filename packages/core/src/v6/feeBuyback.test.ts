@@ -930,6 +930,23 @@ describe("createFeeBuybackReview", () => {
     expect(await review.confirm()).toBe(true);
   });
 
+  it("refuses a confirmation when one call's swap vanished behind another call's fallback", async () => {
+    const a = chain(false);
+    const b = chain();
+    const review = createFeeBuybackReview(
+      [pay, { ...pay, chainId: 2 }],
+      (chainId) => (chainId === 1 ? a : b).context(),
+      vi.fn(),
+    );
+    await flush();
+    const seen = review.getState().result;
+    expect(seen.status).toBe("fallback");
+    b.client.request.mockRejectedValue(new Error("down"));
+    b.watchers[0].onBlockNumber();
+    await flush();
+    expect(await review.confirm(seen)).toBe(false);
+  });
+
   it("answers false for a confirmation its review stopped during", async () => {
     const { context } = chain();
     const review = createFeeBuybackReview([pay], context, vi.fn());

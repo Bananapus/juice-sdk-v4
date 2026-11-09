@@ -533,14 +533,25 @@ export type FeeReviewState = {
 
 const FEE_WATCH_POLL_MS = 4_000;
 
-/** `fresh` reads worse than `seen`: a worse status, or a fallback fee `seen` did not show. */
+/**
+ * `fresh` reads worse than `seen`: a worse status, a fallback fee `seen` did
+ * not show, or a swap or issuance `seen` showed that is gone (another call's fallback
+ * would otherwise mask it).
+ */
 const worse = (seen: FeeResult, fresh: FeeResult) =>
   severity[fresh.status] > severity[seen.status] ||
   fresh.fees.some(
     (fee) =>
       fee.route === "fallback" &&
       !seen.fees.some((old) => old.key === fee.key && old.route === "fallback"),
+  ) ||
+  seen.fees.some(
+    (old) =>
+      settles(old) &&
+      !fresh.fees.some((fee) => fee.key === old.key && settles(fee)),
   );
+const settles = (fee: FeeResult["fees"][number]) =>
+  fee.route === "swap" || fee.route === "issuance";
 
 /**
  * One review's fee return check: every fee-paying call simulated alone on its
