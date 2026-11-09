@@ -512,4 +512,177 @@ describe("useSavedAttempt", () => {
     });
     expect(recovery.recover).toHaveBeenLastCalledWith(latest, client);
   });
+
+  test.each<
+    [string, SavedAttemptOutcome<string> | null, boolean | undefined, boolean]
+  >([
+    ["still recovering", null, undefined, false],
+    ["nothing reserved", { status: "none" }, undefined, true],
+    [
+      "held",
+      { status: "held" } as SavedAttemptOutcome<string>,
+      undefined,
+      false,
+    ],
+    ["to check", check, undefined, false],
+    [
+      "reverted",
+      { status: "done", result: "failed", hash: "0x1" },
+      undefined,
+      true,
+    ],
+    [
+      "reverted, completing",
+      { status: "done", result: "failed", hash: "0x1" },
+      true,
+      false,
+    ],
+    [
+      "succeeded",
+      { status: "done", result: "success", authenticated: true, value: "v" },
+      undefined,
+      false,
+    ],
+    [
+      "succeeded, completing",
+      { status: "done", result: "success", authenticated: true, value: "v" },
+      true,
+      true,
+    ],
+    [
+      "succeeded unseen, completing",
+      { status: "done", result: "success", authenticated: false, reason: "r" },
+      true,
+      false,
+    ],
+  ])("clear: %s", async (_, outcome, completion, clear) => {
+    const { recovery, answer } = fakeRecovery();
+    const { seen, start } = harness({
+      recovery,
+      attempt: attemptOf(),
+      client,
+      completion,
+    });
+    await start();
+    if (outcome) await answer(outcome);
+    expect(seen.current!.clear).toBe(clear);
+  });
+
+  test("clear with no attempt", async () => {
+    const { recovery } = fakeRecovery();
+    const { seen, start } = harness({ recovery, attempt: null, client });
+    await start();
+    expect(seen.current!.clear).toBe(true);
+  });
+
+  test("hands each done outcome to onDone once and retires it as settled on true", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const attempt = attemptOf();
+    const onDone = vi.fn(async () => true);
+    const { seen, start, render } = harness({
+      recovery,
+      attempt,
+      client,
+      onDone,
+    });
+    await start();
+    const done: SavedAttemptOutcome<string> = {
+      status: "done",
+      result: "failed",
+      hash: "0xab",
+    };
+    await answer(done);
+    expect(onDone).toHaveBeenCalledWith(done);
+    expect(recovery.retire).toHaveBeenCalledWith(attempt, {
+      by: "settled",
+      hash: "0xab",
+    });
+    await answer({ status: "none", retired: "settled" });
+    await act(async () => void seen.current!.recover());
+    await answer({ ...done });
+    await render({ recovery, attempt, client, onDone });
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  test("offers a done outcome again after onDone says false or throws, and retires a hashless one without a hash", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const attempt = attemptOf();
+    const onDone = vi
+      .fn<(outcome: SavedAttemptOutcome<string>) => Promise<boolean>>()
+      .mockResolvedValueOnce(false)
+      .mockRejectedValueOnce(new Error("journal"))
+      .mockResolvedValue(true);
+    const { seen, start } = harness({ recovery, attempt, client, onDone });
+    await start();
+    const done: SavedAttemptOutcome<string> = {
+      status: "done",
+      result: "success",
+      authenticated: false,
+      reason: "r",
+    };
+    for (let i = 0; i < 3; i++) {
+      await answer({ ...done });
+      await act(async () => void seen.current!.recover());
+    }
+    expect(onDone).toHaveBeenCalledTimes(3);
+    expect(recovery.retire).toHaveBeenCalledWith(attempt, { by: "settled" });
+  });
+
+  test("tells onRetired once per retirement that was not a settlement", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const onRetired = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("x"))
+      .mockResolvedValue(undefined);
+    const { seen, start } = harness({
+      recovery,
+      attempt: attemptOf(),
+      client,
+      onRetired,
+    });
+    await start();
+    await answer({ status: "none", retired: "rejected" });
+    await act(async () => void seen.current!.recover());
+    await answer({ status: "none", retired: "rejected" });
+    await act(async () => void seen.current!.recover());
+    await answer({ status: "none", retired: "rejected" });
+    expect(onRetired).toHaveBeenCalledTimes(2);
+    expect(onRetired).toHaveBeenCalledWith("rejected");
+    await act(async () => void seen.current!.recover());
+    await answer({ status: "none", retired: "settled" });
+    await act(async () => void seen.current!.recover());
+    await answer({ status: "none" });
+    expect(onRetired).toHaveBeenCalledTimes(2);
+  });
+
+  test("rechecks on the interval while the outcome can change, skipping a hidden page and a hold", async () => {
+    vi.useFakeTimers();
+    try {
+      const { recovery, answer } = fakeRecovery();
+      const { start, render } = harness({
+        recovery,
+        attempt: attemptOf(),
+        client,
+        recheckMs: 1000,
+      });
+      await start();
+      await act(async () => vi.advanceTimersByTime(1000));
+      expect(recovery.recover).toHaveBeenCalledTimes(1);
+      await answer(check);
+      await act(async () => vi.advanceTimersByTime(1000));
+      expect(recovery.recover).toHaveBeenCalledTimes(2);
+      const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+      await act(async () => vi.advanceTimersByTime(1000));
+      expect(recovery.recover).toHaveBeenCalledTimes(2);
+      hidden.mockRestore();
+      await answer({ status: "held" } as SavedAttemptOutcome<string>);
+      await act(async () => vi.advanceTimersByTime(5000));
+      expect(recovery.recover).toHaveBeenCalledTimes(2);
+      await render({ recovery, attempt: attemptOf(), client });
+      await act(async () => vi.advanceTimersByTime(5000));
+      expect(recovery.recover).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
