@@ -17,7 +17,15 @@ export type ConnectOption = {
     frame(name: string, origin: string): void;
   }): Promise<void>;
 };
+/**
+ * Where a connection stands: `connecting` while an option runs, `connected`
+ * once it finished (a passkey redirect may still be leaving the page, so
+ * `pending` stays set), `failed` with `error`. A user's own rejection is
+ * `idle`.
+ */
+export type ConnectStatus = "idle" | "connecting" | "connected" | "failed";
 export type ConnectState = {
+  status: ConnectStatus;
   /** The option being connected, or null when idle. A passkey connection leaves the page, so it
    * stays pending until the browser returns. */
   pending: string | null;
@@ -39,6 +47,7 @@ export type ConnectController = {
 };
 
 const idle: ConnectState = {
+  status: "idle",
   pending: null,
   error: null,
   handoffUri: null,
@@ -68,6 +77,7 @@ export function createConnectController(
       if (!option || option.disabled || current) return;
       const controller = (current = new AbortController());
       set({
+        status: "connecting",
         pending: id,
         error: null,
         handoffUri: null,
@@ -85,15 +95,19 @@ export function createConnectController(
               set({ frameName: name, frameOrigin: origin });
           },
         });
+        if (current === controller) set({ status: "connected" });
       } catch (error) {
-        if (current === controller)
+        if (current === controller) {
+          const message = messageOf(error);
           set({
+            status: message === null ? "idle" : "failed",
             pending: null,
             handoffUri: null,
             frameName: null,
             frameOrigin: null,
-            error: messageOf(error),
+            error: message,
           });
+        }
       } finally {
         if (current === controller) current = null;
       }

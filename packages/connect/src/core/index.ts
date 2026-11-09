@@ -3,6 +3,7 @@ export {
   type ConnectController,
   type ConnectOption,
   type ConnectState,
+  type ConnectStatus,
 } from "./controller.js";
 export { passkeyOption, type PasskeyWallet } from "./passkey.js";
 export { deliverCenterCallback } from "./popup.js";
