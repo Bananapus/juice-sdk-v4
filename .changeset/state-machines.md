@@ -21,5 +21,4 @@ One owner for the send, read and sign-in states every client shows.
 - Core: `useStartOnce(open, preparing, start?, startKey?, blocked?)`, `useMobileWallet()` and `isMobileDevice(nav)` in `review/react`.
 - Core: light subpaths `review/locks` (`browserLocks`, `BrowserLocks`) and `review/machines` (`reviewedRunStatus`, `createReviewQueue`, the Relayr launch journal) load no Safe, Relayr or decoding code. `/review` still exports them.
 - Connect: one owner for the connect logic Signa copied (signa-5). A passkey sign-in closed while its exchange finished no longer connects the app (`signal.throwIfAborted()` before `connected`). The option, connector and errors say "Signa account" as Signa's copy does; the connector names its home chain once. The package is no longer described as moved.
-- Core: `createWriteHold({ verifyReceipt })` proves a successful receipt's effect (its logs, say) before any write settles as a success; a throw keeps the write held with its hash.
 - Core: `gasWithHeadroom(estimate, cap?)` stops the doubled estimate at `TRANSACTION_GAS_CAP` (2^24, EIP-7825) when the estimate fits under it.
