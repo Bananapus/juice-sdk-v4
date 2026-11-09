@@ -768,14 +768,19 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   const fetchRelayr = options.fetch ?? globalThis.fetch;
   const displayedExecutions = new Map<string, string>();
   let view = SAFE_RELAYR_VIEW;
-  /** The calls in flight: progress shows only while the latest call is the only one. */
+  /** The calls in flight, and the last call started before the last reset. */
   const flying = new Set<number>();
+  let since = 0;
   const listeners = new Set<() => void>();
   const show = (patch: Partial<SafeRelayrView>) => {
     view = { ...view, ...patch };
     for (const listener of listeners) void tell(listener);
   };
   const notify = (progress: SafeRelayrProgress, rechecking = false) => {
+    // Progress names no call: while a call from before the last reset still
+    // runs, it could be that call's, so it shows only when every call in
+    // flight started since. Overlapping calls of one run all show.
+    const shows = flying.size > 0 && [...flying].every((call) => call > since);
     if (progress.type === "execution") {
       const key = `${progress.session.id}:${progress.index}`;
       const display = JSON.stringify([
@@ -792,11 +797,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           previous === JSON.stringify(["executed", progress.hash, undefined]))
       )
         return;
-      displayedExecutions.set(key, display);
+      // Only a shown row is a repeat, so a held one shows from the next call.
+      if (shows) displayedExecutions.set(key, display);
     }
-    // Progress names no call: with overlapping calls, or after a reset, it
-    // could be another operation's, so it shows only from the latest call alone.
-    if (flying.size === 1 && flying.has(calls))
+    if (shows)
       show({
         ...(progress.session
           ? { session: structuredClone(progress.session) }
@@ -2219,7 +2223,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     },
     /** Clears the view, as a new run starts. */
     reset() {
-      calls += 1;
+      since = calls += 1;
       displayedExecutions.clear();
       show(SAFE_RELAYR_VIEW);
     },

@@ -4787,4 +4787,109 @@ describe("Safe Relayr controller view", () => {
     gateD.resolve();
     expect((await preparing).session.id).not.toBe(ready.session.id);
   });
+
+  it("shows a new run's progress that a call from before the reset already reported", async () => {
+    const h = harness();
+    const calls = [execution(), execution(10)];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH, undefined]));
+    const gate = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await gate.promise;
+        return run();
+      },
+    );
+    const stale = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    const later = deferred();
+    vi.mocked(h.store.withLock).mockImplementationOnce(
+      async (_account, run) => {
+        await later.promise;
+        return run();
+      },
+    );
+    const current = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    gate.resolve();
+    await stale;
+    expect(h.controller.getState().executions).toEqual({});
+    later.resolve();
+    await current;
+    expect(h.controller.getState().executions).toMatchObject({
+      0: { status: "executed", hash: HASH },
+    });
+  });
+
+  it("shows a recovery check's hash while a watch waits between polls, then the watch's next poll", async () => {
+    const h = harness();
+    const calls = [execution(), execution(10)];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    h.mined();
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      const paid = await adapter(options);
+      h.setPaymentReceived(true);
+      h.setRecords(destinationRecords(calls, [undefined, undefined]));
+      return paid;
+    });
+    expect(
+      (
+        await h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        })
+      ).state,
+    ).toBe("pending");
+    const polled = deferred();
+    const resume = deferred();
+    let polls = 0;
+    const watching = h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      intervalMs: 1,
+      timeoutMs: 60_000,
+      onUpdate: async () => {
+        if ((polls += 1) > 1) return;
+        polled.resolve();
+        await resume.promise;
+      },
+    });
+    await polled.promise;
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH, undefined]));
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("pending");
+    expect(h.controller.getState().executions).toMatchObject({
+      0: { status: "executed", hash: HASH },
+    });
+    mineSafe(h, calls[1], BLOCK);
+    h.setRecords(destinationRecords(calls, [HASH, BLOCK]));
+    resume.resolve();
+    expect((await watching).state).toBe("complete");
+    expect(polls).toBeGreaterThan(1);
+    expect(h.controller.getState().executions).toMatchObject({
+      0: { status: "executed", hash: HASH },
+      1: { status: "executed", hash: BLOCK },
+    });
+  });
 });
