@@ -656,13 +656,14 @@ export function createFeeBuybackReview(
   return {
     getState: () => state,
     /**
-     * True when the person may submit: nothing pays a fee, or every fresh
-     * check holds and the batch reads no worse than `seen`, the result they
+     * True when the person may submit, until the review stops: nothing pays a
+     * fee, or every fresh check holds and the batch reads no worse than `seen`, the result they
      * were shown.
      */
     async confirm(seen: FeeResult = state.result): Promise<boolean> {
+      if (!alive) return false;
       if (!enabled) return true;
-      if (!alive || state.busy || confirming) return false;
+      if (state.busy || confirming) return false;
       confirming = true;
       set({ busy: true });
       try {

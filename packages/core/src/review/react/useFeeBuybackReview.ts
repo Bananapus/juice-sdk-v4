@@ -60,9 +60,9 @@ export function useFeeBuybackReview(
   return {
     ...state,
     confirm: async () => {
-      if (!current()) return false;
-      if (!state.enabled) return true;
-      const confirmed = (await live()?.confirm(state.result)) ?? false;
+      const shownReview = live();
+      if (!current() || !shownReview) return false;
+      const confirmed = await shownReview.confirm(state.result);
       // Replaced while confirming: the answer is for calls no longer shown
       // (a stopped review's own confirm already answers false).
       return confirmed && current();

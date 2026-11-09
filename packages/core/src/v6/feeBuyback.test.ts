@@ -853,6 +853,8 @@ describe("createFeeBuybackReview", () => {
     });
     review.retry();
     expect(await review.confirm()).toBe(true);
+    review.stop();
+    expect(await review.confirm()).toBe(false);
     expect(client.watchBlockNumber).not.toHaveBeenCalled();
     expect(changed).not.toHaveBeenCalled();
   });

@@ -108,7 +108,7 @@ describe("useFeeBuybackReview", () => {
       root!.render(<Probe calls={[{ ...pay, functionName: "launch" }]} />),
     );
     await act(async () => root!.render(<Probe calls={[pay]} />));
-    expect(answers).toEqual([true, false]);
+    expect(answers).toEqual([false, false]);
   });
 
   test("shows newer calls as unchecked until their review starts, never the earlier result", async () => {
@@ -135,12 +135,13 @@ describe("useFeeBuybackReview", () => {
     ]);
   });
 
-  test("approves at once when nothing pays a fee", async () => {
+  test("approves at once when nothing pays a fee, until the dialog closes", async () => {
     const { seen, render } = harness();
     await render([{ ...pay, functionName: "launch" }]);
     expect(seen.current).toMatchObject({ enabled: false, status: "none" });
+    expect(await act(() => seen.current!.confirm())).toBe(true);
     act(() => root!.unmount());
     root = undefined;
-    expect(await seen.current!.confirm()).toBe(true);
+    expect(await seen.current!.confirm()).toBe(false);
   });
 });
