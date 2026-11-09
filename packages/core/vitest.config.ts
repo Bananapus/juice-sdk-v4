@@ -28,6 +28,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/review/runStatus.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/actions/dataHook.ts": {
           statements: 100,
           branches: 100,

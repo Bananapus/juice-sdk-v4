@@ -11,6 +11,7 @@ import {
   REVIEWED_ACCOUNT_CHANGED_LINE,
   REVIEWED_ENGINE_LOAD_LINE,
   ReviewedReceiptUnverifiedError,
+  reviewedRunStatus,
   safeBatchCall,
   settledLine,
   TransactionReviewCancelledError,
@@ -20,6 +21,7 @@ import {
   type ReviewedCall,
   type ReviewedProgress,
   type ReviewedResult,
+  type ReviewedRunStatus,
   type ReviewedSendDeps,
   type completeReviewedStep,
   type resumeReviewed,
@@ -105,10 +107,19 @@ export type UseReviewedRunResult = {
    * is followed in place (`phase` "receipt"), in the same review, for
    * `follow.timeoutMs` (2 minutes by default); only then does the run resolve
    * `receipt`, and the hook follows the hold until it settles.
+   * `onCancelled` runs once when the run ends `cancelled`: nothing sent and
+   * nothing held.
    */
   run: (
-    action: Omit<ReviewedAction, "account" | "guard"> & { account?: Address },
+    action: Omit<ReviewedAction, "account" | "guard"> & {
+      account?: Address;
+      onCancelled?: () => void;
+    },
   ) => Promise<ReviewedResult | ReviewedRunReceipt | ReviewedRunFailed | null>;
+  /** The run's status, from `reviewedRunStatus`: the one every app shows. */
+  status: ReviewedRunStatus;
+  /** Reviewing, simulating, signing or confirming a receipt: the action waits. */
+  busy: boolean;
   phase: ReviewedProgress["phase"] | "idle";
   step: number;
   total: number;
@@ -158,10 +169,21 @@ export type UseReviewedRunResult = {
 
 type RunState = Omit<
   UseReviewedRunResult,
-  "run" | "reset" | "held" | "preload" | "discard" | keyof HeldViewActions
->;
+  | "run"
+  | "reset"
+  | "held"
+  | "preload"
+  | "discard"
+  | "status"
+  | "busy"
+  | keyof HeldViewActions
+> & {
+  /** The last run ended cancelled. */
+  cancelled: boolean;
+};
 
 const IDLE: RunState = {
+  cancelled: false,
   phase: "idle",
   step: 0,
   total: 0,
@@ -320,8 +342,10 @@ export function useReviewedRun(
     shown.phase === "settled"
       ? null
       : shown;
+  const { cancelled: _cancelled, ...shownState } = state;
   const api: UseReviewedRunResult = {
-    ...state,
+    ...shownState,
+    ...reviewedRunStatus({ ...state, held }),
     held,
     ...actionsOf(shown, held ? view : undefined),
     reset: () => {
@@ -342,7 +366,7 @@ export function useReviewedRun(
       setState(IDLE);
       setWatched(null);
     },
-    run: async (action) => {
+    run: async ({ onCancelled, ...action }) => {
       replaced();
       const id = latest.current;
       // A step still confirming is followed in place, in the same review,
@@ -416,17 +440,17 @@ export function useReviewedRun(
         };
         return finish;
       };
-      /** The step a run that did not finish leaves held, if any. */
+      /** The step a run that did not finish leaves held, if any: whether it found one. */
       const follow = async (
         finish?: (typeof watched & {})["finish"],
         released?: () => void,
-      ) => {
-        if (latest.current !== id || !deps?.account) return;
+      ): Promise<boolean> => {
+        if (latest.current !== id || !deps?.account) return false;
         try {
           const { account, adapter, hold, storage } = deps;
           // Its Safe mode is read only once the wallet says it is known.
           await walletReady(adapter);
-          if (latest.current !== id) return;
+          if (latest.current !== id) return false;
           const safe = adapter.isSafe();
           const saved = !action.scope
             ? null
@@ -485,8 +509,10 @@ export function useReviewedRun(
                 }
               : null,
           );
+          return !!found;
         } catch {
           /* A call the hold can't open holds nothing to show. */
+          return false;
         }
       };
       try {
@@ -640,7 +666,10 @@ export function useReviewedRun(
                 }
                 const signatures = error.held?.signatures;
                 if (error.step < action.calls.length - 1) {
-                  const started = await runLatest.current(action);
+                  const started = await runLatest.current({
+                    ...action,
+                    ...(onCancelled ? { onCancelled } : {}),
+                  });
                   const next =
                     started?.status === "receipt"
                       ? await started.ended()
@@ -664,8 +693,16 @@ export function useReviewedRun(
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);
         const line = cancelled ? null : errorLine(error);
-        update({ ...IDLE, error: line, failure: cancelled ? null : error });
-        void follow();
+        update({
+          ...IDLE,
+          error: line,
+          failure: cancelled ? null : error,
+          cancelled,
+        });
+        void follow().then((found) => {
+          if (cancelled && !found && latest.current === id && mounted.current)
+            onCancelled?.();
+        });
         return line === null
           ? null
           : { status: "failed", error: line, failure: error };

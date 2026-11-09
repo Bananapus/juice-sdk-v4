@@ -267,6 +267,7 @@ describe("published core SDK surfaces", () => {
       "revertDetail",
       "revertReason",
       "reviewPlan",
+      "reviewedRunStatus",
       "safeBatchCall",
       "safeBatchIntent",
       "safeExecutionIntent",

@@ -153,20 +153,31 @@ describe("useReviewedRun", () => {
     wallet.adapter.sendTransaction.mockRejectedValueOnce(
       new Error("Header not found."),
     );
-    await expect(run({ calls: [payCall(7n)] })).resolves.toMatchObject({
+    const onCancelled = vi.fn();
+    await expect(
+      run({ calls: [payCall(7n)], onCancelled }),
+    ).resolves.toMatchObject({
       status: "failed",
       error: NETWORK_ERROR_LINE,
     });
     expect(seen.current!.phase).toBe("idle");
+    // Its step may have been sent: held, with no cancel told.
+    expect(seen.current).toMatchObject({ status: "held", busy: false });
+    await rendered(() => expect(onCancelled).not.toHaveBeenCalled());
 
     // A closed review or a wallet's refusal is no error.
     reviewUi(async () => null);
-    await expect(run({ calls: [payCall(6n)] })).resolves.toBeNull();
+    await expect(
+      run({ calls: [payCall(6n)], onCancelled }),
+    ).resolves.toBeNull();
     expect(seen.current!.error).toBeNull();
     expect(seen.current!.failure).toBeNull();
+    expect(seen.current).toMatchObject({ status: "cancelled", busy: false });
+    await rendered(() => expect(onCancelled).toHaveBeenCalledOnce());
 
     act(() => seen.current!.reset());
     expect(seen.current!.phase).toBe("idle");
+    expect(seen.current!.status).toBe("idle");
   });
 
   test("shows its own line when the send engine does not load", async () => {
@@ -260,6 +271,8 @@ describe("useReviewedRun", () => {
     );
     expect(seen.current).toMatchObject({
       phase: "signing",
+      status: "signing",
+      busy: true,
       step: 1,
       total: 2,
       hash: `0x${"1".padStart(64, "0")}`,
@@ -271,6 +284,8 @@ describe("useReviewedRun", () => {
     await expect(running).resolves.toMatchObject({ status: "done" });
     expect(seen.current).toMatchObject({
       phase: "done",
+      status: "done",
+      busy: false,
       step: 1,
       total: 2,
       error: null,
@@ -298,6 +313,8 @@ describe("useReviewedRun", () => {
       state: { status: "held-no-hash" },
     });
     expect(seen.current!.error).toBe(seen.current!.held!.line);
+    // Held wins over the failure that left it: the hold's line and exit show.
+    expect(seen.current!.status).toBe("held");
 
     // Other calls under the same scope are refused, not resumed in their name.
     await expect(
@@ -382,11 +399,16 @@ describe("useReviewedRun", () => {
     });
     await act(() => vi.waitFor(() => expect(prompts).toHaveLength(1)));
     expect(seen.current!.phase).toBe("review");
+    expect(seen.current).toMatchObject({ status: "review", busy: true });
     await act(async () => {
       controller.abort();
       await expect(running).resolves.toBeNull();
     });
-    expect(seen.current).toMatchObject({ phase: "idle", error: null });
+    expect(seen.current).toMatchObject({
+      phase: "idle",
+      error: null,
+      status: "cancelled",
+    });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     reviewUi();
     await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
@@ -530,6 +552,9 @@ describe("useReviewedRun", () => {
     ).resolves.toMatchObject({ status: "failed" });
     expect(seen.current!.error).toBe(
       "The connected account changed. Review again.",
+    );
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ status: "failed", busy: false }),
     );
     expect(prompts).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
@@ -839,6 +864,9 @@ describe("useReviewedRun", () => {
       safeTxHash: `0x${"1".padStart(64, "0")}`,
       hash: null,
     });
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ status: "proposed", busy: false }),
+    );
   });
 
   test("follows a Safe app batch as its one proposal", async () => {
