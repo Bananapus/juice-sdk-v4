@@ -186,8 +186,45 @@ export function canReplaceSafeRelayrQuote(session: SafeRelayrSession): boolean {
   }
 }
 
+/** Where a Safe Relayr action stands once it is published or resumed. */
+export type SafeRelayrResultState =
+  | "ready"
+  | "pending"
+  | "complete"
+  | "released";
+
+/** Why a saved publication can't identify an exact quote. */
+export type SafeRelayrRecoveryReason =
+  | "missing-execution-proof"
+  | "safe-nonces-live"
+  | "safe-nonces-mixed"
+  | "safe-nonces-unavailable"
+  | "safe-nonces-consumed"
+  | "funding-unresolved"
+  /** The payment's status couldn't be read: unknown, never paid or free to pay. Retry. */
+  | "status-unknown"
+  /** The browser's clock closed the payment window before the chain's: wait for a new quote. */
+  | "quote-closing";
+
+/** One Safe's nonce check in a recovery: its execution's nonce consumed, still live, or unread. */
+export type SafeRelayrNonceCheckState = "consumed" | "live" | "unavailable";
+
+/** One Safe execution's check before it is sent. */
+export type SafeRelayrExecutionCheckState =
+  | "checking"
+  | "ready"
+  | "rechecking"
+  | "failed";
+
+/** One Safe execution's progress once sent. */
+export type SafeRelayrExecutionStatus =
+  | "pending"
+  | "confirming"
+  | "executed"
+  | "failed";
+
 export type SafeRelayrResult = {
-  state: "ready" | "pending" | "complete" | "released";
+  state: SafeRelayrResultState;
   session: SafeRelayrSession;
   payments: RelayrPayment[];
   recovery?: SafeRelayrRecovery;
@@ -195,17 +232,7 @@ export type SafeRelayrResult = {
 
 /** Read-only evidence when the saved publication cannot identify an exact quote. */
 export type SafeRelayrRecovery = {
-  reason:
-    | "missing-execution-proof"
-    | "safe-nonces-live"
-    | "safe-nonces-mixed"
-    | "safe-nonces-unavailable"
-    | "safe-nonces-consumed"
-    | "funding-unresolved"
-    /** The payment's status couldn't be read: unknown, never paid or free to pay. Retry. */
-    | "status-unknown"
-    /** The browser's clock closed the payment window before the chain's: wait for a new quote. */
-    | "quote-closing";
+  reason: SafeRelayrRecoveryReason;
   message: string;
   /** A later check may clear it: try again in a moment. */
   retryable?: true;
@@ -220,7 +247,7 @@ export type SafeRelayrRecovery = {
     safe: Address;
     nonce: number;
     currentNonce?: string;
-    state: "consumed" | "live" | "unavailable";
+    state: SafeRelayrNonceCheckState;
   }[];
 };
 
@@ -231,7 +258,7 @@ export type SafeRelayrReady = SafeRelayrResult & {
 
 export type SafeRelayrStatus = (
   index: number,
-  state: "checking" | "ready" | "rechecking" | "failed",
+  state: SafeRelayrExecutionCheckState,
   execution: SafeRelayrExecution,
 ) => void;
 
@@ -253,7 +280,7 @@ export type SafeRelayrProgress =
       session: SafeRelayrSession;
       index: number;
       execution: SafeRelayrExecution;
-      status: "pending" | "confirming" | "executed" | "failed";
+      status: SafeRelayrExecutionStatus;
       hash?: Hex;
       message?: string;
     };
