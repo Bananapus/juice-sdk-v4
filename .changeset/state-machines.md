@@ -12,3 +12,11 @@ One owner for the send, read and sign-in states every client shows.
 - React: `useGetRelayrTxBundle` decides completion with core's case-insensitive `relayrProgress`, takes `startPolling(uuid, expectedCount?)`, polls through failed reads, stops after five minutes (`timedOut`) and returns `progress`. A bundle Relayr reports as `success` no longer polls forever.
 - React: context `AsyncData` has `error`. A failed read, or a read waiting on one that failed, is no longer "none". `JBTerminalProvider` takes `upstream`, and `JBPrimaryNativeTerminalProvider` passes the terminal lookup's loading and error, so `store` and `accountingContexts` no longer say "none" while the terminal resolves.
 - Connect: `ConnectState.status` (`ConnectStatus`: `idle`, `connecting`, `connected`, `failed`). The passkey option treats a `refused` Center payment as settled, as Signa does.
+- Core: `useReviewedRun` returns `lastSubmittedStep`, the highest step whose hash the wallet returned in the run (resumed sent steps count); `reset` clears it.
+- Core: `createReviewQueue()` (one review dialog at a time, bound to the project scope and account it opened under, re-proving its scope before an approval resolves; a scope or account change cancels what no longer belongs and advances).
+- Core: `createFeeBuybackReview(calls, context, changed)` and `useFeeBuybackReview(calls, context)`, with `status` (`checking`, `ready`, `fallback`, `unknown`, `none`, `confirming`), `confirm`, `retry` and `wait`.
+- Core: `useSavedAttempt` returns `clear` and takes `completion`, `onDone`, `onRetired` and `recheckMs`.
+- Core: the Safe Relayr controller has `getState`, `subscribe` and `reset` (`SafeRelayrView`).
+- Core: `RelayrLaunchJournal`, `RELAYR_LAUNCH_PHASES`, `isRelayrLaunchPhase`, `relayrLaunchPaying`, `relayrLaunchUnfunded`, `relayrLaunchInFlight`, `advanceRelayrLaunch` and `resignedRelayrLaunch`.
+- Core: `useStartOnce(open, preparing, start?, startKey?, blocked?)`, `useMobileWallet()` and `isMobileDevice(nav)` in `review/react`.
+- Core: light subpaths `review/locks` (`browserLocks`, `BrowserLocks`) and `review/machines` (`reviewedRunStatus`, `createReviewQueue`, the Relayr launch journal) load no Safe, Relayr or decoding code. `/review` still exports them.
