@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createFeeBuybackReview,
   type FeeReviewCall,
@@ -7,6 +7,17 @@ import {
 } from "../../v6/feeBuyback.js";
 
 type FeeReview = ReturnType<typeof createFeeBuybackReview>;
+
+/** What `calls` show before their review starts: checking when one pays a fee. */
+function unchecked(calls: readonly FeeReviewCall[]): FeeReviewState {
+  const first = createFeeBuybackReview(
+    calls,
+    () => undefined,
+    () => undefined,
+  );
+  first.stop();
+  return first.getState();
+}
 
 /** A review dialog's fee return check; it starts over when `calls` changes. */
 export function useFeeBuybackReview(
@@ -24,15 +35,8 @@ export function useFeeBuybackReview(
     of: FeeReview | null;
     calls: readonly FeeReviewCall[];
     state: FeeReviewState;
-  }>(() => {
-    const first = createFeeBuybackReview(
-      calls,
-      () => undefined,
-      () => undefined,
-    );
-    first.stop();
-    return { of: null, calls, state: first.getState() };
-  });
+  }>(() => ({ of: null, calls, state: unchecked(calls) }));
+  const fresh = useMemo(() => unchecked(calls), [calls]);
   useEffect(() => {
     const current: FeeReview = createFeeBuybackReview(
       calls,
@@ -46,16 +50,23 @@ export function useFeeBuybackReview(
       review.current = null;
     };
   }, [calls]);
-  const { of, state } = shown;
+  const { of } = shown;
+  // Until these calls' review starts, they show as unchecked, never the earlier calls' result.
+  const state = shown.calls === calls ? shown.state : fresh;
   /** These calls are the latest and their review has started. */
   const current = () => rendered.current === calls && shown.calls === calls;
   /** The review this render showed, while it is still the hook's. */
   const live = () => (of && of === review.current ? of : null);
   return {
     ...state,
-    confirm: async () =>
-      current() &&
-      (!state.enabled || ((await live()?.confirm(state.result)) ?? false)),
+    confirm: async () => {
+      if (!current()) return false;
+      if (!state.enabled) return true;
+      const confirmed = (await live()?.confirm(state.result)) ?? false;
+      // Replaced while confirming: the answer is for calls no longer shown
+      // (a stopped review's own confirm already answers false).
+      return confirmed && current();
+    },
     retry: () => live()?.retry(),
     wait: () => live()?.wait(),
   };

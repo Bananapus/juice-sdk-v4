@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, useEffect } from "react";
+import { act, useEffect, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import type { FeeReviewCall, FeeReviewContext } from "../../v6/feeBuyback.js";
@@ -109,6 +109,30 @@ describe("useFeeBuybackReview", () => {
     );
     await act(async () => root!.render(<Probe calls={[pay]} />));
     expect(answers).toEqual([true, false]);
+  });
+
+  test("shows newer calls as unchecked until their review starts, never the earlier result", async () => {
+    const { client } = harness();
+    act(() => root!.unmount());
+    const context: FeeReviewContext = () => ({
+      client,
+      options: { trustedHooks: [], beneficiary: user },
+    });
+    const firstRender: { status: string; settled: boolean }[] = [];
+    function Probe({ calls }: { calls: readonly FeeReviewCall[] }) {
+      const review = useFeeBuybackReview(calls, context);
+      useLayoutEffect(() => {
+        firstRender.push({ status: review.status, settled: review.settled });
+      }, [calls]);
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Probe calls={[pay]} />));
+    await act(async () => root!.render(<Probe calls={[{ ...pay }]} />));
+    expect(firstRender).toEqual([
+      { status: "checking", settled: false },
+      { status: "checking", settled: false },
+    ]);
   });
 
   test("approves at once when nothing pays a fee", async () => {

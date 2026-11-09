@@ -930,6 +930,15 @@ describe("createFeeBuybackReview", () => {
     expect(await review.confirm()).toBe(true);
   });
 
+  it("answers false for a confirmation its review stopped during", async () => {
+    const { context } = chain();
+    const review = createFeeBuybackReview([pay], context, vi.fn());
+    await flush();
+    const confirming = review.confirm();
+    review.stop();
+    expect(await confirming).toBe(false);
+  });
+
   it("reads an unsupported chain or a call without a sender as unknown and watches nothing", async () => {
     const { client } = chain();
     const review = createFeeBuybackReview(

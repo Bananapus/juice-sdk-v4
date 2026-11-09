@@ -657,7 +657,9 @@ export function createFeeBuybackReview(
         );
         // A block refresh between one chain's check and another's can still degrade the batch.
         return (
-          confirmed.every(Boolean) && !worse(seen, combineFeeResults(results))
+          alive &&
+          confirmed.every(Boolean) &&
+          !worse(seen, combineFeeResults(results))
         );
       } finally {
         confirming = false;
