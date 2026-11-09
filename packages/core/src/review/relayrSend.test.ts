@@ -1168,6 +1168,22 @@ describe("pollRelayrBundle", () => {
       "exact destination count",
     );
   });
+
+  it("leaves no abort listener behind after each wait", async () => {
+    vi.useFakeTimers();
+    const answers = [bundle("Pending"), bundle("Pending"), bundle("Success")];
+    const controller = new AbortController();
+    const added = vi.spyOn(controller.signal, "addEventListener");
+    const removed = vi.spyOn(controller.signal, "removeEventListener");
+    const polled = pollRelayrBundle(UUIDS[0], 1, {
+      fetch: async () => answers.shift()!,
+      signal: controller.signal,
+    });
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(polled).resolves.toMatchObject({ bundle_uuid: UUIDS[0] });
+    expect(added).toHaveBeenCalledTimes(2);
+    expect(removed).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("safeRelayrWalletDeps", () => {

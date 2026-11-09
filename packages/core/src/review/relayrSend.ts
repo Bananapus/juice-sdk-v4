@@ -1008,15 +1008,15 @@ export async function pollRelayrBundle(
       );
     }
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(resolve, POLL_INTERVAL_MS);
-      signal?.addEventListener(
-        "abort",
-        () => {
-          clearTimeout(timer);
-          reject(signal.reason);
-        },
-        { once: true },
-      );
+      const aborted = () => {
+        clearTimeout(timer);
+        reject(signal!.reason);
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener("abort", aborted);
+        resolve();
+      }, POLL_INTERVAL_MS);
+      signal?.addEventListener("abort", aborted, { once: true });
     });
   }
 }
