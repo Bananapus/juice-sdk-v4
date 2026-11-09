@@ -304,10 +304,10 @@ export function createHeldWriteView(
         reads: Set<Promise<unknown>>;
       }
     | undefined;
-  let running = false;
+  /** Never started, started, or stopped: a new view tells settlements; a stopped one leaves them to the next start. */
+  let lifecycle: "new" | "running" | "stopped" = "new";
   /** Each start and stop begins a new lifecycle: a read or receipt from an earlier one is dropped. */
   let epoch = 0;
-  let live = true;
   let adoption: Promise<boolean> | undefined;
 
   function set(next: Partial<HeldWriteView>) {
@@ -323,7 +323,7 @@ export function createHeldWriteView(
   function follow(reservation: string) {
     if (
       options.follow === false ||
-      !running ||
+      lifecycle !== "running" ||
       following?.reservation === reservation
     )
       return;
@@ -351,7 +351,7 @@ export function createHeldWriteView(
    */
   function deliver(settled: WriteHoldSettled, key: string) {
     undelivered.set(key, settled);
-    if (!live) return;
+    if (lifecycle === "stopped") return;
     const at = epoch;
     const done = (receipt: TransactionReceipt | null) => {
       if (at !== epoch || delivered.has(key)) return;
@@ -631,8 +631,7 @@ export function createHeldWriteView(
      * on focus and every poll while held. Returns the stop.
      */
     start(): () => void {
-      running = true;
-      live = true;
+      lifecycle = "running";
       epoch += 1;
       // Every settlement a stopped lifecycle never told is told now.
       for (const [key, settled] of [...undelivered]) deliver(settled, key);
@@ -640,8 +639,8 @@ export function createHeldWriteView(
       // An adoption a stopped lifecycle left unfinished runs again here.
       // Its first read is this view's from now: a send made at once waits for it.
       const first = adopt()
-        .then((done) => (done || !running ? done : adopt()))
-        .then(() => (running ? check() : view));
+        .then((done) => (done || lifecycle !== "running" ? done : adopt()))
+        .then(() => (lifecycle === "running" ? check() : view));
       reading.add(first);
       void first.finally(() => reading.delete(first));
       const timer = setInterval(() => {
@@ -655,8 +654,7 @@ export function createHeldWriteView(
       const onFocus = () => void check();
       globalThis.addEventListener?.("focus", onFocus);
       return () => {
-        running = false;
-        live = false;
+        lifecycle = "stopped";
         epoch += 1;
         unsubscribe();
         clearInterval(timer);
