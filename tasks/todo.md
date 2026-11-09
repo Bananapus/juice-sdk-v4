@@ -30,7 +30,7 @@ Every gate in `npm run check` passes except `check:package`: core is over its ce
 - **Resource budget:** One writer in `sm-sdk`; replan if a client copy cannot be replaced without a behavior change.
 
 - [x] A to G as scoped above, light subpaths and graph gate
-- [ ] changeset, `npm run check`, Codex x2, PR update, tarballs
+- [x] changeset, `npm run check`, Codex (10 passes), PR update, tarballs. Review: all gates pass but check:package (ceilings raised separately); metalog items 1 and 2 dropped by ruling, item 3 (gas cap) landed.
 
 # Four-client shared SDK rules
 
