@@ -4729,5 +4729,35 @@ describe("Safe Relayr controller view", () => {
       running: null,
       error: null,
     });
+    // An earlier session's progress stays out of a newer call's view.
+    const holdNext = () => {
+      const gate = deferred();
+      vi.mocked(h.store.withLock).mockImplementationOnce(
+        async (_account, run) => {
+          await gate.promise;
+          return run();
+        },
+      );
+      return gate;
+    };
+    h.sessions.get(ready.session.id)!.paymentStatus = "sending";
+    const gateA = holdNext();
+    const earlier = h.controller.check({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+    });
+    h.controller.reset();
+    const gateB = holdNext();
+    const newer = h.controller
+      .check({ account: ACCOUNT, sessionId: "another" })
+      .catch((error: unknown) => error);
+    gateA.resolve();
+    await earlier;
+    expect(h.controller.getState()).toMatchObject({
+      phase: null,
+      running: "check",
+    });
+    gateB.resolve();
+    expect(await newer).toBeInstanceOf(Error);
   });
 });

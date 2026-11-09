@@ -206,7 +206,8 @@ export function useSavedAttempt<T>(
     if (outcome.status === "done" && onDone) {
       handed.current = mark;
       const hash = outcome.hash;
-      void onDone(outcome)
+      void Promise.resolve()
+        .then(() => onDone(outcome))
         .then(async (settled) => {
           // A retirement another tab's lock refused is offered again.
           if (

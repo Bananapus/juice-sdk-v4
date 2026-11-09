@@ -16,33 +16,40 @@ export function useFeeBuybackReview(
   const contextRef = useRef(context);
   contextRef.current = context;
   const review = useRef<FeeReview | null>(null);
-  const [state, setState] = useState<FeeReviewState>(() => {
+  /** The state shown, with the review that made it: an action answers for that review only. */
+  const [shown, setShown] = useState<{
+    of: FeeReview | null;
+    state: FeeReviewState;
+  }>(() => {
     const first = createFeeBuybackReview(
       calls,
       () => undefined,
       () => undefined,
     );
     first.stop();
-    return first.getState();
+    return { of: null, state: first.getState() };
   });
   useEffect(() => {
-    const current = createFeeBuybackReview(
+    const current: FeeReview = createFeeBuybackReview(
       calls,
       (chainId, from) => contextRef.current(chainId, from),
-      setState,
+      (state) => setShown({ of: current, state }),
     );
     review.current = current;
-    setState(current.getState());
+    setShown({ of: current, state: current.getState() });
     return () => {
       current.stop();
       review.current = null;
     };
   }, [calls]);
+  const { of, state } = shown;
+  /** The review this render showed, while it is still the hook's. */
+  const live = () => (of && of === review.current ? of : null);
   return {
     ...state,
     confirm: async () =>
-      review.current ? review.current.confirm(state.result) : !state.enabled,
-    retry: () => review.current?.retry(),
-    wait: () => review.current?.wait(),
+      !state.enabled || ((await live()?.confirm(state.result)) ?? false),
+    retry: () => live()?.retry(),
+    wait: () => live()?.wait(),
   };
 }

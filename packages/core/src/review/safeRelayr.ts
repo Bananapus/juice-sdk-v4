@@ -765,6 +765,8 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
   const fetchRelayr = options.fetch ?? globalThis.fetch;
   const displayedExecutions = new Map<string, string>();
   let view = SAFE_RELAYR_VIEW;
+  /** The session the latest call is about, when its arguments name one. */
+  let viewing: string | undefined;
   const listeners = new Set<() => void>();
   const show = (patch: Partial<SafeRelayrView>) => {
     view = { ...view, ...patch };
@@ -789,8 +791,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         return;
       displayedExecutions.set(key, display);
     }
-    // After a reset, nothing shows until the next call starts.
-    if (view.running)
+    // After a reset, nothing shows until the next call starts, and then only
+    // that call's session (a prepare's is known once it returns).
+    const id = progress.session?.id;
+    if (view.running && (!viewing || !id || id === viewing))
       show(
         progress.type === "phase"
           ? { phase: progress.phase }
@@ -2163,6 +2167,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
       };
       const call = ++calls;
       const latest = () => call === calls;
+      viewing = (args as { sessionId?: string }).sessionId;
       show({ running, error: null });
       try {
         const result = await run({
@@ -2184,7 +2189,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
               }
             : {}),
         } as A);
-        if (latest()) show({ result, running: null });
+        if (latest()) {
+          viewing = result.session.id;
+          show({ result, running: null });
+        }
         return result;
       } catch (error) {
         if (latest()) show({ error, running: null });
@@ -2208,6 +2216,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     /** Clears the view, as a new run starts. */
     reset() {
       calls += 1;
+      viewing = undefined;
       displayedExecutions.clear();
       show(SAFE_RELAYR_VIEW);
     },

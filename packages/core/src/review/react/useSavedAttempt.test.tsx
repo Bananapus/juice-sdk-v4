@@ -610,7 +610,9 @@ describe("useSavedAttempt", () => {
     const onDone = vi
       .fn<(outcome: SavedAttemptOutcome<string>) => Promise<boolean>>()
       .mockResolvedValueOnce(false)
-      .mockRejectedValueOnce(new Error("journal"))
+      .mockImplementationOnce(() => {
+        throw new Error("journal unavailable");
+      })
       .mockResolvedValue(true);
     const { seen, start } = harness({ recovery, attempt, client, onDone });
     await start();

@@ -676,19 +676,22 @@ export function useReviewedRun(
               receipt: TransactionReceipt | null;
             } | null,
           ) => void;
+          const cancelled = action.follow?.signal;
+          const abandon = () => end(null);
           const outcome = new Promise<Parameters<typeof end>[0]>(
-            (resolve) => (end = resolve),
+            (resolve) =>
+              (end = (ran) => {
+                cancelled?.removeEventListener("abort", abandon);
+                resolve(ran);
+              }),
           );
           // Replaced, or the caller's follow ended (a cancel, unlike its
           // timeout), already or later: its end is null, the step still held,
           // and nothing continues the action.
-          const cancelled = action.follow?.signal;
           if (latest.current !== id || cancelled?.aborted) end(null);
           else {
-            leave.current = () => end(null);
-            cancelled?.addEventListener("abort", () => end(null), {
-              once: true,
-            });
+            leave.current = abandon;
+            cancelled?.addEventListener("abort", abandon, { once: true });
           }
           const finish = completing(error, action.calls.length, end);
           // Followed for a later settlement; one already there is read once it attaches.
