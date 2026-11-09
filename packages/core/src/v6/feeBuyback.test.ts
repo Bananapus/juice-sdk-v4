@@ -947,6 +947,27 @@ describe("createFeeBuybackReview", () => {
     expect(await review.confirm(seen)).toBe(false);
   });
 
+  it("refuses a confirmation when a fee the person never saw appears unsettled", async () => {
+    const { client, context } = chain(false);
+    const review = createFeeBuybackReview([pay], context, vi.fn());
+    await flush();
+    const seen = review.getState().result;
+    expect(seen.status).toBe("fallback");
+    const fresh = simulation();
+    const other = { ...fresh[0].calls[0].logs[0] };
+    other.topics = [...other.topics];
+    other.topics[3] = word(7n);
+    fresh[0].calls[0].logs.push(other);
+    client.request.mockImplementation(async ({ method }: { method: string }) =>
+      method === "eth_blockNumber" ? "0x1" : fresh,
+    );
+    expect(await review.confirm(seen)).toBe(false);
+    expect(review.getState().result.fees.map((fee) => fee.route)).toEqual([
+      "fallback",
+      "unknown",
+    ]);
+  });
+
   it("answers false for a confirmation its review stopped during", async () => {
     const { context } = chain();
     const review = createFeeBuybackReview([pay], context, vi.fn());

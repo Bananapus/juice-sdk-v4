@@ -533,25 +533,28 @@ export type FeeReviewState = {
 
 const FEE_WATCH_POLL_MS = 4_000;
 
+/** How far a fee's route is from settling: swap or issuance, unknown, fallback. */
+const routeRank = { swap: 0, issuance: 0, unknown: 1, fallback: 2 } as const;
+
 /**
- * `fresh` reads worse than `seen`: a worse status, a fallback fee `seen` did
- * not show, or a swap or issuance `seen` showed that is gone (another call's fallback
- * would otherwise mask it).
+ * `fresh` reads worse than `seen`: a worse status, a fee that reads worse
+ * than `seen` showed it (a new unsettled fee included), or a settled fee
+ * `seen` showed that is gone. Per fee, so another call's fallback cannot mask
+ * a change.
  */
-const worse = (seen: FeeResult, fresh: FeeResult) =>
-  severity[fresh.status] > severity[seen.status] ||
-  fresh.fees.some(
-    (fee) =>
-      fee.route === "fallback" &&
-      !seen.fees.some((old) => old.key === fee.key && old.route === "fallback"),
-  ) ||
-  seen.fees.some(
-    (old) =>
-      settles(old) &&
-      !fresh.fees.some((fee) => fee.key === old.key && settles(fee)),
+const worse = (seen: FeeResult, fresh: FeeResult) => {
+  const shown = new Map(
+    seen.fees.map((fee) => [fee.key, routeRank[fee.route]]),
   );
-const settles = (fee: FeeResult["fees"][number]) =>
-  fee.route === "swap" || fee.route === "issuance";
+  const kept = new Set(fresh.fees.map((fee) => fee.key));
+  return (
+    severity[fresh.status] > severity[seen.status] ||
+    fresh.fees.some(
+      (fee) => routeRank[fee.route] > (shown.get(fee.key) ?? 0),
+    ) ||
+    seen.fees.some((fee) => routeRank[fee.route] === 0 && !kept.has(fee.key))
+  );
+};
 
 /**
  * One review's fee return check: every fee-paying call simulated alone on its
