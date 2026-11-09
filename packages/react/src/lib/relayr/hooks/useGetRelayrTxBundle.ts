@@ -2,7 +2,7 @@ import {
   relayrProgress,
   type RelayrProgressSummary,
 } from "@bananapus/nana-sdk-core/review/relayr";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "wagmi/query";
 import { API } from "../constants";
 import { RelayrGetBundleResponse } from "../types";
@@ -11,13 +11,15 @@ const POLL_INTERVAL = 2000;
 /** How long a bundle is polled before the hook stops, as core's `pollRelayrBundle` does. */
 const POLL_TIMEOUT = 5 * 60_000;
 
+type Target = { uuid: string; expectedCount?: number; until: number };
+
 /** The bundle's progress by core's case-insensitive rules, with unreported rows counted as pending. */
 const progressOf = (
   response: RelayrGetBundleResponse | undefined,
   expectedCount: number | undefined,
 ): RelayrProgressSummary => {
   const records = (response?.transactions ?? []).map((tx) => ({
-    status: { state: tx?.status?.state },
+    status: { state: tx.status?.state },
   }));
   return relayrProgress(records, expectedCount ?? records.length);
 };
@@ -46,13 +48,21 @@ const fetchTxBundle = async (
  * polled again; `error` is the last one.
  */
 export function useGetRelayrTxBundle() {
-  const [target, setTarget] = useState<{
-    uuid: string;
-    expectedCount?: number;
-    until: number;
-  }>();
+  const [target, setTarget] = useState<Target>();
+  /** The target whose five minutes ran out. */
+  const [expired, setExpired] = useState<Target>();
   const uuid = target?.uuid;
   const expectedCount = target?.expectedCount;
+  const timeUp = !!target && expired === target;
+
+  useEffect(() => {
+    if (!target) return;
+    const timer = setTimeout(
+      () => setExpired(target),
+      Math.max(0, target.until - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [target]);
 
   const getRelayrTxBundle = useQuery<
     RelayrGetBundleResponse,
@@ -65,10 +75,7 @@ export function useGetRelayrTxBundle() {
     enabled: !!uuid,
     refetchInterval: (query) => {
       const progress = progressOf(query.state.data, expectedCount);
-      return isComplete(progress) ||
-        progress.failed > 0 ||
-        !target ||
-        Date.now() >= target.until
+      return timeUp || isComplete(progress) || progress.failed > 0
         ? false
         : POLL_INTERVAL;
     },
@@ -92,13 +99,7 @@ export function useGetRelayrTxBundle() {
   );
   const complete = isComplete(progress);
   const hasFailed = progress.failed > 0;
-  // The read that landed after the deadline is the last one: its update renders this.
-  const lastRead = Math.max(
-    getRelayrTxBundle.dataUpdatedAt ?? 0,
-    getRelayrTxBundle.errorUpdatedAt ?? 0,
-  );
-  const timedOut =
-    !!target && !complete && !hasFailed && lastRead >= target.until;
+  const timedOut = timeUp && !complete && !hasFailed;
 
   return {
     startPolling,

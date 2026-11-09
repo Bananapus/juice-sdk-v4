@@ -11,8 +11,10 @@ const mocks = vi.hoisted(() => ({
   target: undefined as
     | { uuid: string; expectedCount?: number; until: number }
     | undefined,
-  dataUpdatedAt: 0,
-  errorUpdatedAt: 0,
+  expired: undefined as unknown,
+  setExpired: vi.fn(),
+  effect: undefined as undefined | (() => void | (() => void)),
+  states: 0,
 }));
 
 const select = (uuid: string, expectedCount?: number, until = Infinity) => {
@@ -22,7 +24,14 @@ const select = (uuid: string, expectedCount?: number, until = Infinity) => {
 vi.mock("react", () => ({
   useCallback: (callback: unknown) => callback,
   useMemo: (factory: () => unknown) => factory(),
-  useState: () => [mocks.target, mocks.setTarget],
+  // The hook's states in order: its target, then the target that expired.
+  useState: () =>
+    mocks.states++ % 2 === 0
+      ? [mocks.target, mocks.setTarget]
+      : [mocks.expired, mocks.setExpired],
+  useEffect: (effect: () => void | (() => void)) => {
+    mocks.effect = effect;
+  },
 }));
 
 vi.mock("wagmi/query", () => ({
@@ -30,9 +39,7 @@ vi.mock("wagmi/query", () => ({
     mocks.queryConfig = config;
     return {
       data: mocks.data,
-      dataUpdatedAt: mocks.dataUpdatedAt,
       error: mocks.queryError,
-      errorUpdatedAt: mocks.errorUpdatedAt,
       isFetching: mocks.isFetching,
       refetch: mocks.refetch,
     };
@@ -52,8 +59,9 @@ describe("useGetRelayrTxBundle", () => {
     mocks.isFetching = true;
     mocks.queryError = null;
     mocks.target = undefined;
-    mocks.dataUpdatedAt = 0;
-    mocks.errorUpdatedAt = 0;
+    mocks.expired = undefined;
+    mocks.effect = undefined;
+    mocks.states = 0;
   });
 
   test("keeps the query disabled until a bundle UUID is selected", async () => {
@@ -265,10 +273,9 @@ describe("useGetRelayrTxBundle", () => {
   });
 
   test("keeps polling through a failed read, and stops after five minutes", () => {
-    const until = Date.now() + 1_000;
-    select("bundle-slow", 1, until);
+    vi.useFakeTimers();
+    select("bundle-slow", 1, Date.now() + 1_000);
     mocks.queryError = new Error("offline");
-    mocks.errorUpdatedAt = until - 1;
 
     const polling = useGetRelayrTxBundle();
     expect(polling.isPolling).toBe(true);
@@ -277,15 +284,34 @@ describe("useGetRelayrTxBundle", () => {
       mocks.queryConfig.refetchInterval({ state: { data: undefined } }),
     ).toBe(2000);
 
-    // The read that landed after the deadline is the last.
-    select("bundle-slow", 1, Date.now() - 1);
-    mocks.errorUpdatedAt = Date.now();
+    // The deadline is a timer of its own: no read has to land after it.
+    const stop = mocks.effect!();
+    vi.advanceTimersByTime(999);
+    expect(mocks.setExpired).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(mocks.setExpired).toHaveBeenCalledWith(mocks.target);
+    mocks.expired = mocks.target;
     const stopped = useGetRelayrTxBundle();
     expect(
       mocks.queryConfig.refetchInterval({ state: { data: undefined } }),
     ).toBe(false);
     expect(stopped.timedOut).toBe(true);
     expect(stopped.isPolling).toBe(false);
+
+    // A new bundle's window clears the old one's timer.
+    (stop as () => void)();
+    select("bundle-past", 1, Date.now() - 5);
+    mocks.setExpired.mockClear();
+    useGetRelayrTxBundle();
+    mocks.effect!();
+    vi.advanceTimersByTime(0);
+    expect(mocks.setExpired).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+
+  test("schedules no deadline before a bundle is chosen", () => {
+    useGetRelayrTxBundle();
+    expect(mocks.effect!()).toBeUndefined();
   });
 
   test("does not treat an empty bundle as complete", () => {
