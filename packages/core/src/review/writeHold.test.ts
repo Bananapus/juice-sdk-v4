@@ -958,35 +958,6 @@ describe("a held write", () => {
     expect(write).toHaveBeenCalledOnce();
   });
 
-  it("keeps a success held with its hash until the app's receipt check passes", async () => {
-    const { storage, locks } = setup();
-    let proven = false;
-    const verifyReceipt = vi.fn(async () => {
-      if (!proven) throw new Error("no effect log");
-    });
-    const hold = createWriteHold({ storage, locks, verifyReceipt });
-    const { chain, client, receiptOf } = fakeChain();
-    const handle = hold.open(ordinary);
-    await handle.send(client, wallet(async () => HASH).send);
-    chain.txs.push(sent(HASH, { block: 95n }));
-    const receipt = receiptOf(chain.txs[0]);
-    await expect(handle.onReceipt(receipt, client)).resolves.toMatchObject({
-      status: "pending-known-hash",
-      hash: HASH,
-      exit: false,
-    });
-    expect(verifyReceipt).toHaveBeenCalledWith(
-      receipt,
-      expect.objectContaining({ hash: HASH }),
-    );
-    proven = true;
-    await expect(handle.onReceipt(receipt, client)).resolves.toMatchObject({
-      status: "clear",
-      settled: { result: "success", hash: HASH },
-    });
-    hold.dispose();
-  });
-
   it("refuses a held call before the review opens, and says how it is held", async () => {
     const { hold } = setup();
     const { client } = fakeChain();
@@ -3715,10 +3686,7 @@ describe("a held Safe proposal", () => {
       },
     ];
   }
-  function safeSetup(
-    browser = origin(),
-    extra: Parameters<typeof createWriteHold>[0] = {},
-  ) {
+  function safeSetup(browser = origin()) {
     const memory = new Map<string, string>();
     const storage = createHeldWriteStorage({
       durable: () => browser.storage,
@@ -3730,7 +3698,6 @@ describe("a held Safe proposal", () => {
       locks: lockManager(),
       safeService: queue.options,
       settle: { intervalMs: 1_000, attempts: 3 },
-      ...extra,
     });
     return { hold, queue, browser, storage };
   }
@@ -4744,11 +4711,8 @@ describe("a held Safe proposal", () => {
       line: WRITE_HOLD_SAFE_UNPROVEN_LINE,
       warning: WRITE_HOLD_HASHED_EXIT_LINE,
     };
-    async function proposed(
-      browser = origin(),
-      extra: Parameters<typeof createWriteHold>[0] = {},
-    ) {
-      const setup = safeSetup(browser, extra);
+    async function proposed(browser = origin()) {
+      const setup = safeSetup(browser);
       const fixture = fakeChain();
       const handle = setup.hold.open(safeCall());
       await handle.send(fixture.client, async (gate) => {
@@ -5054,25 +5018,6 @@ describe("a held Safe proposal", () => {
           },
         });
       }
-    });
-
-    it("keeps a logged success held while the app proves effects from a receipt it can't read", async () => {
-      const verifyReceipt = vi.fn(async () => {});
-      for (const topic of [SUCCESS, FAILURE]) {
-        const { handle, fixture, queue } = await proposed(origin(), {
-          verifyReceipt,
-        });
-        executes(fixture, queue.hash, topic);
-        fixture.chain.hidden.add(EXECUTION.toLowerCase());
-        const state = await handle.state(fixture.client);
-        if (topic === SUCCESS) expect(state.status).toBe("ran-executed");
-        else
-          expect(state).toMatchObject({
-            status: "clear",
-            settled: { result: "failed", hash: EXECUTION },
-          });
-      }
-      expect(verifyReceipt).not.toHaveBeenCalled();
     });
 
     it("drops a candidate only on canonical proof it isn't this proposal's execution", async () => {

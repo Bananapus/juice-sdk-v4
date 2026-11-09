@@ -465,15 +465,6 @@ export function createWriteHold(
     safeService?: SafeServiceOptions;
     /** How often, and how many times, a ran write is looked at again until it settles. */
     settle?: { intervalMs?: number; attempts?: number };
-    /**
-     * The app's own proof of a successful receipt's effect (its logs, say),
-     * asked before any write of this hold settles as a success. A throw keeps
-     * the write held with its hash, never settled.
-     */
-    verifyReceipt?: (
-      receipt: TransactionReceipt,
-      write: ReviewedWriteRecoveryRecord,
-    ) => Promise<void>;
   } = {},
 ) {
   const storage = options.storage ?? createHeldWriteStorage();
@@ -690,13 +681,7 @@ export function createWriteHold(
         receipt,
         proof,
         { finality: record.safe },
-      )
-        .then(async (verdict) => {
-          if (verdict === "success")
-            await options.verifyReceipt?.(receipt, record);
-          return verdict;
-        })
-        .catch(() => null);
+      ).catch(() => null);
       if (verdict) {
         const settled = {
           result: verdict,
@@ -1114,12 +1099,8 @@ export function createWriteHold(
           if (settled?.status === "clear") return settled;
         }
         // It ran: with its receipt unreadable, the canonical log at a
-        // finalized block carries its result. Never a resend exit. A success
-        // the app proves from its receipt waits for that receipt.
-        if (
-          end.execution &&
-          !(options.verifyReceipt && end.execution.status === "success")
-        ) {
+        // finalized block carries its result. Never a resend exit.
+        if (end.execution) {
           const settled = {
             result: end.execution.status,
             hash: end.execution.executionHash,
