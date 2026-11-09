@@ -635,7 +635,8 @@ describe("useSavedAttempt", () => {
     const attempt = attemptOf();
     const settles: ((settled: boolean) => void)[] = [];
     const onDone = vi.fn(
-      () => new Promise<boolean>((resolve) => settles.push(resolve)),
+      (_outcome: SavedAttemptOutcome<string>) =>
+        new Promise<boolean>((resolve) => settles.push(resolve)),
     );
     const { seen, start } = harness({ recovery, attempt, client, onDone });
     await start();
@@ -651,10 +652,11 @@ describe("useSavedAttempt", () => {
     await answer(unauthenticated("unavailable"));
     await act(async () => void seen.current!.recover());
     await answer(unauthenticated("timeout"));
-    expect(onDone.mock.calls.map(([outcome]) => outcome.reason)).toEqual([
-      "timeout",
-      "unavailable",
-    ]);
+    expect(
+      onDone.mock.calls.map(
+        ([outcome]) => "reason" in outcome && outcome.reason,
+      ),
+    ).toEqual(["timeout", "unavailable"]);
     await act(async () => settles.forEach((settle) => settle(true)));
     expect(recovery.retire).toHaveBeenCalledWith(attempt, {
       by: "settled",

@@ -973,7 +973,7 @@ describe("createFeeBuybackReview", () => {
   it("stays checking while one chain is unanswered, however often another answers", async () => {
     const a = chain();
     const b = chain();
-    b.client.request.mockImplementation(() => new Promise(() => {}));
+    b.client.request.mockImplementation(() => new Promise<never>(() => {}));
     const review = createFeeBuybackReview(
       [pay, { ...pay, chainId: 2 }],
       (chainId) => (chainId === 1 ? a : b).context(),
