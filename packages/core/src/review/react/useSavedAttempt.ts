@@ -202,19 +202,20 @@ export function useSavedAttempt<T>(
 
   const outcome = shown.of === lifecycle ? shown.outcome : null;
 
-  /** The outcome last handed to onDone or onRetired, by value, so each is handed once. */
-  const handed = useRef<string | null>(null);
+  /**
+   * Every outcome handed to onDone or onRetired, by value and attempt, while
+   * its callback runs and after: each is handed once until it is rearmed.
+   */
+  const handed = useRef(new Set<string>());
   useEffect(() => {
     if (!outcome || (outcome.status !== "done" && outcome.status !== "none"))
       return;
     const mark = `${key}:${markOf(outcome)}`;
-    if (handed.current === mark) return;
-    const rearm = () => {
-      if (handed.current === mark) handed.current = null;
-    };
+    if (handed.current.has(mark)) return;
+    const rearm = () => void handed.current.delete(mark);
     const { onDone, onRetired } = callbacks.current;
     if (outcome.status === "done" && onDone) {
-      handed.current = mark;
+      handed.current.add(mark);
       const hash = outcome.hash;
       // Handed only while its attempt is still the hook's: a replacement's
       // never. The handed attempt is retired even if onDone cleared it.
@@ -246,7 +247,7 @@ export function useSavedAttempt<T>(
       outcome.retired !== "settled" &&
       onRetired
     ) {
-      handed.current = mark;
+      handed.current.add(mark);
       const by = outcome.retired;
       void Promise.resolve()
         .then(() => (current(lifecycle) ? onRetired(by) : undefined))

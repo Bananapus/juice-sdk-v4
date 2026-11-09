@@ -630,6 +630,38 @@ describe("useSavedAttempt", () => {
     expect(recovery.retire).toHaveBeenCalledWith(attempt, { by: "settled" });
   });
 
+  test("never hands a done outcome again while its onDone is still pending, even after another came between", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const attempt = attemptOf();
+    const settles: ((settled: boolean) => void)[] = [];
+    const onDone = vi.fn(
+      () => new Promise<boolean>((resolve) => settles.push(resolve)),
+    );
+    const { seen, start } = harness({ recovery, attempt, client, onDone });
+    await start();
+    const unauthenticated = (reason: string): SavedAttemptOutcome<string> => ({
+      status: "done",
+      result: "success",
+      authenticated: false,
+      hash: "0xab",
+      reason,
+    });
+    await answer(unauthenticated("timeout"));
+    await act(async () => void seen.current!.recover());
+    await answer(unauthenticated("unavailable"));
+    await act(async () => void seen.current!.recover());
+    await answer(unauthenticated("timeout"));
+    expect(onDone.mock.calls.map(([outcome]) => outcome.reason)).toEqual([
+      "timeout",
+      "unavailable",
+    ]);
+    await act(async () => settles.forEach((settle) => settle(true)));
+    expect(recovery.retire).toHaveBeenCalledWith(attempt, {
+      by: "settled",
+      hash: "0xab",
+    });
+  });
+
   test("offers a done outcome again when its settled retirement is refused", async () => {
     const { recovery, answer } = fakeRecovery();
     recovery.retire.mockResolvedValueOnce({ retired: false } as Retired);
