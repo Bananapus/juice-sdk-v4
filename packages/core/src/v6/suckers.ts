@@ -683,28 +683,31 @@ export type JBSuckerMovementStatus = "pending" | "claimable" | "claimed";
 /** Bridge family used by a sucker. Unknown values must fail closed for fees. */
 export type JBSuckerTransport = "ccip" | "native" | "unknown";
 
-/**
- * Verified movement reconstructed from sucker logs and destination state:
- * only a `claimable` one carries the proof verified against the destination
- * inbox root, and only a `pending` one can be executed.
- */
-export type JBSuckerMovement = {
+/** Verified movement reconstructed from sucker logs and destination state. */
+export interface JBSuckerMovement {
   sourceToken: Address;
   remoteToken: Address;
   leaf: JBLeaf;
   leafHash: Hex;
   outboxRoot: Hex;
   blockNumber: bigint;
-} & (
-  | { status: "claimable"; canExecute: false; proof: JBLeafProof }
-  | {
-      status: "pending";
-      /** True when the leaf has not yet been included in a toRemote send. */
-      canExecute: boolean;
-      proof: null;
-    }
-  | { status: "claimed"; canExecute: false; proof: null }
-);
+  status: JBSuckerMovementStatus;
+  /** True when a pending leaf has not yet been included in a toRemote send. */
+  canExecute: boolean;
+  /** Present only when verified against the destination inbox root. */
+  proof: JBLeafProof | null;
+}
+
+/**
+ * A `JBSuckerMovement` narrowed by its status: only a `claimable` one carries
+ * its verified proof, and only a `pending` one can execute.
+ */
+export type JBSuckerMovementByStatus = JBSuckerMovement &
+  (
+    | { status: "claimable"; canExecute: false; proof: JBLeafProof }
+    | { status: "pending"; proof: null }
+    | { status: "claimed"; canExecute: false; proof: null }
+  );
 
 /** Pure status classification shared by bridge movement lists. */
 export function classifySuckerMovement({
@@ -752,7 +755,7 @@ export async function getSuckerMovements(
      */
     remoteToken?: Address;
   } & JBSuckerOutboxScanOptions,
-): Promise<JBSuckerMovement[]> {
+): Promise<JBSuckerMovementByStatus[]> {
   const [outbox, remoteMapping] = await Promise.all([
     sourceClient.readContract({
       address: sourceSucker,
