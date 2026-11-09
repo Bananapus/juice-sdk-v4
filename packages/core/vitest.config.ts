@@ -196,6 +196,12 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
+        "src/review/relayrLaunch.ts": {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
         "src/review/react/HeldWritesNotice.tsx": {
           statements: 100,
           branches: 100,
