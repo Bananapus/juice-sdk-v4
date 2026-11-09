@@ -21,7 +21,7 @@ import {
 import { Address, isAddressEqual, zeroAddress } from "viem";
 import { useSuckers } from "../../hooks";
 import { useJBChainId } from "../JBChainContext/JBChainContext";
-import { AsyncData, AsyncDataNone } from "../types";
+import { AsyncData, AsyncDataNone, dependentAsyncData } from "../types";
 import { useReadContract } from "wagmi";
 
 /**
@@ -192,6 +192,7 @@ export const JBContractProvider = ({
       isLoading:
         primaryNativeTerminalEth.isLoading ||
         primaryNativeTerminalUsdc.isLoading,
+      error: primaryNativeTerminalEth.error ?? primaryNativeTerminalUsdc.error,
     };
   }, [primaryNativeTerminalEth, primaryNativeTerminalUsdc]);
 
@@ -274,17 +275,6 @@ export const JBContractProvider = ({
     },
   });
 
-  // A dependent read that is disabled because its controller has not resolved
-  // yet reports `isLoading: false, data: undefined` — indistinguishable from
-  // "this project has none". Carry the upstream's loading state instead.
-  const dependent = <T,>(query: {
-    data: T | undefined;
-    isLoading: boolean;
-  }) => ({
-    ...query,
-    isLoading: Boolean(query.isLoading || controller.isLoading),
-  });
-
   const contractAddress = useCallback(
     (contract: Contract, _chainId?: JBChainId) => {
       return getJBContractAddress(contract, version, _chainId || chainId!);
@@ -294,11 +284,11 @@ export const JBContractProvider = ({
 
   const contracts = {
     controller,
-    fundAccessLimits: dependent(fundAccessLimits),
+    fundAccessLimits: dependentAsyncData(fundAccessLimits, controller),
     primaryNativeTerminal,
-    rulesets: dependent(rulesets),
-    tokens: dependent(tokens),
-    splits: dependent(splits),
+    rulesets: dependentAsyncData(rulesets, controller),
+    tokens: dependentAsyncData(tokens, controller),
+    splits: dependentAsyncData(splits, controller),
   };
 
   debug("JBContractContext", { projectId, contracts });

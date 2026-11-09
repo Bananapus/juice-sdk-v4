@@ -82,6 +82,7 @@ describe("JBTokenContext", () => {
     expect(element.props.value.token).toEqual({
       data: { symbol: "JBX", decimals: 18 },
       isLoading: false,
+      error: null,
     });
     expect(element.props.value.totalOutstanding.data).toBeInstanceOf(
       JBProjectToken,
