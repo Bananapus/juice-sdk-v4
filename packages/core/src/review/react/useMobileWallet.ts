@@ -24,7 +24,7 @@ const MOBILE_PROVIDER_WAIT_MS = 3_000;
  * On a phone, whether a wallet's provider is in the page (`injected`) or the
  * page should offer to reopen in a wallet app (`handoff`). MetaMask Mobile
  * injects late and emits `ethereum#initialized`, so it gets the documented
- * three-second window (`checking`).
+ * three-second window (`checking`); EIP-6963 wallets are asked to announce.
  */
 export function useMobileWallet(): MobileWalletState {
   const [state, setState] = useState<MobileWalletState>("not-mobile");
@@ -51,6 +51,8 @@ export function useMobileWallet(): MobileWalletState {
       stop();
       setState(page.ethereum ? "injected" : "handoff");
     }, MOBILE_PROVIDER_WAIT_MS);
+    // EIP-6963: a wallet that announced before this listened announces again.
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
     return stop;
   }, []);
   return state;

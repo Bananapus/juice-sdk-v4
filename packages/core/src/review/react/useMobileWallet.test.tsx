@@ -65,6 +65,18 @@ describe("useMobileWallet", () => {
     },
   );
 
+  test("asks for providers, so a wallet that announced before mount is injected", async () => {
+    const announce = () =>
+      window.dispatchEvent(new Event("eip6963:announceProvider"));
+    window.addEventListener("eip6963:requestProvider", announce);
+    try {
+      await mount(phone);
+      expect(seen.current).toBe("injected");
+    } finally {
+      window.removeEventListener("eip6963:requestProvider", announce);
+    }
+  });
+
   test.each([
     [false, "handoff"],
     [true, "injected"],
