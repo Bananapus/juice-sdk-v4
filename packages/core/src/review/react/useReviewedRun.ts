@@ -575,6 +575,7 @@ export function useReviewedRun(
           keyOf(unfinished.calls.map(sent)) === keyOf(action.calls.map(sent))
             ? unfinished
             : null;
+        if (saved?.completed.length) sentAny = true;
         const given = action.follow?.signal;
         const inPlace: ReviewedAction["follow"] = {
           ...action.follow,
@@ -596,6 +597,9 @@ export function useReviewedRun(
               { ...action, account, guard, follow: inPlace },
               tracked,
             );
+        // A wallet that reviews on its own page reports no progress: the
+        // result is the run's last word.
+        update({ phase: result.status });
         if (result.status === "proposed") void follow();
         else if (mounted.current && latest.current === id) {
           // Shown: its success blocks no later run.

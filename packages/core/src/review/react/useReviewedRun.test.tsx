@@ -21,7 +21,7 @@ import {
 } from "../messages.js";
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import { openStepHold, safeBatchCall } from "../writeHold.js";
-import { viemWalletAdapter } from "../wallet.js";
+import { selfReviewingAdapter, viemWalletAdapter } from "../wallet.js";
 import {
   createWalletClient,
   custom,
@@ -434,6 +434,45 @@ describe("useReviewedRun", () => {
         onCancelled,
       }),
     ).resolves.toBeNull();
+    await rendered(() => expect(seen.current!.status).not.toBe("cancelled"));
+    expect(onCancelled).not.toHaveBeenCalled();
+  });
+
+  test("a wallet that reviews on its own page ends done, not busy", async () => {
+    const prompts = reviewUi();
+    const { deps } = setup();
+    const submit = vi.fn(async () => `0x${"ab".repeat(32)}` as ViemHex);
+    const { seen, run } = harness({
+      ...deps,
+      account: ACCOUNT,
+      adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+    });
+    await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(prompts).toHaveLength(0);
+    expect(seen.current).toMatchObject({
+      phase: "done",
+      status: "done",
+      busy: false,
+    });
+  });
+
+  test("closing a resumed sequence's review after its approval is no cancel", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementation(async (tx) => {
+      if (wallet.adapter.sendTransaction.mock.calls.length === 2)
+        throw Object.assign(new Error("User rejected"), { code: 4001 });
+      return send(tx);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const action = { calls: [approveCall(), payCall()], scope: "pay:p1" };
+    await run(action);
+    reviewUi(async () => null);
+    const onCancelled = vi.fn();
+    await expect(run({ ...action, onCancelled })).resolves.toBeNull();
     await rendered(() => expect(seen.current!.status).not.toBe("cancelled"));
     expect(onCancelled).not.toHaveBeenCalled();
   });
