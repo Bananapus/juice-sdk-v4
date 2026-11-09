@@ -178,6 +178,7 @@ describe("useReviewedRun", () => {
     act(() => seen.current!.reset());
     expect(seen.current!.phase).toBe("idle");
     expect(seen.current!.status).toBe("idle");
+    expect(seen.current!.lastSubmittedStep).toBeNull();
   });
 
   test("shows its own line when the send engine does not load", async () => {
@@ -273,6 +274,7 @@ describe("useReviewedRun", () => {
       phase: "signing",
       status: "signing",
       busy: true,
+      lastSubmittedStep: 0,
       step: 1,
       total: 2,
       hash: `0x${"1".padStart(64, "0")}`,
@@ -286,6 +288,7 @@ describe("useReviewedRun", () => {
       phase: "done",
       status: "done",
       busy: false,
+      lastSubmittedStep: 1,
       step: 1,
       total: 2,
       error: null,
@@ -358,6 +361,8 @@ describe("useReviewedRun", () => {
     });
     expect(prompts).toHaveLength(1);
     expect(seen.current).toMatchObject({ phase: "done", step: 1, total: 2 });
+    // The last step, sent while away, counts as submitted.
+    expect(seen.current!.lastSubmittedStep).toBe(1);
   });
 
   test("follows the held step as its hold changes", async () => {

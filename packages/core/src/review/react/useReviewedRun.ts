@@ -116,6 +116,12 @@ export type UseReviewedRunResult = {
       onCancelled?: () => void;
     },
   ) => Promise<ReviewedResult | ReviewedRunReceipt | ReviewedRunFailed | null>;
+  /**
+   * The highest step of the action whose hash the wallet returned in the
+   * latest run (a resumed sequence's completed or proposed steps count), or
+   * null. It outlasts the run's failure or release; `reset` clears it.
+   */
+  lastSubmittedStep: number | null;
   /** The run's status, from `reviewedRunStatus`: the one every app shows. */
   status: ReviewedRunStatus;
   /** Reviewing, simulating, signing or confirming a receipt: the action waits. */
@@ -184,6 +190,7 @@ type RunState = Omit<
 
 const IDLE: RunState = {
   cancelled: false,
+  lastSubmittedStep: null,
   phase: "idle",
   step: 0,
   total: 0,
@@ -275,7 +282,12 @@ export function useReviewedRun(
     const finished = step === total - 1;
     setState((now) =>
       settled.result !== "success"
-        ? { ...IDLE, error: settledLine(settled), receipt }
+        ? {
+            ...IDLE,
+            error: settledLine(settled),
+            receipt,
+            lastSubmittedStep: now.lastSubmittedStep,
+          }
         : finished
           ? {
               ...now,
@@ -288,6 +300,7 @@ export function useReviewedRun(
             }
           : {
               ...IDLE,
+              lastSubmittedStep: now.lastSubmittedStep,
               step,
               total,
               hash: settled.hash,
@@ -308,7 +321,11 @@ export function useReviewedRun(
             onSettled: (settled, receipt) => watched.finish(settled, receipt),
             onReleased: () => {
               watched.released?.();
-              if (latest.current === watched.run) setState(IDLE);
+              if (latest.current === watched.run)
+                setState((now) => ({
+                  ...IDLE,
+                  lastSubmittedStep: now.lastSubmittedStep,
+                }));
             },
           })
         : undefined,
@@ -381,6 +398,12 @@ export function useReviewedRun(
       let loaded: ReviewedEngine | undefined;
       /** A step of the action was sent before this run, or by it: never a cancel. */
       let sentAny = false;
+      let submitted: number | null = null;
+      const submit = (step: number) => {
+        if (submitted !== null && submitted >= step) return;
+        submitted = step;
+        update({ lastSubmittedStep: step });
+      };
       setWatched(null);
       /**
        * Completes a sent step once its hold settled it, as the run would
@@ -575,7 +598,20 @@ export function useReviewedRun(
           keyOf(unfinished.calls.map(sent)) === keyOf(action.calls.map(sent))
             ? unfinished
             : null;
-        if (saved?.completed.length) sentAny = true;
+        if (saved?.completed.length) {
+          sentAny = true;
+          submit(saved.completed.length - 1);
+        }
+        if (saved?.proposed) submit(saved.proposed.step);
+        const onSubmitted: ReviewedAction["onSubmitted"] = (
+          call,
+          step,
+          hash,
+          how,
+        ) => {
+          submit(step);
+          return action.onSubmitted?.(call, step, hash, how);
+        };
         const given = action.follow?.signal;
         const inPlace: ReviewedAction["follow"] = {
           ...action.follow,
@@ -590,16 +626,22 @@ export function useReviewedRun(
         const result = saved
           ? await resumeReviewed(
               saved,
-              { ...action, guard, follow: inPlace },
+              { ...action, guard, follow: inPlace, onSubmitted },
               tracked,
             )
           : await sendReviewed(
-              { ...action, account, guard, follow: inPlace },
+              { ...action, account, guard, follow: inPlace, onSubmitted },
               tracked,
             );
         // A wallet that reviews on its own page reports no progress: the
         // result is the run's last word.
         update({ phase: result.status });
+        // Every step of a done run has its hash, a resumed one's too.
+        submit(
+          result.status === "done"
+            ? (saved?.calls ?? action.calls).length - 1
+            : result.step,
+        );
         if (result.status === "proposed") void follow();
         else if (mounted.current && latest.current === id) {
           // Shown: its success blocks no later run.
@@ -702,6 +744,7 @@ export function useReviewedRun(
         const line = cancelled ? null : errorLine(error);
         update({
           ...IDLE,
+          lastSubmittedStep: submitted,
           error: line,
           failure: cancelled ? null : error,
           cancelled: cancelled && !sentAny,
