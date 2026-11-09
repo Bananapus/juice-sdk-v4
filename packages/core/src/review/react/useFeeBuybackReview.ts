@@ -63,9 +63,8 @@ export function useFeeBuybackReview(
       const shownReview = live();
       if (!current() || !shownReview) return false;
       const confirmed = await shownReview.confirm(state.result);
-      // Replaced while confirming: the answer is for calls no longer shown
-      // (a stopped review's own confirm already answers false).
-      return confirmed && current();
+      // Replaced or closed while confirming: the answer is for calls no longer shown.
+      return confirmed && current() && live() === shownReview;
     },
     retry: () => live()?.retry(),
     wait: () => live()?.wait(),

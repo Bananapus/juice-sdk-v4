@@ -140,8 +140,10 @@ describe("useFeeBuybackReview", () => {
     await render([{ ...pay, functionName: "launch" }]);
     expect(seen.current).toMatchObject({ enabled: false, status: "none" });
     expect(await act(() => seen.current!.confirm())).toBe(true);
+    const closing = seen.current!.confirm();
     act(() => root!.unmount());
     root = undefined;
+    expect(await closing).toBe(false);
     expect(await seen.current!.confirm()).toBe(false);
   });
 });
