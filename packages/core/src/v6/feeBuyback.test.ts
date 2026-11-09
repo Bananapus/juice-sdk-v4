@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { encodeAbiParameters, encodeEventTopics, parseAbi } from "viem";
+import {
+  encodeAbiParameters,
+  encodeEventTopics,
+  parseAbi,
+  type Address,
+} from "viem";
 import {
   jbContractAddress,
   jbContractAddressHistory,
@@ -17,6 +22,7 @@ import {
   isFeePayingCall,
   type Fee,
   type FeeResult,
+  type FeeReviewCall,
   type FeeReviewState,
 } from "./feeBuyback.js";
 const terminal = "0x1111111111111111111111111111111111111111";
@@ -800,11 +806,11 @@ describe("fee review helpers", () => {
 });
 
 describe("createFeeBuybackReview", () => {
-  const pay = {
+  const pay: FeeReviewCall = {
     chainId: 1,
-    from: user,
-    to: terminal,
-    data: "0x" as const,
+    from: user as Address,
+    to: terminal as Address,
+    data: "0x",
     functionName: "pay",
   };
   const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
