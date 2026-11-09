@@ -224,6 +224,7 @@ describe("published core SDK surfaces", () => {
       "createBrowserWriteRecovery",
       "createHeldWriteStorage",
       "createHeldWriteView",
+      "createReviewQueue",
       "createSavedAttemptRecovery",
       "createWriteHold",
       "decodeReviewCall",

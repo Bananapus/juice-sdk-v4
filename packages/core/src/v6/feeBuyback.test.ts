@@ -8,6 +8,7 @@ import {
   analyzeFeeSimulation,
   checkFeeBuyback,
   combineFeeResults,
+  createFeeBuybackReview,
   createFeeWatch,
   feeBuybackOptions,
   feeMessage,
@@ -16,6 +17,7 @@ import {
   isFeePayingCall,
   type Fee,
   type FeeResult,
+  type FeeReviewState,
 } from "./feeBuyback.js";
 const terminal = "0x1111111111111111111111111111111111111111";
 const hook = "0x2222222222222222222222222222222222222222";
@@ -794,5 +796,130 @@ describe("fee review helpers", () => {
       ),
     ).resolves.toEqual({ status: "unknown", fees: [] });
     expect(request).not.toHaveBeenCalled();
+  });
+});
+
+describe("createFeeBuybackReview", () => {
+  const pay = {
+    chainId: 1,
+    from: user,
+    to: terminal,
+    data: "0x" as const,
+    functionName: "pay",
+  };
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  function chain(swaps = true) {
+    const watchers: {
+      onBlockNumber: () => void;
+      onError: (error: Error) => void;
+    }[] = [];
+    const unwatch = vi.fn();
+    const client = {
+      request: vi.fn(async ({ method }: { method: string }) =>
+        method === "eth_blockNumber" ? "0x1" : simulation(swaps),
+      ),
+      watchBlockNumber: vi.fn((args: (typeof watchers)[number]) => {
+        watchers.push(args);
+        return unwatch;
+      }),
+    };
+    return {
+      client,
+      watchers,
+      unwatch,
+      context: () => ({ client, options: opts }),
+    };
+  }
+
+  it("does nothing for calls that pay no fee", async () => {
+    const { context, client } = chain();
+    const changed = vi.fn();
+    const review = createFeeBuybackReview(
+      [{ ...pay, functionName: "launch" }],
+      context,
+      changed,
+    );
+    expect(review.getState()).toMatchObject({
+      enabled: false,
+      status: "none",
+      busy: false,
+      confirmLabel: undefined,
+    });
+    review.retry();
+    expect(await review.confirm()).toBe(true);
+    expect(client.watchBlockNumber).not.toHaveBeenCalled();
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it("checks, settles, rechecks per block and confirms what the person saw", async () => {
+    const { context, client, watchers, unwatch } = chain();
+    const seen: FeeReviewState[] = [];
+    const review = createFeeBuybackReview(
+      [pay, { ...pay, functionName: "cashOutTokensOf" }],
+      context,
+      (s) => seen.push(s),
+    );
+    expect(review.getState()).toMatchObject({
+      enabled: true,
+      status: "checking",
+      busy: true,
+      settled: false,
+    });
+    expect(await review.confirm()).toBe(false);
+    await flush();
+    expect(review.getState()).toMatchObject({
+      status: "ready",
+      busy: false,
+      settled: true,
+      autoRefresh: true,
+      confirmLabel: "Review and submit",
+    });
+    expect(client.watchBlockNumber).toHaveBeenCalledTimes(1);
+    watchers[0].onBlockNumber();
+    await flush();
+    expect(client.request).toHaveBeenCalledTimes(8);
+    const confirming = review.confirm();
+    expect(review.getState()).toMatchObject({
+      status: "confirming",
+      confirmLabel: "Checking fee return…",
+    });
+    expect(await review.confirm()).toBe(false);
+    expect(await confirming).toBe(true);
+    expect(review.getState().status).toBe("ready");
+    review.wait();
+    expect(review.getState().waiting).toBe(true);
+    review.retry();
+    expect(review.getState().status).toBe("checking");
+    await flush();
+    expect(review.getState().status).toBe("ready");
+    watchers[0].onError(new Error("down"));
+    expect(review.getState().status).toBe("unknown");
+    const count = seen.length;
+    review.stop();
+    expect(unwatch).toHaveBeenCalledTimes(1);
+    review.wait();
+    expect(seen.length).toBe(count);
+    expect(await review.confirm()).toBe(false);
+  });
+
+  it("reads an unsupported chain or a call without a sender as unknown and watches nothing", async () => {
+    const { client } = chain();
+    const review = createFeeBuybackReview(
+      [pay, { ...pay, chainId: 2, from: undefined }],
+      (chainId) => {
+        if (chainId === 1) throw new Error("Unsupported chain");
+        return { client, options: opts };
+      },
+      vi.fn(),
+    );
+    await flush();
+    expect(review.getState()).toMatchObject({
+      status: "unknown",
+      settled: true,
+      autoRefresh: false,
+      confirmLabel: "Submit without estimate",
+    });
+    expect(client.watchBlockNumber).not.toHaveBeenCalled();
+    expect(client.request).not.toHaveBeenCalled();
   });
 });
