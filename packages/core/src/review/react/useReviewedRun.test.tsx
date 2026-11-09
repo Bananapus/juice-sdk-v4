@@ -482,6 +482,19 @@ describe("useReviewedRun", () => {
     expect(onCancelled).not.toHaveBeenCalled();
   });
 
+  test("tells a cancel once the cancelled run has rendered", async () => {
+    reviewUi(async () => null);
+    const { deps } = setup();
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const shown: string[] = [];
+    const onCancelled = vi.fn(() => {
+      shown.push(seen.current!.status);
+    });
+    await expect(run({ calls: [payCall()], onCancelled })).resolves.toBeNull();
+    await rendered(() => expect(onCancelled).toHaveBeenCalledOnce());
+    expect(shown).toEqual(["cancelled"]);
+  });
+
   test("a cancel callback that fails is contained", async () => {
     reviewUi(async () => null);
     const { deps } = setup();

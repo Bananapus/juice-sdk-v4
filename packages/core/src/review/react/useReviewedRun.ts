@@ -226,6 +226,13 @@ export function useReviewedRun(
   deps: UseReviewedRunDeps | null,
 ): UseReviewedRunResult {
   const [state, setState] = useState<RunState>(IDLE);
+  /** A cancel to tell once the cancelled run has rendered. */
+  const [cancelling, setCancelling] = useState<{
+    onCancelled: () => void;
+  } | null>(null);
+  useEffect(() => {
+    if (cancelling) void tell(cancelling.onCancelled);
+  }, [cancelling]);
   /** The hold followed after a run, and its chain's client: its view is `held`. */
   const [watched, setWatched] = useState<{
     handle: WriteHoldHandle;
@@ -778,7 +785,7 @@ export function useReviewedRun(
             latest.current === id &&
             mounted.current
           )
-            void tell(onCancelled);
+            setCancelling(onCancelled ? { onCancelled } : null);
         });
         return line === null
           ? null
