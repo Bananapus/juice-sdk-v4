@@ -4899,6 +4899,63 @@ describe("Safe Relayr controller view", () => {
     });
   });
 
+  it("clears a failed check's error once the watch it overlapped verifies completion", async () => {
+    const h = harness();
+    const calls = [execution()];
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: calls,
+    });
+    h.mined();
+    const adapter = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (options) => {
+      const paid = await adapter(options);
+      h.setPaymentReceived(true);
+      h.setRecords(destinationRecords(calls, [undefined]));
+      return paid;
+    });
+    expect(
+      (
+        await h.controller.fund({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+          paymentChainId: 1,
+        })
+      ).state,
+    ).toBe("pending");
+    const polled = deferred();
+    const resume = deferred();
+    let polls = 0;
+    const watching = h.controller.watch({
+      account: ACCOUNT,
+      sessionId: ready.session.id,
+      intervalMs: 1,
+      timeoutMs: 60_000,
+      onUpdate: async () => {
+        if ((polls += 1) > 1) return;
+        polled.resolve();
+        await resume.promise;
+      },
+    });
+    await polled.promise;
+    vi.mocked(h.store.list).mockRejectedValueOnce(
+      new Error("storage unavailable"),
+    );
+    await expect(
+      h.controller.check({ account: ACCOUNT, sessionId: ready.session.id }),
+    ).rejects.toThrow("storage unavailable");
+    expect(h.controller.getState().error).toBeInstanceOf(Error);
+    mineSafe(h, calls[0], HASH);
+    h.setRecords(destinationRecords(calls, [HASH]));
+    resume.resolve();
+    expect((await watching).state).toBe("complete");
+    expect(h.controller.getState()).toMatchObject({
+      result: { state: "complete" },
+      error: null,
+      running: null,
+    });
+  });
+
   it("shows a new run's progress while a watch from before the reset still runs", async () => {
     const h = harness();
     const calls = [execution()];

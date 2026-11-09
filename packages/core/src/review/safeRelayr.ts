@@ -2217,14 +2217,14 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           ...(running === "watch"
             ? {
                 onUpdate: (result: SafeRelayrResult) => {
-                  if (shows()) show({ result });
+                  if (shows()) show({ result, error: null });
                   return given.onUpdate?.(result);
                 },
               }
             : {}),
         } as A);
         flying.delete(call);
-        if (shows()) show({ result, running: still() });
+        if (shows()) show({ result, error: null, running: still() });
         return result;
       } catch (error) {
         flying.delete(call);
