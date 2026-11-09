@@ -372,7 +372,13 @@ describe("passkeyOption", () => {
     expect(w.launch).toHaveBeenCalledOnce();
   });
   test("a settled payment does not block sign-in, and an expired handoff is disconnected and retried once", async () => {
-    for (const status of ["paid", "reverted", "cancelled", "expired"]) {
+    for (const status of [
+      "paid",
+      "reverted",
+      "cancelled",
+      "expired",
+      "refused",
+    ]) {
       const settled = wallet({ status });
       await passkeyOption({ wallet: () => settled.wallet }).connect({
         signal: new AbortController().signal,

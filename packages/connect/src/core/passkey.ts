@@ -21,7 +21,14 @@ export type PasskeyWallet = {
   disconnect(): void;
   payments(): { pendingPayment(): { status: string } | null };
 };
-const settled = new Set(["paid", "reverted", "cancelled", "expired"]);
+/** The payment states that end a payment, as Signa's wallet client defines them (`isSettledPayment`). */
+const settled = new Set([
+  "paid",
+  "reverted",
+  "cancelled",
+  "expired",
+  "refused",
+]);
 
 /** The built-in way in: a passkey account at Juicebox Center. By default Center opens in a popup
  * and the page stays; the callback comes back by message and the exchange finishes here, then
