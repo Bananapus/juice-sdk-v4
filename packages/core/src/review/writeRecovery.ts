@@ -947,7 +947,16 @@ export function createBrowserWriteRecovery(
     // A rejection callback from another attempt must never release this one.
     if (!owned || owned.hash) return;
     const current = read();
-    if (current?.id === owned.id && current.hash) return;
+    // Only its own unsent record is released: once another tab exited it and
+    // reserved (a lost lock), its markers and settlement stay the successor's.
+    if (current?.id !== owned.id || current.hash) {
+      if (current && current.id !== owned.id)
+        throw new ReviewLineError(
+          "Write recovery changed. Keep the current action pending.",
+        );
+      owned = undefined;
+      return;
+    }
     try {
       storage().setItem(exitedKey(locate(storage()).at, owned.id), "1");
     } catch {

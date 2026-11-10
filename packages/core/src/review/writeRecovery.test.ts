@@ -1801,6 +1801,47 @@ describe("releasing a write with no confirmed result", () => {
     expect(request).toHaveBeenCalledWith("native", {}, expect.any(Function));
   });
 
+  it("never lets a rejection from a tab that lost its lock touch the next owner's write", async () => {
+    const options = browser();
+    const a = createBrowserWriteRecovery(input, options);
+    // The next owner took the lease A lost: its own lock manager.
+    const b = createBrowserWriteRecovery(input, {
+      storage: options.storage,
+      locks: browser().locks,
+    });
+    let stale!: ReviewedWriteRecoveryRecord;
+    let resume!: () => void;
+    const asleep = new Promise<void>((resolve) => (resume = resolve));
+    const holding = a.withLock(async () => {
+      stale = a.reserve();
+      await asleep;
+      // A wakes and cleans up its unsent reservation; whatever it says,
+      // the next owner's write and marker stand.
+      try {
+        a.rejected();
+      } catch {
+        /* Refused is fine. */
+      }
+    });
+    await vi.waitFor(() => expect(stale).toBeDefined());
+    // B checks the wallet, exits A's unsent reservation, sends, saves its
+    // hash and settles it.
+    b.abandon(stale, { checkedWallet: true });
+    const sent = await b.withLock(async () => {
+      b.reserve();
+      const sent = b.submitted(HASH);
+      b.clear(sent);
+      b.markSettled(sent, { result: "success", hash: HASH });
+      return sent;
+    });
+    resume();
+    await holding;
+    const fresh = createBrowserWriteRecovery(input, options);
+    expect(fresh.latestReservation()).toBe(sent.id);
+    expect(fresh.settled()).toMatchObject({ result: "success", hash: HASH });
+    expect(fresh.rejectedReservation()).toBeUndefined();
+  });
+
   it("lets the user end a held write only after confirming they checked their wallet", async () => {
     const { journal, record } = await reserved();
     await journal.withLock(async () => {

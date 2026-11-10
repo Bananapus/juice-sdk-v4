@@ -59,7 +59,7 @@ import {
 } from "./relayr.js";
 import { ReviewFixedLineError } from "./lineError.js";
 import { TAB, tabShared } from "./tabState.js";
-import { assertLocksHeld, type LockHandle } from "./locks.js";
+import { assertLocksHeld, LockLostError, type LockHandle } from "./locks.js";
 
 /** Exact frozen calldata plus the Safe intent it executes. Context belongs to the app. */
 export type SafeRelayrExecution = {
@@ -115,8 +115,10 @@ export type SafeRelayrStore = {
    * Serialize overlapping Safe scopes across tabs AND accounts. An
    * account-only lock is insufficient; retain legacy locks too. Hand `run`
    * every lock taken (`browserLocks`' handles): the controller checks them,
-   * on a fresh read, before every `save` under the lock, and a lost one
-   * (`LockLostError`) saves nothing.
+   * on a fresh read, after every read and right before every `save` under
+   * the lock, and a lost one (`LockLostError`) saves nothing. A wallet
+   * answer that arrives after the loss is saved under a fresh lock, only
+   * while the saved record is still that payment attempt's.
    */
   withLock<T>(
     account: Address,
@@ -769,11 +771,11 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
         }
       }),
     async save(next) {
-      // Under the store's lock: still this tab's, right before the write.
-      await assertLocksHeld(storeLocks.get(next.account.toLowerCase()));
       const saved = (await options.store.list(next.account)).find(
         (session) => session.id === next.id,
       );
+      // Under the store's lock: still this tab's after every read, right before the write.
+      await assertLocksHeld(storeLocks.get(next.account.toLowerCase()));
       const at = [saved?.fundingObservedAt, next.fundingObservedAt].filter(
         (value): value is number => typeof value === "number",
       );
@@ -1855,238 +1857,304 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     signal?: AbortSignal;
     onStatus?: SafeRelayrStatus;
   }): Promise<SafeRelayrResult> {
-    return store.withLock(account, async () => {
-      checkAccount(account, signal);
-      let session = await load(account, sessionId);
-      const checked = await inspect(session, signal);
-      session = checked.session;
-      if (checked.state !== "ready")
-        throw new SafeRelayrRecoveryError(
-          session,
-          checked.recovery?.message,
-          checked.recovery,
-        );
-      if (session.payments.length >= MAX_RELAYR_SENT_PAYMENTS)
-        throw new SafeRelayrRecoveryError(
-          session,
-          "This quote has reached its saved payment attempt limit. Check the existing bundle.",
-        );
-      const payment = checked.payments.find(
-        (option) => option.chain === paymentChainId,
-      );
-      if (!payment)
-        throw new Error(
-          "Choose a current payment option from this saved quote.",
-        );
-      await assertUnreserved(account, session.executions, session.id);
-      if (!reviewedIntents.has(reviewKey(session))) {
-        phase("reviewing", session, signal);
-        await options.review(session.executions, { resumed: true });
-        checkAccount(account, signal);
-        rememberReview(session);
+    // What the wallet proved after the lock was lost, applied under a fresh
+    // lock to the saved record only while it is still this attempt's.
+    let late:
+      | ((current: SafeRelayrSession) => SafeRelayrSession | undefined)
+      | undefined;
+    const keep = async (next: SafeRelayrSession, onLost: typeof late) => {
+      try {
+        await store.save(next);
+      } catch (error) {
+        if (error instanceof LockLostError) late = onLost;
+        throw error;
       }
-      let verified = false;
-      let sending = false;
-      let paymentPersisted = false;
-      const requireOpenPayment = () =>
-        relayrPaymentDetails(payment, {
-          bundleUuid: session.bundleUuid!,
-          destinationChainIds: session.executions.map(
-            ({ entry }) => entry.chain,
-          ),
-        });
-      const beforeSend = async () => {
-        phase("payment-checking", session, signal);
-        await revalidate(session.executions, account, onStatus, true, signal);
-        await assertUnreserved(account, session.executions, session.id);
-        await statusRead(() =>
-          session.payments.length
-            ? requireRelayrRetry(
-                options.clientFor,
-                {
-                  payments: session.payments,
-                  from: account,
-                  bundleUuid: session.bundleUuid!,
-                },
-                { fetch: fetchRelayr },
-              )
-            : requireRelayrBundleUnpaid(session.bundleUuid!, {
-                fetch: fetchRelayr,
-              }),
-        ).catch(async (error) => {
-          if (statusUnknown(error)) throw unknownStatus(session);
-          if (fundingReported(error)) session = await observed(session);
-          throw error;
-        });
+    };
+    try {
+      return await funding();
+    } catch (error) {
+      const settle = late;
+      if (settle)
+        await store
+          .withLock(account, async () => {
+            const next = settle(await load(account, sessionId));
+            if (next) await store.save(next);
+          })
+          // Unreconciled, the record stays as the lost lock left it.
+          .catch(() => undefined);
+      throw error;
+    }
+    async function funding(): Promise<SafeRelayrResult> {
+      return store.withLock(account, async () => {
         checkAccount(account, signal);
-        requireOpenPayment();
-        verified = true;
-      };
-      const onSending = async () => {
-        checkAccount(account, signal);
-        if (!verified || sending)
-          throw new Error("Recheck the Safe execution before funding it.");
-        // The saved record, read again just before the wallet opens: funding
-        // another flow reported, or any change to its payment, refuses.
-        const stored = await load(account, session.id);
-        if (
-          hasObservedFunding(stored) ||
-          stored.state !== session.state ||
-          stored.paymentStatus !== session.paymentStatus ||
-          stored.bundleUuid !== session.bundleUuid ||
-          JSON.stringify(stored.payments) !== JSON.stringify(session.payments)
-        )
+        let session = await load(account, sessionId);
+        const checked = await inspect(session, signal);
+        session = checked.session;
+        if (checked.state !== "ready")
           throw new SafeRelayrRecoveryError(
-            stored,
-            hasObservedFunding(stored)
-              ? SAFE_RELAYR_FUNDING_EXIT_LINE
-              : "This saved selection changed while it was being paid. Check it again before paying.",
+            session,
+            checked.recovery?.message,
+            checked.recovery,
           );
-        session = { ...session, paymentStatus: "sending" };
-        await store.save(session);
-        try {
+        if (session.payments.length >= MAX_RELAYR_SENT_PAYMENTS)
+          throw new SafeRelayrRecoveryError(
+            session,
+            "This quote has reached its saved payment attempt limit. Check the existing bundle.",
+          );
+        const payment = checked.payments.find(
+          (option) => option.chain === paymentChainId,
+        );
+        if (!payment)
+          throw new Error(
+            "Choose a current payment option from this saved quote.",
+          );
+        await assertUnreserved(account, session.executions, session.id);
+        if (!reviewedIntents.has(reviewKey(session))) {
+          phase("reviewing", session, signal);
+          await options.review(session.executions, { resumed: true });
+          checkAccount(account, signal);
+          rememberReview(session);
+        }
+        let verified = false;
+        let sending = false;
+        let paymentPersisted = false;
+        const requireOpenPayment = () =>
+          relayrPaymentDetails(payment, {
+            bundleUuid: session.bundleUuid!,
+            destinationChainIds: session.executions.map(
+              ({ entry }) => entry.chain,
+            ),
+          });
+        const beforeSend = async () => {
+          phase("payment-checking", session, signal);
+          await revalidate(session.executions, account, onStatus, true, signal);
+          await assertUnreserved(account, session.executions, session.id);
+          await statusRead(() =>
+            session.payments.length
+              ? requireRelayrRetry(
+                  options.clientFor,
+                  {
+                    payments: session.payments,
+                    from: account,
+                    bundleUuid: session.bundleUuid!,
+                  },
+                  { fetch: fetchRelayr },
+                )
+              : requireRelayrBundleUnpaid(session.bundleUuid!, {
+                  fetch: fetchRelayr,
+                }),
+          ).catch(async (error) => {
+            if (statusUnknown(error)) throw unknownStatus(session);
+            if (fundingReported(error)) session = await observed(session);
+            throw error;
+          });
           checkAccount(account, signal);
           requireOpenPayment();
-        } catch (error) {
-          session = {
-            ...session,
-            paymentStatus: checked.session.paymentStatus,
-          };
-          await store.save(session);
-          throw error;
-        }
-        sending = true;
-        phase("payment-submitting", session, signal);
-      };
-      const onSent = async (payments: RelayrSentPayment[]) => {
-        const snapshot = relayrSentPaymentsSnapshot(payments);
-        if (
-          !sending ||
-          !snapshot?.length ||
-          snapshot.some((item) => item.bundleUuid !== session.bundleUuid)
-        )
-          throw new Error("The payment does not match the saved Safe bundle.");
-        if (
-          !snapshot.some(
-            (item) =>
-              !checked.session.payments.some(
-                (prior) => prior.hash.toLowerCase() === item.hash.toLowerCase(),
-              ),
+          verified = true;
+        };
+        const onSending = async () => {
+          checkAccount(account, signal);
+          if (!verified || sending)
+            throw new Error("Recheck the Safe execution before funding it.");
+          // The saved record, read again just before the wallet opens: funding
+          // another flow reported, or any change to its payment, refuses.
+          const stored = await load(account, session.id);
+          if (
+            hasObservedFunding(stored) ||
+            stored.state !== session.state ||
+            stored.paymentStatus !== session.paymentStatus ||
+            stored.bundleUuid !== session.bundleUuid ||
+            JSON.stringify(stored.payments) !== JSON.stringify(session.payments)
           )
-        )
-          throw new Error(
-            "The new payment attempt has no new transaction hash.",
-          );
-        for (const prior of session.payments) {
+            throw new SafeRelayrRecoveryError(
+              stored,
+              hasObservedFunding(stored)
+                ? SAFE_RELAYR_FUNDING_EXIT_LINE
+                : "This saved selection changed while it was being paid. Check it again before paying.",
+            );
+          session = { ...session, paymentStatus: "sending" };
+          await store.save(session);
+          try {
+            checkAccount(account, signal);
+            requireOpenPayment();
+          } catch (error) {
+            session = {
+              ...session,
+              paymentStatus: checked.session.paymentStatus,
+            };
+            await store.save(session);
+            throw error;
+          }
+          sending = true;
+          phase("payment-submitting", session, signal);
+        };
+        const onSent = async (payments: RelayrSentPayment[]) => {
+          const snapshot = relayrSentPaymentsSnapshot(payments);
+          if (
+            !sending ||
+            !snapshot?.length ||
+            snapshot.some((item) => item.bundleUuid !== session.bundleUuid)
+          )
+            throw new Error(
+              "The payment does not match the saved Safe bundle.",
+            );
           if (
             !snapshot.some(
               (item) =>
-                item.hash.toLowerCase() === prior.hash.toLowerCase() &&
-                item.chainId === prior.chainId &&
-                item.calldata.toLowerCase() === prior.calldata.toLowerCase() &&
-                item.amount === prior.amount &&
-                item.deadline === prior.deadline &&
-                item.target.toLowerCase() === prior.target.toLowerCase(),
+                !checked.session.payments.some(
+                  (prior) =>
+                    prior.hash.toLowerCase() === item.hash.toLowerCase(),
+                ),
             )
           )
             throw new Error(
-              "The saved payment history must retain every known payment.",
+              "The new payment attempt has no new transaction hash.",
             );
-        }
-        const details = relayrPaymentDetails(payment, {
-          bundleUuid: session.bundleUuid!,
-          destinationChainIds: session.executions.map(
-            ({ entry }) => entry.chain,
-          ),
-          nowSeconds: 0,
-        });
-        for (const item of snapshot.filter(
-          (item) => !session.payments.some((prior) => prior.hash === item.hash),
-        )) {
-          if (
-            item.chainId !== details.chainId ||
-            BigInt(item.amount) !== details.amount ||
-            BigInt(item.deadline) !== details.deadline ||
-            item.calldata.toLowerCase() !== details.calldata.toLowerCase() ||
-            item.target.toLowerCase() !== details.target.toLowerCase()
-          )
-            throw new Error(
-              "The funding payment differs from the selected Relayr option.",
-            );
-        }
-        paymentPersisted = false;
-        session = {
-          ...session,
-          payments: structuredClone(payments),
-          paymentStatus: "submitted",
-        };
-        await store.save(session);
-        paymentPersisted = true;
-        phase("payment-confirming", session, signal);
-      };
-      try {
-        phase("payment-review", session, signal);
-        const sent = await options.sendPayment({
-          session: structuredClone(session),
-          payment,
-          beforeSend,
-          onSending,
-          onSent,
-        });
-        if (
-          !sent.payments.some(
-            (item) => item.hash.toLowerCase() === sent.hash.toLowerCase(),
-          )
-        )
-          throw new Error("The funding result omitted its transaction hash.");
-        await onSent(sent.payments);
-      } catch (error) {
-        if (
-          sending &&
-          // Classify only this attempt; restoring the previous status below
-          // preserves the quote's earlier payments and their retry policy.
-          relayrPaymentAttemptOutcome(error, { sending, paid: false }) ===
-            "unpaid" &&
-          session.payments.length === checked.session.payments.length
-        ) {
+          for (const prior of session.payments) {
+            if (
+              !snapshot.some(
+                (item) =>
+                  item.hash.toLowerCase() === prior.hash.toLowerCase() &&
+                  item.chainId === prior.chainId &&
+                  item.calldata.toLowerCase() ===
+                    prior.calldata.toLowerCase() &&
+                  item.amount === prior.amount &&
+                  item.deadline === prior.deadline &&
+                  item.target.toLowerCase() === prior.target.toLowerCase(),
+              )
+            )
+              throw new Error(
+                "The saved payment history must retain every known payment.",
+              );
+          }
+          const details = relayrPaymentDetails(payment, {
+            bundleUuid: session.bundleUuid!,
+            destinationChainIds: session.executions.map(
+              ({ entry }) => entry.chain,
+            ),
+            nowSeconds: 0,
+          });
+          for (const item of snapshot.filter(
+            (item) =>
+              !session.payments.some((prior) => prior.hash === item.hash),
+          )) {
+            if (
+              item.chainId !== details.chainId ||
+              BigInt(item.amount) !== details.amount ||
+              BigInt(item.deadline) !== details.deadline ||
+              item.calldata.toLowerCase() !== details.calldata.toLowerCase() ||
+              item.target.toLowerCase() !== details.target.toLowerCase()
+            )
+              throw new Error(
+                "The funding payment differs from the selected Relayr option.",
+              );
+          }
+          paymentPersisted = false;
           session = {
             ...session,
-            paymentStatus: checked.session.paymentStatus,
+            payments: structuredClone(payments),
+            paymentStatus: "submitted",
           };
-          await store.save(session);
+          const sent = session.payments;
+          await keep(session, (current) => {
+            const missing = sent.filter(
+              (item) =>
+                !current.payments.some(
+                  (prior) =>
+                    prior.hash.toLowerCase() === item.hash.toLowerCase(),
+                ),
+            );
+            return current.bundleUuid === session.bundleUuid &&
+              (missing.length || current.paymentStatus === "sending")
+              ? {
+                  ...current,
+                  payments: [...current.payments, ...missing],
+                  paymentStatus:
+                    current.paymentStatus === "sending" ||
+                    current.paymentStatus === "unfunded"
+                      ? "submitted"
+                      : current.paymentStatus,
+                }
+              : undefined;
+          });
+          paymentPersisted = true;
+          phase("payment-confirming", session, signal);
+        };
+        try {
+          phase("payment-review", session, signal);
+          const sent = await options.sendPayment({
+            session: structuredClone(session),
+            payment,
+            beforeSend,
+            onSending,
+            onSent,
+          });
+          if (
+            !sent.payments.some(
+              (item) => item.hash.toLowerCase() === sent.hash.toLowerCase(),
+            )
+          )
+            throw new Error("The funding result omitted its transaction hash.");
+          await onSent(sent.payments);
+        } catch (error) {
+          if (
+            sending &&
+            // Classify only this attempt; restoring the previous status below
+            // preserves the quote's earlier payments and their retry policy.
+            relayrPaymentAttemptOutcome(error, { sending, paid: false }) ===
+              "unpaid" &&
+            session.payments.length === checked.session.payments.length
+          ) {
+            session = {
+              ...session,
+              paymentStatus: checked.session.paymentStatus,
+            };
+            const restored = session;
+            await keep(restored, (current) =>
+              current.paymentStatus === "sending" &&
+              current.bundleUuid === restored.bundleUuid &&
+              JSON.stringify(current.payments) ===
+                JSON.stringify(restored.payments)
+                ? { ...current, paymentStatus: restored.paymentStatus }
+                : undefined,
+            ).catch((saveError) => {
+              // Reconciled below: the wallet's answer is what the user sees.
+              if (!(saveError instanceof LockLostError)) throw saveError;
+            });
+            throw error;
+          }
+          if (
+            sending ||
+            session.payments.length > checked.session.payments.length
+          ) {
+            // A saved hash may already have funded or completed the bundle even
+            // when the wallet adapter could not prove it. Inspect once, read-only;
+            // never turn an uncertain or unsaved attempt into a retry invitation.
+            if (paymentPersisted) {
+              try {
+                const inspected = await inspect(session, signal);
+                session = inspected.session;
+                if (
+                  inspected.state === "complete" ||
+                  (inspected.state === "pending" &&
+                    session.paymentStatus === "confirmed")
+                )
+                  return inspected;
+              } catch (inspectionError) {
+                if (inspectionError instanceof SafeRelayrRecoveryError)
+                  session = inspectionError.session;
+              }
+            }
+            throw new SafeRelayrRecoveryError(
+              session,
+              error instanceof Error ? error.message : undefined,
+            );
+          }
           throw error;
         }
-        if (
-          sending ||
-          session.payments.length > checked.session.payments.length
-        ) {
-          // A saved hash may already have funded or completed the bundle even
-          // when the wallet adapter could not prove it. Inspect once, read-only;
-          // never turn an uncertain or unsaved attempt into a retry invitation.
-          if (paymentPersisted) {
-            try {
-              const inspected = await inspect(session, signal);
-              session = inspected.session;
-              if (
-                inspected.state === "complete" ||
-                (inspected.state === "pending" &&
-                  session.paymentStatus === "confirmed")
-              )
-                return inspected;
-            } catch (inspectionError) {
-              if (inspectionError instanceof SafeRelayrRecoveryError)
-                session = inspectionError.session;
-            }
-          }
-          throw new SafeRelayrRecoveryError(
-            session,
-            error instanceof Error ? error.message : undefined,
-          );
-        }
-        throw error;
-      }
-      return inspect(session, signal);
-    });
+        return inspect(session, signal);
+      });
+    }
   }
 
   /** Read-only progress polling; each read releases its lock before the wait. */

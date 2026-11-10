@@ -346,10 +346,12 @@ const budgets = {
     // Lock fencing (the lease's owner-checked handle, LockLostError and the
     // holds' checks before a reservation or the wallet) and clients' locks
     // at the send, sign and Safe Relayr save boundaries add no files:
-    // 1,835,473 B packed, 24,608,638 B unpacked. Kept room for the minor's
-    // release-note entry.
-    packed: 1_838_000,
-    unpacked: 24_620_000,
+    // 1,835,473 B packed, 24,608,638 B unpacked. A stale tab's rejection
+    // leaving a successor's markers, and Safe Relayr's fresh-lock
+    // reconcile: 1,837,796 B packed, 24,620,613 B unpacked. Kept room for
+    // the minor's release-note entry.
+    packed: 1_841_000,
+    unpacked: 24_632_000,
     entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {
