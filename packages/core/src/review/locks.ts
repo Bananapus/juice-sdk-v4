@@ -146,7 +146,9 @@ async function reconcile(entry: Kept) {
 
 /**
  * Saves an outcome the work already has from outside (a wallet's hash, a
- * definite rejection) under `locks`: `write()` runs now, and resolves true.
+ * definite rejection) under `locks`: `write()` runs now, and resolves true
+ * (once any lock's work ended, it is kept straight away, so it never runs
+ * ahead of an outcome kept before it).
  * Its own writes check the locks right before writing. Refused for a lost
  * lock (`LockLostError`), it resolves false and the outcome is kept: once
  * the work under every one of `locks` has ended, each lock is taken again
@@ -173,17 +175,9 @@ export async function keepOutcome(
   later?: () => unknown,
   dropped?: () => unknown,
 ): Promise<boolean> {
-  try {
-    await write();
-    return true;
-  } catch (error) {
-    const keepers = (locks ?? []).map(keeperOf);
-    if (
-      !isLockLost(error) ||
-      !keepers.length ||
-      !keepers.every((keeper) => keeper)
-    )
-      throw error;
+  const keepers = (locks ?? []).map(keeperOf);
+  const keepable = keepers.length > 0 && keepers.every((keeper) => keeper);
+  const keep = async () => {
     const entry: Kept = {
       locks: locks!,
       later: later ?? write,
@@ -195,6 +189,16 @@ export async function keepOutcome(
     // Kept after its work already ended: reconciled now.
     if (entry.keepers.every((keeper) => keeper.ended)) await reconcile(entry);
     return false;
+  };
+  // A lock whose work ended is written only in its queue, behind any
+  // outcome kept before (its handle may read as held while one runs).
+  if (keepable && keepers.some((keeper) => keeper!.ended)) return keep();
+  try {
+    await write();
+    return true;
+  } catch (error) {
+    if (!isLockLost(error) || !keepable) throw error;
+    return keep();
   }
 }
 

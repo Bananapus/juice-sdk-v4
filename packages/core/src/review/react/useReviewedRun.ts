@@ -1,4 +1,5 @@
 import { ReviewLineError } from "../lineError.js";
+import { LockLostError } from "../locks.js";
 import { tell } from "../receipt.js";
 import {
   createHeldWriteView,
@@ -392,6 +393,8 @@ export function useReviewedRun(
     account: Address;
     reservations: string[];
     run?: number;
+    /** Its followed last step, whose `onConfirmed` was not delivered: told by the run that closes on it. */
+    undelivered?: { step: number; call: ReviewedCall };
   } | null>(null);
   const ownSuccess = (
     action: Pick<ReviewedAction, "calls" | "batch"> & { account?: Address },
@@ -630,8 +633,45 @@ export function useReviewedRun(
     },
     run: async ({ onCancelled, onStopped, ...action }) => {
       /** This form's unshown write of these calls succeeded: the form closes on it. */
-      const close = ({ settled, handle }: OwnSuccess) => {
+      const close = async ({ settled, handle }: OwnSuccess) => {
+        const kept = own.current;
         own.current = null;
+        // Its onConfirmed never delivered: told under this run's locks first.
+        if (kept?.undelivered && deps?.account) {
+          const told = await load(deps.engine)
+            .then((engine) =>
+              engine.completeReviewedStep(
+                {
+                  step: kept.undelivered!.step,
+                  held: {
+                    call: kept.undelivered!.call,
+                    reservation: kept.reservations[0],
+                  },
+                },
+                {
+                  account: deps.account!,
+                  scope: action.scope,
+                  onConfirmed: action.onConfirmed,
+                  locks: action.locks,
+                  attemptScoped: action.attemptScoped,
+                },
+                deps,
+                null,
+                alive,
+                false,
+              ),
+            )
+            .catch(() => null);
+          if (!told || told.undelivered) {
+            own.current = kept;
+            const failure = new LockLostError(
+              action.locks?.[0]?.name ?? "site",
+            );
+            const error = errorLine(failure);
+            update({ ...IDLE, error, failure });
+            return { status: "failed" as const, error, failure };
+          }
+        }
         const step = action.calls.length - 1;
         update({
           ...IDLE,
@@ -782,9 +822,21 @@ export function useReviewedRun(
           );
           void completed.then((ended) => {
             if (shown || alive.aborted) return;
-            // Nothing advanced (its receipt unread, or its hold not settled
-            // for this send yet): it is tried again.
-            if (unread || (!ended && seen)) {
+            // Nothing advanced (its receipt unread, its hold not settled
+            // for this send yet, or its onConfirmed not delivered): it is
+            // tried again, still followed and acknowledged by nothing.
+            // ponytail: retried at the receipt's pace while mounted.
+            if (unread || (!ended && seen) || ended?.undelivered) {
+              if (ended?.undelivered) {
+                completed = Promise.resolve(null);
+                // A later run of it closes on its success, telling it then.
+                if (target.step === total - 1 && target.held?.reservation)
+                  own.current = {
+                    account: deps!.account!,
+                    reservations: [target.held.reservation],
+                    undelivered: { step: target.step, call: target.held.call },
+                  };
+              }
               if (mounted.current)
                 setTimeout(() => finish(seen, receipt), RECEIPT_RETRY_MS);
               return;

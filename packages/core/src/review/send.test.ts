@@ -2245,12 +2245,15 @@ describe("sendReviewed and its hold's evidence", () => {
       }) as LockManager["request"],
     }).request("site", async (held) => void (lock = held!));
     const refused = vi.fn(async () => lock.assertHeld());
-    await completeReviewedStep(
-      unverified,
-      { account: ACCOUNT, scope, onConfirmed: refused, locks: [lock] },
-      deps,
-    );
-    expect(refused).toHaveBeenCalledOnce();
+    await expect(
+      completeReviewedStep(
+        unverified,
+        { account: ACCOUNT, scope, onConfirmed: refused, locks: [lock] },
+        deps,
+      ),
+    ).resolves.toMatchObject({ undelivered: true });
+    // Its lock ended: queued for it at once, never run, then dropped.
+    expect(refused).not.toHaveBeenCalled();
     const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
     expect(handle.unacknowledgedSuccess()).toBeDefined();
     const told = vi.fn();

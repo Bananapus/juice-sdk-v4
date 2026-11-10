@@ -1052,7 +1052,9 @@ async function followSent(
  * the journal and `onConfirmed` to the run that resumes it. With
  * `acknowledge` false it acknowledges nothing: the caller acknowledges the
  * success once it has shown it (`handle.acknowledge`), so a success it
- * never showed still warns the next run.
+ * never showed still warns the next run. `undelivered` says `onConfirmed`
+ * was kept for a lost lock and dropped: nothing is acknowledged, and a later
+ * completion (under the same or a fresh lock) tells it once.
  */
 export async function completeReviewedStep(
   unverified: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
@@ -1067,6 +1069,7 @@ export async function completeReviewedStep(
 ): Promise<{
   settled: WriteHoldSettled;
   receipt: TransactionReceipt | null;
+  undelivered?: true;
 } | null> {
   const { step, held } = unverified;
   if (!held || signal?.aborted) return null;
@@ -1095,11 +1098,9 @@ export async function completeReviewedStep(
     )
       await recordSending(record, settled, storage, raw);
   }
-  if (
-    (await tellConfirmed(action, handle, call, step, settled, confirmed)) &&
-    acknowledge &&
-    settled.result === "success"
-  )
+  if (!(await tellConfirmed(action, handle, call, step, settled, confirmed)))
+    return { settled, receipt: confirmed, undelivered: true };
+  if (acknowledge && settled.result === "success")
     await handle.acknowledge(settled);
   return { settled, receipt: confirmed };
 }

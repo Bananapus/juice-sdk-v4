@@ -2146,6 +2146,69 @@ describe("useReviewedRun", () => {
     20_000,
   );
 
+  test("a followed receipt's onConfirmed dropped (its lock taken since) is pending, not done: unacknowledged, and told once under the next run's fresh lock", async () => {
+    vi.stubGlobal("navigator", { locks: nativeLocks() });
+    try {
+      reviewUi();
+      const { chain, deps, wallet } = setup();
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      chain.client.getTransactionReceipt.mockImplementation(async () => {
+        throw new Error("lagging node");
+      });
+      const { seen, run } = harness({ ...deps, account: ACCOUNT });
+      const confirmed: string[] = [];
+      const checked =
+        (lock: { assertHeld(): Promise<void> }, name: string) => async () => {
+          await lock.assertHeld();
+          confirmed.push(name);
+        };
+      const result = await browserLocks().request("pay", (lock) =>
+        run({
+          ...HANDED_BACK,
+          calls: [payCall()],
+          locks: [lock!],
+          onConfirmed: checked(lock!, "first"),
+        }),
+      );
+      expect(result).toMatchObject({ status: "receipt" });
+      // A routine refresh takes the site's lock meanwhile.
+      await browserLocks().request("pay", async () => undefined);
+      chain.client.getTransactionReceipt.mockImplementation(read);
+      const handle = openStepHold(deps.hold, ACCOUNT, false, payCall());
+      act(() => void globalThis.dispatchEvent(new Event("focus")));
+      await vi.waitFor(
+        () => expect(handle.unacknowledgedSuccess()).toBeDefined(),
+        { timeout: 12_000 },
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      });
+      expect(confirmed).toEqual([]);
+      expect(seen.current!.status).not.toBe("done");
+      expect(handle.unacknowledgedSuccess()).toBeDefined();
+      // The site's next run, under a fresh lock, is shown the success and
+      // the followed step is told under that run's lock, once.
+      await browserLocks().request("pay", (lock) =>
+        run({
+          ...HANDED_BACK,
+          calls: [payCall()],
+          locks: [lock!],
+          onConfirmed: checked(lock!, "fresh"),
+        }),
+      );
+      await vi.waitFor(() => expect(confirmed).toEqual(["fresh"]), {
+        timeout: 12_000,
+      });
+      await rendered(() => expect(seen.current!.status).toBe("done"));
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+      await rendered(() =>
+        expect(handle.unacknowledgedSuccess()).toBeUndefined(),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, 30_000);
+
   test("a dismissed payment's success, acknowledged by another reader, closes a retry that adds an approval first: the payment never sent twice", async () => {
     reviewUi();
     const { chain, deps, wallet } = setup();
@@ -2179,14 +2242,17 @@ describe("useReviewedRun", () => {
   }, 20_000);
 
   test.each([
-    ["the lease", () => ({ ...lapsingLocksForTests(), lapses: true })],
-    [
-      "native Web Locks",
-      () => ({ locks: nativeLocks(), lapse: () => {}, lapses: false }),
-    ],
-  ])(
-    "onSubmitted refused while the wallet was open (if its lock can lapse) and a late onConfirmed are both kept, one after the other (%s)",
-    async (_, backend) => {
+    ["the lease", "outlasts", 400],
+    ["the lease", "is faster than", 10],
+    ["native Web Locks", "outlasts", 400],
+    ["native Web Locks", "is faster than", 10],
+  ] as const)(
+    "onSubmitted refused while the wallet was open (if its lock can lapse) and a late onConfirmed are both kept, one after the other (%s, the confirmation %s the replay)",
+    async (backendName, _, confirming) => {
+      const backend =
+        backendName === "the lease"
+          ? () => ({ ...lapsingLocksForTests(), lapses: true })
+          : () => ({ locks: nativeLocks(), lapse: () => {}, lapses: false });
       const { locks, lapse, lapses } = backend();
       vi.stubGlobal("navigator", { locks });
       try {
@@ -2205,13 +2271,23 @@ describe("useReviewedRun", () => {
         const { run } = harness({ ...deps, account: ACCOUNT });
         const told: string[] = [];
         const tries: string[] = [];
+        let recovered = false;
+        const recover = () => {
+          if (recovered) return;
+          recovered = true;
+          chain.client.getTransactionReceipt.mockImplementation(read);
+          act(() => void globalThis.dispatchEvent(new Event("focus")));
+        };
         // The receipt recovers as the scope ends, so its notice is kept
-        // while the submission's replay runs, and outlasts it.
+        // while the submission's replay runs; a fast one recovers once
+        // that replay holds the lock taken back.
+        const inReplay = lapses && confirming < 300;
         const slowly =
           (name: string, lock: { assertHeld(): Promise<void> }, ms: number) =>
           async () => {
             tries.push(name);
             await lock.assertHeld();
+            if (inReplay && name === "submitted") recover();
             await new Promise((resolve) => setTimeout(resolve, ms));
             await lock.assertHeld();
             told.push(name);
@@ -2222,10 +2298,9 @@ describe("useReviewedRun", () => {
             calls: [payCall()],
             locks: [lock!],
             onSubmitted: slowly("submitted", lock!, 300),
-            onConfirmed: slowly("confirmed", lock!, 400),
+            onConfirmed: slowly("confirmed", lock!, confirming),
           });
-          chain.client.getTransactionReceipt.mockImplementation(read);
-          act(() => void globalThis.dispatchEvent(new Event("focus")));
+          if (!inReplay) recover();
           return ran;
         });
         expect(result).toMatchObject({ status: "receipt" });
