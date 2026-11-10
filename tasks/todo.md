@@ -1,3 +1,25 @@
+# Run wrapper behavior into useReviewedRun (2026-11-09)
+
+Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. Parallel PR #295 owns locks, send and writeHold; this change stays in `review/react/useReviewedRun.ts` and `review/runStatus.ts`.
+
+## Plan refinement
+
+- **Objective:** jbm, Sticky, revnet and Homerun stop re-deriving four run rules in their `useReviewedAction` wrappers: a `stopped` status (a cancel after a sent step, with `lastSubmittedStep`, told once through `onStopped`), one `dismiss()` for a run awaiting a held step (earlier step: end the continuation, follow detached, `onDismissedSettled` refreshes reads; last step: stop waiting, keep following), a run that threw is free to start again, and `busy` false while the run only follows a held step's hold (`following`). Core holds logic only; clients keep their lines.
+- **System fit:** `reviewedRunStatus` owns the status word and `useReviewedRun` owns the run lifecycle; the four wrappers are the consumers and only map state to their own copy. Locks, send, sequence and hold internals are unaffected.
+- **Reuse and simplicity:** Extends `useReviewedRun`'s options and result (no new hook). Reuses the existing cancel-told-after-render effect, `followHeldWrite` for the detached follow, `openStepHold`, and the `ended()` abandon path. Client preparation (jbm sequencing, Homerun/revnet saved-sequence discard) stays client-side; noted as a follow-up.
+- **Evidence and unknowns:** Wrapper heads read: jbm af967671 (with ccf70c0f, f40c7393, 37b9194f), Sticky c2ece7f/1ccf709, revnet and Homerun at their sm worktrees. Whether core's completed-step record makes an automatic continuation count as sent is checked by test.
+- **Verification:** Failing tests first in `useReviewedRun.test.tsx` and `runStatus.test.ts` for each rule, including the resumed-run stop and the cancel of an automatic continuation; then type-check, core vitest, check:package, check:review-react, format:ratchet, dead-code:check, check:generated; PR CI build-and-test green; packed tarballs.
+- **Resource budget:** One writer in `.worktrees/sdk-run-wrapper`; edits limited to two source files, their tests and a changeset. Replan if a rule needs send.ts or writeHold.ts (PR #295 territory).
+
+- [x] failing tests for stopped, dismiss, freed run, busy/following (seen failing: 9; the freed-run test passed once its held expectation was right, so core already frees a run that threw)
+- [x] implement in runStatus.ts and useReviewedRun.ts
+- [x] changeset (minor core), gates, PR, CI, tarballs
+- [x] per-client mapping (in the PR body)
+
+## Review
+
+Core vitest 3644 pass; type-check, check:review-react, format:ratchet, dead-code:check, check:generated pass. check:package passes 8 B under the packed ceiling after trimming internal comments; PR #295 will need the ceiling raised on rebase. Client preparation (jbm `sequenceCalls`, Homerun and revnet saved-sequence discard) stays client-side: a fifth duplicated rule for a later SDK round.
+
 # State machines, SDK wave 1 (2026-11-09)
 
 Brief: `/private/tmp/claude-501/-Users-jango-Documents-jb-v6-evm/841613e6-d825-45ae-bbd3-8d81a47b700b/scratchpad/sm/BRIEF.md`, items sdk-1, 2, 3, 4, 5, 8, 9, 11, 17, 18 of `sdk.md` there, plus the display-phase mapping asked by jbm-14, homerun-4 and sticky-5. Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`.

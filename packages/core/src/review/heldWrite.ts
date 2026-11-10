@@ -121,12 +121,18 @@ export async function followHeldWrite(
     pollMs,
     fastMs = FAST_MS,
     onRead,
+    reservation,
   }: {
     signal: AbortSignal;
     pollMs?: number;
     fastMs?: number;
     /** Each read of the hold as it starts, while it holds the call's lock. */
     onRead?: (read: Promise<unknown>) => void;
+    /**
+     * Follow this reservation's own write: it ends with its saved
+     * settlement, even once a later reservation of the call replaced it.
+     */
+    reservation?: string;
   },
 ): Promise<WriteHoldState | null> {
   const now = handle.peek();
@@ -152,6 +158,8 @@ export async function followHeldWrite(
     const read = handle.state(client).catch(() => null);
     onRead?.(read);
     const state = await read;
+    const own = reservation && handle.settlementOf(reservation);
+    if (own) return { status: "clear", settled: own, reservation };
     if (state?.status === "clear") return state;
     await pause(look < FAST_LOOKS ? fastMs : pollOf(pollMs), signal);
   }
@@ -437,20 +445,24 @@ export function createHeldWriteView(
     if (next.status === "clear") {
       const reservation = next.reservation;
       const mine = wasHeld && (!reservation || reservation === observed);
+      // Its own saved settlement, once a later reservation replaced it.
+      const settled = mine
+        ? (next.settled ?? handle.settlementOf(observed!))
+        : undefined;
       // Whose release it is, only the exit's answer says.
-      if (exiting && mine && !next.settled) return;
+      if (exiting && mine && !settled) return;
       stopFollowing();
-      if (next.settled && mine) {
+      if (settled) {
         seen.delete(observed!);
-        deliver(next.settled, observed!);
+        deliver(settled, observed!);
         set({
           phase: "settled",
           state: next,
-          line: settledLine(next.settled),
+          line: settledLine(settled),
           warning: undefined,
           notice: undefined,
           exit: false,
-          settled: next.settled,
+          settled,
           releasedBy: undefined,
         });
       } else if (mine && withdrawn !== observed) {

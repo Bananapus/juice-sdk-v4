@@ -351,8 +351,11 @@ const budgets = {
     // reconcile: 1,837,796 B packed, 24,620,613 B unpacked. The wallet
     // adapter's ownership fence at the transport: 1,839,596 B packed,
     // 24,632,418 B unpacked. Kept room for the minor's release-note entry.
-    packed: 1_843_000,
-    unpacked: 24_644_000,
+    // useReviewedRun's stopped/dismiss/following rules, settlements by
+    // reservation and acknowledgement after done renders, merged with lock
+    // fencing: 1,843,570 B packed, 24,668,765 B unpacked.
+    packed: 1_847_000,
+    unpacked: 24_680_000,
     entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {

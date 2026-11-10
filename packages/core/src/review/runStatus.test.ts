@@ -115,6 +115,18 @@ describe("reviewedRunStatus", () => {
     ],
     ["cancelled", { cancelled: true }, "cancelled", false],
     [
+      "stopped after an earlier step was sent",
+      { stopped: true },
+      "stopped",
+      false,
+    ],
+    [
+      "a step still held after a stop shows its hold",
+      { stopped: true, held: { phase: "held" } },
+      "held",
+      false,
+    ],
+    [
       "a new run after a cancel",
       { phase: "review", cancelled: true },
       "review",

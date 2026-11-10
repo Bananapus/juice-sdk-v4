@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { IDBFactory } from "fake-indexeddb";
+import { setImmediate } from "node:timers";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
@@ -20,7 +22,8 @@ import {
   REVIEWED_ENGINE_LOAD_LINE,
 } from "../messages.js";
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
-import { openStepHold, safeBatchCall } from "../writeHold.js";
+import { createWriteHold, openStepHold, safeBatchCall } from "../writeHold.js";
+import { createHeldWriteStorage } from "../writeRecovery.js";
 import { selfReviewingAdapter, viemWalletAdapter } from "../wallet.js";
 import {
   createWalletClient,
@@ -103,6 +106,15 @@ function harness(
   };
   return { seen, run };
 }
+
+/** Web Locks that are always free, as the fixture's. */
+const FREE_LOCKS = {
+  request: (async (
+    name: string,
+    _options: unknown,
+    work: (lock: Lock) => unknown,
+  ) => work({ name, mode: "exclusive" })) as LockManager["request"],
+};
 
 /** A site callback that fails. */
 /** How a site's callbacks fail: none, by throwing, or by rejecting asynchronously. */
@@ -199,6 +211,36 @@ describe("useReviewedRun", () => {
     expect((seen.current!.failure as { cause?: unknown }).cause).toBe(
       loadFailure,
     );
+  });
+
+  test("a run whose engine failed to load or whose send threw is free to run again", async () => {
+    reviewUi();
+    const { wallet, deps } = setup();
+    let loads = 0;
+    const { seen, run } = harness({
+      ...deps,
+      account: ACCOUNT,
+      engine: () =>
+        loads++ ? import("../send.js") : Promise.reject(new Error("offline")),
+    });
+    await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
+      status: "failed",
+    });
+    expect(seen.current).toMatchObject({ status: "failed", busy: false });
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementationOnce(async () => {
+      throw new Error("wallet crashed");
+    });
+    await expect(run({ calls: [payCall()] })).resolves.toMatchObject({
+      status: "failed",
+    });
+    // The hold keeps the payment the wallet may have sent: shown, not busy.
+    expect(seen.current).toMatchObject({ status: "held", busy: false });
+    wallet.adapter.sendTransaction.mockImplementation(send);
+    // Another payment: the hold may keep the one whose wallet threw.
+    await expect(run({ calls: [payCall(7n)] })).resolves.toMatchObject({
+      status: "done",
+    });
   });
 
   test("keeps the raw failure with its cause for site decoders", async () => {
@@ -423,7 +465,7 @@ describe("useReviewedRun", () => {
     });
   });
 
-  test("a wallet refusal after an earlier step was sent is no cancel", async () => {
+  test("a wallet refusal after an earlier step was sent stops the run: no cancel, told once it renders, with the step sent", async () => {
     reviewUi();
     const { wallet, deps } = setup();
     const send = wallet.adapter.sendTransaction.getMockImplementation()!;
@@ -434,14 +476,27 @@ describe("useReviewedRun", () => {
     });
     const { seen, run } = harness({ ...deps, account: ACCOUNT });
     const onCancelled = vi.fn();
+    const shown: string[] = [];
+    const onStopped = vi.fn((_step: number) => {
+      shown.push(seen.current!.status);
+    });
     await expect(
       run({
         calls: [approveCall(), payCall()],
         scope: "pay:project-1",
         onCancelled,
+        onStopped,
       }),
     ).resolves.toBeNull();
-    await rendered(() => expect(seen.current!.status).not.toBe("cancelled"));
+    await rendered(() => expect(onStopped).toHaveBeenCalledOnce());
+    expect(onStopped).toHaveBeenCalledWith(0);
+    expect(shown).toEqual(["stopped"]);
+    expect(seen.current).toMatchObject({
+      status: "stopped",
+      busy: false,
+      error: null,
+      lastSubmittedStep: 0,
+    });
     expect(onCancelled).not.toHaveBeenCalled();
   });
 
@@ -479,8 +534,13 @@ describe("useReviewedRun", () => {
     await run(action);
     reviewUi(async () => null);
     const onCancelled = vi.fn();
-    await expect(run({ ...action, onCancelled })).resolves.toBeNull();
-    await rendered(() => expect(seen.current!.status).not.toBe("cancelled"));
+    const onStopped = vi.fn();
+    await expect(
+      run({ ...action, onCancelled, onStopped }),
+    ).resolves.toBeNull();
+    // Refused at its first remaining step: the approval stands, the rest was not sent.
+    await rendered(() => expect(onStopped).toHaveBeenCalledWith(0));
+    expect(seen.current!.status).toBe("stopped");
     expect(onCancelled).not.toHaveBeenCalled();
   });
 
@@ -748,6 +808,7 @@ describe("useReviewedRun", () => {
       journal = true,
       throwing = false as Failing,
       batch = false,
+      onConfirmed: given,
     }: {
       calls?: ReturnType<typeof payCall>[];
       event?: string;
@@ -757,13 +818,15 @@ describe("useReviewedRun", () => {
       throwing?: Failing;
       /** A Safe app's batch: one MultiSend proposal of every call. */
       batch?: boolean;
+      /** The site's onConfirmed, in place of the spy. */
+      onConfirmed?: ReturnType<typeof confirmer>;
     } = {},
   ) {
     reviewUi();
     const context = setup();
     const { wallet, deps, chain } = context;
     wallet.state.safe = true;
-    const onConfirmed = confirmer(throwing);
+    const onConfirmed = given ?? confirmer(throwing);
     const scope = "pay:safe";
     const call = batch ? safeBatchCall(ACCOUNT, calls) : calls[0];
     const hook = harness({
@@ -840,6 +903,67 @@ describe("useReviewedRun", () => {
       transactionHash: EXECUTION,
     });
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+  });
+
+  test("dismissing a Safe payment while its onConfirmed is pending acknowledges nothing: a retry of it is never sent twice", async () => {
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => (release = resolve));
+    const onConfirmed = vi.fn((..._told: unknown[]) => paused as never);
+    const { seen, wallet, run } = await proposedThenExecuted(Infinity, {
+      journal: false,
+      onConfirmed,
+    });
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
+    let closed!: boolean;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(true);
+    release();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(seen.current!.status).not.toBe("done");
+    await run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("a dismissed run's completion retry acknowledges nothing: the same payment is refused, never sent twice", async () => {
+    const { seen, run, wallet, onConfirmed, hold, recover } =
+      await proposedThenExecuted(2, { journal: false });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(onConfirmed).not.toHaveBeenCalled();
+    const handle = openStepHold(hold, ACCOUNT, true, payCall());
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    // Between completion's failed receipt read and its retry.
+    let closed = false;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(true);
+    expect(seen.current!.status).toBe("idle");
+    recover();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 4_500));
+    });
+    expect(seen.current!.status).toBe("idle");
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    await run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  }, 15_000);
+
+  test("a Safe proposal followed while its execution's receipt can't be read is following, not busy", async () => {
+    const { seen } = await proposedThenExecuted(0);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(seen.current).toMatchObject({
+      status: "receipt",
+      busy: false,
+      following: true,
+    });
   });
 
   test("a Safe proposal whose execution's receipt can't be read stays confirming, never done", async () => {
@@ -1066,7 +1190,7 @@ describe("useReviewedRun", () => {
 
   test("a done it shows lets the next run through; one nothing showed is offered as Send it again", async () => {
     const prompts = reviewUi();
-    const { wallet, deps } = setup();
+    const { wallet, deps, hold } = setup();
     const call = payCall();
     const { run } = harness({ ...deps, account: ACCOUNT });
     await expect(run({ calls: [call] })).resolves.toMatchObject({
@@ -1077,6 +1201,12 @@ describe("useReviewedRun", () => {
       status: "done",
     });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    // Acknowledged once its done rendered, before another page runs it.
+    await vi.waitFor(() =>
+      expect(
+        openStepHold(hold, ACCOUNT, false, call).unacknowledgedSuccess(),
+      ).toBeUndefined(),
+    );
 
     // A run whose page unmounted before it ended showed nothing.
     unregister.pop()!();
@@ -1406,6 +1536,345 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
     // The remaining step is reviewed once more, as a resumed run is.
     expect(prompts).toHaveLength(2);
+  });
+
+  test("closing the review a late approval's receipt reopened stops the run, told once", async () => {
+    let answers = 0;
+    reviewUi(async (prompt) => (answers++ ? null : prompt.confirmation));
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const approval = `0x${"1".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === approval) throw new Error("lagging node");
+      return read(args);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const onCancelled = vi.fn();
+    const onStopped = vi.fn();
+    const left = await run({
+      ...HANDED_BACK,
+      calls: [approveCall(), payCall()],
+      scope: "pay:continued-closed",
+      onCancelled,
+      onStopped,
+    });
+    const ended = (left as ReviewedRunReceipt).ended();
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await expect(ended).resolves.toBeNull();
+    await rendered(() => expect(onStopped).toHaveBeenCalledOnce());
+    expect(onStopped).toHaveBeenCalledWith(0);
+    expect(seen.current!.status).toBe("stopped");
+    expect(onCancelled).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("a run that only follows its held step is not busy, and says it follows", async () => {
+    const { seen } = await unverified();
+    await rendered(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    expect(seen.current).toMatchObject({
+      status: "receipt",
+      busy: false,
+      following: true,
+    });
+  });
+
+  test("dismissing a held earlier step ends the run there: nothing more reviewed, the hold kept, the app told once it settles", async () => {
+    const prompts = reviewUi();
+    const { chain, deps, wallet, hold } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    const approval = `0x${"1".padStart(64, "0")}`;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (args.hash === approval) throw new Error("lagging node");
+      return read(args);
+    });
+    const onDismissedSettled = vi.fn();
+    const { seen, run } = harness({
+      ...deps,
+      account: ACCOUNT,
+      onDismissedSettled,
+    });
+    const call = approveCall();
+    const left = await run({
+      ...HANDED_BACK,
+      calls: [call, payCall()],
+      scope: "pay:dismissed-approval",
+    });
+    let ended: unknown = "pending";
+    void (left as ReviewedRunReceipt).ended().then((value) => (ended = value));
+    let closed!: boolean;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(true);
+    await rendered(() => expect(ended).toBeNull());
+    expect(seen.current).toMatchObject({
+      status: "idle",
+      following: false,
+      busy: false,
+    });
+    expect(openStepHold(hold, ACCOUNT, false, call).peek().status).not.toBe(
+      "clear",
+    );
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    // The detached follower reads the hold again on its own clock.
+    await vi.waitFor(() => expect(onDismissedSettled).toHaveBeenCalledOnce(), {
+      timeout: 12_000,
+    });
+    expect(onDismissedSettled).toHaveBeenCalledWith(
+      expect.objectContaining({ to: call.to, data: call.data }),
+    );
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    expect(prompts).toHaveLength(1);
+    expect(seen.current!.status).toBe("idle");
+  }, 20_000);
+
+  test("dismissing a held last step stops the wait and keeps following: its hold still shows, then done", async () => {
+    const { seen, result, chain, read } = await unverified();
+    let ended: unknown = "pending";
+    void (result as ReviewedRunReceipt)
+      .ended()
+      .then((value) => (ended = value));
+    let closed!: boolean;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(true);
+    await rendered(() => expect(ended).toBeNull());
+    await rendered(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    expect(seen.current).toMatchObject({ status: "receipt", busy: false });
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await rendered(() => expect(seen.current!.status).toBe("done"));
+    expect(seen.current!.following).toBe(false);
+  });
+
+  test("dismissing a hold the run ended on resets it, and its hold is still followed: the app told once it settles", async () => {
+    reviewUi();
+    const { chain, deps } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const onDismissedSettled = vi.fn();
+    const { seen, run } = harness({
+      ...deps,
+      account: ACCOUNT,
+      onDismissedSettled,
+    });
+    const call = payCall();
+    await run({ ...HANDED_BACK, calls: [call] });
+    // The first stops the wait; the second closes what it still shows.
+    act(() => void seen.current!.dismiss());
+    await rendered(() =>
+      expect(seen.current!.held).toMatchObject({ phase: "confirming" }),
+    );
+    act(() => void seen.current!.dismiss());
+    expect(seen.current).toMatchObject({ status: "idle", held: null });
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    await vi.waitFor(() => expect(onDismissedSettled).toHaveBeenCalledOnce(), {
+      timeout: 12_000,
+    });
+    expect(onDismissedSettled).toHaveBeenCalledWith(
+      expect.objectContaining({ to: call.to, data: call.data }),
+    );
+  }, 20_000);
+
+  test("dismiss never closes a run whose review or wallet is open", async () => {
+    const prompts = reviewUi(() => new Promise(() => {}));
+    const { deps } = setup();
+    const { seen } = harness({ ...deps, account: ACCOUNT });
+    act(() => void seen.current!.run({ calls: [payCall()] }));
+    await act(() => vi.waitFor(() => expect(prompts).toHaveLength(1)));
+    let closed!: boolean;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(false);
+    expect(seen.current).toMatchObject({ status: "review", busy: true });
+  });
+
+  /** A payment left at its receipt whose completion waits in onConfirmed. */
+  async function completing() {
+    reviewUi();
+    const context = setup();
+    const { chain, deps, hold } = context;
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => (release = resolve));
+    const onConfirmed = vi.fn((..._told: unknown[]) => paused as never);
+    const hook = harness({ ...deps, account: ACCOUNT });
+    const first = (await hook.run({
+      ...HANDED_BACK,
+      calls: [payCall()],
+      onConfirmed,
+    })) as ReviewedRunReceipt;
+    expect(first).toMatchObject({ status: "receipt" });
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
+    /** Lets onConfirmed end, then waits for what follows. */
+    const finish = async () => {
+      release();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+    };
+    /** The payment's success, still unacknowledged. */
+    const warned = () =>
+      openStepHold(hold, ACCOUNT, false, payCall()).unacknowledgedSuccess();
+    return { ...context, ...hook, first, finish, warned };
+  }
+
+  test("a new run while a payment's completion waits in onConfirmed: the payment is acknowledged by nothing, and never sent twice", async () => {
+    const { run, wallet, first, finish, warned } = await completing();
+    reviewUi(async () => null);
+    await expect(run({ calls: [payCall(7n)] })).resolves.toBeNull();
+    await finish();
+    await expect(first.ended()).resolves.toBeNull();
+    expect(warned()).toBeDefined();
+    reviewUi();
+    await run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("a reset while a payment's completion waits in onConfirmed acknowledges nothing: never sent twice", async () => {
+    const { seen, run, wallet, finish, warned } = await completing();
+    act(() => seen.current!.reset());
+    await finish();
+    expect(warned()).toBeDefined();
+    await run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("an unmount while a payment's completion waits in onConfirmed acknowledges nothing: never sent twice", async () => {
+    const { deps, wallet, finish, warned } = await completing();
+    act(() => root?.unmount());
+    await finish();
+    expect(warned()).toBeDefined();
+    const again = harness({ ...deps, account: ACCOUNT });
+    await again.run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("a followed payment is acknowledged only once its done is shown: a reset as the IndexedDB lock lets go never hides it", async () => {
+    reviewUi();
+    const { chain, deps, storage } = setup();
+    vi.stubGlobal("indexedDB", new IDBFactory());
+    const had = Object.getOwnPropertyDescriptor(navigator, "locks");
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      let seen!: () => UseReviewedRunResult;
+      let shownAtAck: string | undefined;
+      let reset!: Promise<void>;
+      const hold = createWriteHold({
+        storage: {
+          ...storage,
+          setItem: (key, raw) => {
+            storage.setItem(key, raw);
+            if (shownAtAck || !raw.includes('"acknowledged":true')) return;
+            shownAtAck = seen().status;
+            // The user navigates as the fallback lock cleans up its lease.
+            reset = new Promise((resolve) =>
+              setImmediate(() => {
+                act(() => seen().reset());
+                resolve();
+              }),
+            );
+          },
+        },
+      });
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      chain.client.getTransactionReceipt.mockRejectedValue(
+        new Error("lagging node"),
+      );
+      const hook = harness({ ...deps, hold, account: ACCOUNT });
+      seen = () => hook.seen.current!;
+      const first = (await hook.run({
+        ...HANDED_BACK,
+        calls: [payCall()],
+        onConfirmed: () => {},
+      })) as ReviewedRunReceipt;
+      expect(first).toMatchObject({ status: "receipt" });
+      chain.client.getTransactionReceipt.mockImplementation(read);
+      act(() => void globalThis.dispatchEvent(new Event("focus")));
+      // The real IndexedDB lock's lease takes several tasks.
+      await vi.waitFor(() => expect(shownAtAck).toBeDefined(), {
+        timeout: 5_000,
+      });
+      await act(() => reset);
+      expect(shownAtAck).toBe("done");
+      await expect(first.ended()).resolves.toMatchObject({ status: "done" });
+    } finally {
+      if (had) Object.defineProperty(navigator, "locks", had);
+      else delete (navigator as { locks?: unknown }).locks;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test("a payment another tab acknowledged and reserved again still completes its own run: its end is done", async () => {
+    reviewUi();
+    const { chain, deps, memory } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    const { run } = harness({ ...deps, account: ACCOUNT });
+    const first = (await run({
+      ...HANDED_BACK,
+      calls: [payCall()],
+    })) as ReviewedRunReceipt;
+    let ended: unknown = "pending";
+    void first.ended().then((value) => (ended = value));
+    // Another tab, while this one is suspended: it sees the payment
+    // confirm, acknowledges it, then reserves it again and is refused. This
+    // tab reads its storage only once it resumes.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    const away = new Map(memory);
+    const other = openStepHold(
+      createWriteHold({
+        storage: createHeldWriteStorage({
+          durable: () => undefined,
+          memory: away,
+        }),
+        locks: FREE_LOCKS,
+        settle: { intervalMs: 1_000, attempts: 1 },
+      }),
+      ACCOUNT,
+      false,
+      payCall(),
+    );
+    const client = chain.client as never;
+    const settled = await other.state(client);
+    expect(settled).toMatchObject({
+      status: "clear",
+      settled: { result: "success" },
+    });
+    await other.acknowledge(
+      (settled as { settled: { result: "success"; hash: ViemHex } }).settled,
+    );
+    await other
+      .send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+      })
+      .catch(() => undefined);
+    expect(ended).toBe("pending");
+    memory.clear();
+    for (const [key, value] of away) memory.set(key, value);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await rendered(() => expect(ended).not.toBe("pending"));
+    expect(ended).toMatchObject({ status: "done" });
   });
 
   test("a run left at its receipt ends failed when its hold settles a revert", async () => {
