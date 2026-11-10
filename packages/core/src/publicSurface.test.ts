@@ -135,6 +135,8 @@ describe("published core SDK surfaces", () => {
 
   test("exports exactly the review surface, nothing an internal module adds", () => {
     expect(Object.keys(review).sort()).toEqual([
+      "CONFIRMATION_QUEUED_LINE",
+      "ConfirmationQueuedError",
       "FOLLOW_MS",
       "HELD_AWAY_SUCCESS_LINE",
       "HELD_CONFIRMING_LINE",

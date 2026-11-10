@@ -145,6 +145,13 @@ export const REVIEW_STOPPED_LINE =
 export const LOCK_LOST_LINE =
   "This action moved to another window. Nothing more was sent.";
 
+/**
+ * A sent step's confirmation is recorded only once the site's current work
+ * ends: `errorLine` of a `ConfirmationQueuedError`. Nothing is sent again.
+ */
+export const CONFIRMATION_QUEUED_LINE =
+  "Confirmed. It is recorded here once this step finishes. Nothing more was sent.";
+
 /** A held write the user released with their exit: they can send it again. */
 export const HELD_RELEASED_LINE = "Released. You can send it again.";
 

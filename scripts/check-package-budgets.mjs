@@ -357,8 +357,8 @@ const budgets = {
     // (keepOutcome, the lease refactor, lapsingLocksForTests), the hook's
     // own-reservation and dismissed-step rules and attachHash's hashCheck:
     // 1,863,423 B packed, 24,749,620 B unpacked.
-    packed: 1_881_000,
-    unpacked: 24_828_000,
+    packed: 1_885_000,
+    unpacked: 24_843_000,
     entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {

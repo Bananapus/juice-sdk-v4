@@ -880,10 +880,15 @@ export async function resumeReviewed(
       step,
       settled,
       receipt,
-      async () => {
-        kept = await recordSending(saved, settled, storage, expected);
-        return saved.completed;
-      },
+      () => ({
+        hashes:
+          settled?.result === "success"
+            ? [...saved.completed, settled.hash]
+            : [...saved.completed],
+        record: async () => {
+          kept = await recordSending(saved, settled, storage, expected);
+        },
+      }),
     );
     if (!ended)
       throw new ReviewedReceiptUnverifiedError(
@@ -999,7 +1004,11 @@ async function tellConfirmed(
  * is it recorded done (`record`, its reservation leaving the sequence's
  * journal). Until then the step stays held there, so a later completion
  * or resume tells it before any step after it is sent, and the steps
- * recorded before it are exactly its prior hashes. Null while undelivered.
+ * recorded before it are exactly its prior hashes. `plan`, read once it is
+ * delivered, gives the action's hashes through this step and the journal
+ * write; the hashes are kept on the hold's success before that write, so
+ * a journal another completion removes never takes them with it. Null
+ * while undelivered.
  */
 async function endStep(
   action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
@@ -1011,19 +1020,21 @@ async function endStep(
   step: number,
   settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
-  record: () => Promise<readonly Hex[]>,
+  plan: () => { hashes: readonly Hex[]; record: () => Promise<unknown> },
 ): Promise<Hex[] | null> {
   if (
     (await tellConfirmed(action, handle, call, step, settled, receipt)) !==
     "delivered"
   )
     return null;
-  const hashes = [...(await record())];
-  // Kept on its hold's success, which outlives the journal until it is
-  // acknowledged: every done reads the action's hashes from there.
+  const { hashes, record } = plan();
+  // Kept on its hold's success first (which outlives the journal until it
+  // is acknowledged, and is never shortened), then the journal: every done
+  // reads the action's hashes from one or the other.
   if (settled?.result === "success")
     await handle.keepHashes(settled, hashes).catch(() => undefined);
-  return hashes;
+  await record();
+  return [...hashes];
 }
 
 /**
@@ -1163,26 +1174,39 @@ export async function completeReviewedStep(
     step,
     settled,
     confirmed,
-    async () => {
+    () => {
       // Its hold's, kept when its journal recorded it, else its own.
-      const own =
-        settled.result === "success"
-          ? (handle.hashesOf(settled) ?? [settled.hash])
-          : [];
+      const own = {
+        hashes:
+          settled.result === "success"
+            ? (handle.hashesOf(settled) ?? [settled.hash])
+            : [],
+        record: async () => {},
+      };
       if (action.scope === undefined) return own;
       const storage = deps.storage ?? createHeldWriteStorage();
-      const { raw, record } = readReviewedSequence(
-        action.scope,
-        action.account,
-        storage,
-      );
-      if (
-        record?.sending?.step !== step ||
-        record.sending.reservation !== reservation
-      )
-        return own;
-      await recordSending(record, settled, storage, raw);
-      return record.completed;
+      const scope = action.scope;
+      const sending = () => {
+        const read = readReviewedSequence(scope, action.account, storage);
+        return read.record?.sending?.step === step &&
+          read.record.sending.reservation === reservation
+          ? read
+          : null;
+      };
+      const read = sending();
+      if (!read) return own;
+      const { raw, record } = read;
+      return {
+        hashes:
+          settled.result === "success"
+            ? [...record!.completed, settled.hash]
+            : [...record!.completed],
+        // Another completion recording it first leaves nothing to record.
+        record: () =>
+          recordSending(record!, settled, storage, raw).catch((error) => {
+            if (sending()) throw error;
+          }),
+      };
     },
   );
   if (!ended)
@@ -1947,13 +1971,15 @@ async function send(
       at,
       settled,
       receipt,
-      async () => {
-        if (!journal) return hashes;
-        delete journal.sending;
-        journal.completed.push(mined);
-        await keep();
-        return journal.completed;
-      },
+      () => ({
+        hashes: journal ? [...journal.completed, mined] : [...hashes],
+        record: async () => {
+          if (!journal) return;
+          delete journal.sending;
+          journal.completed.push(mined);
+          await keep();
+        },
+      }),
     );
     if (!ended) throw unverified();
     done = ended;

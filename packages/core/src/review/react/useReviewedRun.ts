@@ -1,5 +1,9 @@
 import { ReviewLineError } from "../lineError.js";
-import { LockLostError } from "../locks.js";
+import {
+  ConfirmationQueuedError,
+  LockLostError,
+  lockWorkRunning,
+} from "../locks.js";
 import { tell } from "../receipt.js";
 import {
   createHeldWriteView,
@@ -314,12 +318,17 @@ export function useReviewedRun(
   useEffect(() => {
     if (cancelling) void tell(cancelling.told);
   }, [cancelling]);
-  /** The last shown success's acknowledgement: the next run waits for it. */
+  /** Every shown success's acknowledgement: the next run waits for all. */
   const acknowledged = useRef(Promise.resolve());
   // A success is acknowledged only once its done rendered: a reset after
-  // that hides nothing, and one before it leaves the success warning.
+  // that hides nothing, and one before it leaves the success warning. A
+  // later one never drops an earlier one still running from the wait.
   useEffect(() => {
-    if (state.acknowledge) acknowledged.current = state.acknowledge();
+    if (state.acknowledge)
+      acknowledged.current = Promise.all([
+        acknowledged.current,
+        state.acknowledge(),
+      ]).then(() => undefined);
   }, [state.acknowledge]);
   /** The hold followed after a run, and its chain's client: its view is `held`. */
   const [watched, setWatchedState] = useState<{
@@ -402,24 +411,46 @@ export function useReviewedRun(
    * Their success, whoever acknowledged it, closes a later run under the
    * same hold (its intent's, though the calls were refreshed) from the same
    * account. Still pending, the hold refuses that run, which follows it again.
+   * One entry per account and reservation: keeping or showing one never
+   * touches another's.
    */
-  const own = useRef<{
-    account: Address;
-    reservations: string[];
-    run?: number;
-  } | null>(null);
+  const own = useRef(
+    new Map<string, { account: Address; reservation: string; run?: number }>(),
+  );
+  const ownKey = (account: Address, reservation: string) =>
+    `${account.toLowerCase()}:${reservation}`;
+  const keepOwn = (account: Address, reservations: string[], run?: number) => {
+    for (const reservation of reservations)
+      own.current.set(ownKey(account, reservation), {
+        account,
+        reservation,
+        ...(run === undefined ? {} : { run }),
+      });
+  };
+  /** Its success shown: that entry alone is released (unless `run` keeps it). */
+  const shownOwn = (reservation: string | undefined, run?: number) => {
+    for (const [key, entry] of own.current)
+      if (
+        entry.reservation === reservation &&
+        (run === undefined || entry.run !== run)
+      )
+        own.current.delete(key);
+  };
   const ownSuccess = (
     action: Pick<ReviewedAction, "calls" | "batch"> & { account?: Address },
   ): OwnSuccess | undefined => {
-    const kept = own.current;
     if (
-      !kept ||
       !deps?.account ||
-      kept.account.toLowerCase() !== deps.account.toLowerCase() ||
       (action.account &&
-        action.account.toLowerCase() !== kept.account.toLowerCase())
+        action.account.toLowerCase() !== deps.account.toLowerCase())
     )
       return undefined;
+    const kept = [...own.current.values()]
+      .filter(
+        (entry) => entry.account.toLowerCase() === deps.account!.toLowerCase(),
+      )
+      .map((entry) => entry.reservation);
+    if (!kept.length) return undefined;
     // Only the action's last step's hold, as `follow` maps it: a success
     // of an earlier step never completes the action. Its Safe mode may not
     // be known yet; a reservation is only ever in its own mode's hold.
@@ -433,7 +464,7 @@ export function useReviewedRun(
         // A reservation is read only through its own hold: another hold
         // (another intent, or another exact call) never answers for it.
         const handle = openStepHold(deps.hold, deps.account, false, call);
-        for (const reservation of kept.reservations) {
+        for (const reservation of kept) {
           const settled = handle.settlementOf(reservation);
           if (settled?.result === "success")
             return {
@@ -475,9 +506,12 @@ export function useReviewedRun(
     settled: WriteHoldSettled,
     receipt: TransactionReceipt | null,
     acknowledge: (() => Promise<void>) | null,
+    reservation?: string,
   ) => {
     if (latest.current !== run) return;
-    if (own.current?.run !== run) own.current = null;
+    // Shown: its own entry is released, unless `dismiss` closed it while
+    // this run followed it (its showing the user closed never counts).
+    shownOwn(reservation, run);
     const finished = step === total - 1;
     setState((now) =>
       settled.result !== "success"
@@ -575,7 +609,6 @@ export function useReviewedRun(
   } = state;
   const status = reviewedRunStatus({ ...state, held });
   const reset = () => {
-    own.current = null;
     replaced();
     setState(IDLE);
     setWatched(null);
@@ -608,18 +641,14 @@ export function useReviewedRun(
       const last = waiting
         ? waiting.last && waiting.detached
         : watched?.step === watched?.total! - 1 && watched;
-      const closing =
-        last && last.reservation && deps?.account
-          ? {
-              account: deps.account,
-              reservations: [last.reservation],
-              run: latest.current,
-            }
-          : null;
+      const closing = () => {
+        if (last && last.reservation && deps?.account)
+          keepOwn(deps.account, [last.reservation], latest.current);
+      };
       if (waiting?.last) {
         awaiting.current = null;
         waiting.end();
-        if (closing) own.current = closing;
+        closing();
         return true;
       }
       detach(
@@ -632,11 +661,10 @@ export function useReviewedRun(
               reservation: watched.reservation,
             },
       );
-      // Closing the view keeps what this form sent: a later dismiss of the
-      // idle view never forgets a write the first one left followed.
-      const kept = own.current;
+      // Closing the view keeps what this form sent: a reset forgets no
+      // entry, so a later dismiss of the idle view never forgets one.
       reset();
-      own.current = closing ?? kept;
+      closing();
       return true;
     },
     preload,
@@ -695,7 +723,6 @@ export function useReviewedRun(
             update({ ...IDLE, error, failure });
             return { status: "failed" as const, error, failure };
           }
-          const kept = own.current;
           const step = action.calls.length - 1;
           update({
             ...IDLE,
@@ -704,7 +731,7 @@ export function useReviewedRun(
             // for this acknowledgement before it sends.
             acknowledge: async () => {
               if (alive.aborted) return;
-              if (own.current === kept) own.current = null;
+              shownOwn(found.reservation);
               await handle.acknowledge(settled).catch(() => undefined);
             },
             phase: "done",
@@ -810,7 +837,7 @@ export function useReviewedRun(
       const completing = (
         target: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
         total: number,
-        end?: (outcome: Completed | "lost") => void,
+        end?: (outcome: Completed | "queued") => void,
       ) => {
         let completed: Promise<
           Awaited<ReturnType<ReviewedEngine["completeReviewedStep"]>>
@@ -859,20 +886,13 @@ export function useReviewedRun(
                 completed = Promise.resolve(null);
                 // A later run of it closes on its success, telling it then.
                 if (target.step === total - 1 && target.held?.reservation)
-                  own.current = {
-                    account: deps!.account!,
-                    reservations: [target.held.reservation],
-                  };
-                // Kept for a lock its run lost: delivered only once the
-                // site's work under it ends (or by a later run), so the
-                // run ends now, lost, and is never awaited from inside it.
-                void Promise.all(
-                  (action.locks ?? []).map((lock) =>
-                    lock.held().catch(() => false),
-                  ),
-                ).then((held) => {
-                  if (held.includes(false)) end?.("lost");
-                });
+                  keepOwn(deps!.account!, [target.held.reservation]);
+                // While the site's work under its locks runs, its notice may
+                // wait for it (kept for a lock this run lost, or another
+                // completion's claim queued behind one it holds): the wait
+                // ends now, retryable, and is never what holds that work up.
+                // Once that work ended, nothing of the caller's is in its way.
+                if (action.locks?.some(lockWorkRunning)) end?.("queued");
               }
               if (mounted.current)
                 setTimeout(() => finish(seen, receipt), RECEIPT_RETRY_MS);
@@ -898,6 +918,7 @@ export function useReviewedRun(
                     ended.settled,
                   )
                 : null,
+              target.held?.reservation,
             );
             setWatched(null);
             end?.(ended);
@@ -1180,7 +1201,7 @@ export function useReviewedRun(
             failure: null,
             following: true,
           });
-          let end!: (outcome: Completed | "lost" | null) => void;
+          let end!: (outcome: Completed | "queued" | null) => void;
           const cancelled = action.follow?.signal;
           const abandon = () => end(null);
           const outcome = new Promise<Parameters<typeof end>[0]>(
@@ -1217,10 +1238,8 @@ export function useReviewedRun(
             ended: () =>
               outcome.then(async (ran) => {
                 if (!ran) return null;
-                if (ran === "lost") {
-                  const failure = new LockLostError(
-                    action.locks?.[0]?.name ?? "site",
-                  );
+                if (ran === "queued") {
+                  const failure = new ConfirmationQueuedError(error.step);
                   const line = errorLine(failure);
                   return { status: "failed" as const, error: line, failure };
                 }
@@ -1291,10 +1310,10 @@ export function useReviewedRun(
           ({ reservation }) => !before.has(reservation),
         );
         if (action.calls.length === 1 && left.length && deps?.account)
-          own.current = {
-            account: deps.account,
-            reservations: left.map(({ reservation }) => reservation),
-          };
+          keepOwn(
+            deps.account,
+            left.map(({ reservation }) => reservation),
+          );
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);

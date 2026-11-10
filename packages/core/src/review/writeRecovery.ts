@@ -36,6 +36,7 @@ import {
 export {
   assertLocksHeld,
   browserLocks,
+  ConfirmationQueuedError,
   keepOutcome,
   LockLostError,
   type BrowserLocks,
@@ -1459,16 +1460,19 @@ export function createBrowserWriteRecovery(
       requireLock();
       const hash = settled.hash.toLowerCase();
       const kept = hashes.map((each) => each.toLowerCase());
+      // Never shortened: a completion that saw less never overwrites more.
+      const longer = (saved: { hashes?: unknown }) =>
+        !Array.isArray(saved.hashes) || saved.hashes.length < kept.length;
       try {
         const store = storage();
         const saved = savedSettlement(store, settled);
-        if (saved)
+        if (saved && longer(saved))
           store.setItem(settledKey, JSON.stringify({ ...saved, hashes: kept }));
         const by = (JSON.parse(store.getItem(settledByKey) ?? "null") ??
-          {}) as Record<string, { hash?: unknown }>;
+          {}) as Record<string, { hash?: unknown; hashes?: unknown }>;
         let changed = false;
         for (const entry of Object.values(by))
-          if (entry?.hash === hash) {
+          if (entry?.hash === hash && longer(entry)) {
             Object.assign(entry, { hashes: kept });
             changed = true;
           }

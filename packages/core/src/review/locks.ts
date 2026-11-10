@@ -1,5 +1,5 @@
 import { ReviewFixedLineError } from "./lineError.js";
-import { LOCK_LOST_LINE } from "./messages.js";
+import { CONFIRMATION_QUEUED_LINE, LOCK_LOST_LINE } from "./messages.js";
 import { TAB } from "./tabState.js";
 
 /**
@@ -14,6 +14,26 @@ export class LockLostError extends ReviewFixedLineError {
   }
   constructor(readonly lock: string) {
     super(`The "${lock}" lock was lost. Its work must stop before writing.`);
+  }
+}
+
+/**
+ * How a receipt's `ended()` ends while its step's `onConfirmed` is queued
+ * behind the run's own locks (kept for one it lost, or another
+ * completion's claim waiting for one): it is told once that work ends,
+ * and only then acknowledged, so the wait never holds it up. Retry later;
+ * nothing is sent again. `errorLine` shows {@link CONFIRMATION_QUEUED_LINE}.
+ */
+export class ConfirmationQueuedError extends ReviewFixedLineError {
+  readonly name = "ConfirmationQueuedError";
+  readonly code = "CONFIRMATION_QUEUED";
+  get line(): string {
+    return CONFIRMATION_QUEUED_LINE;
+  }
+  constructor(readonly step: number) {
+    super(
+      `Step ${step}'s confirmation waits for the run's locks to be released.`,
+    );
   }
 }
 
@@ -81,6 +101,14 @@ type Kept = {
 
 const keeperOf = (lock: LockHandle) =>
   (lock as { [TAB.keeper]?: Keeper })[TAB.keeper];
+
+/**
+ * Whether the work `lock` was handed may still be running: anything kept
+ * for its name (an outcome refused for it, or another's queued behind it)
+ * waits until it ends. Only a fenced handle can say it ended.
+ */
+export const lockWorkRunning = (lock: LockHandle): boolean =>
+  !keeperOf(lock)?.ended;
 
 /**
  * Who took each lock last, origin-wide: every fenced acquisition stamps it

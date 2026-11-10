@@ -2067,6 +2067,26 @@ describe("sendReviewed and its hold's evidence", () => {
     };
   }
 
+  it("two concurrent completions of a sequence's last step are each done with every step's hash, told once", async () => {
+    const { deps, scope, onConfirmed, unverified, recover, payment, storage } =
+      await leftAtReceipt();
+    recover();
+    const approval = `0x${"1".padStart(64, "0")}`;
+    const action$ = { account: ACCOUNT, scope, onConfirmed };
+    const ended = await Promise.all([
+      completeReviewedStep(unverified, action$, deps),
+      completeReviewedStep(unverified, action$, deps),
+    ]);
+    for (const each of ended)
+      expect(each).toMatchObject({ hashes: [approval, payment] });
+    expect(onConfirmed).toHaveBeenCalledTimes(2);
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+    // A later completion reads them from the hold, the journal gone.
+    await expect(
+      completeReviewedStep(unverified, action$, deps),
+    ).resolves.toMatchObject({ hashes: [approval, payment] });
+  });
+
   it("never completes a saved ordinary failure with no block whose transaction now reads a success, nor sends it again", async () => {
     const {
       deps,
