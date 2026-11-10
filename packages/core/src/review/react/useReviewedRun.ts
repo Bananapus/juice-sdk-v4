@@ -248,6 +248,27 @@ const sent = ({ chainId, to, data, value, gas }: ReviewedCall) => [
 type Succeeded = Extract<WriteHoldSettled, { hash: Hex }>;
 
 /** This form's earlier write of the same calls succeeded: the run closes on it, sending nothing. */
+/**
+ * The holds `action`'s steps are held in, each with its step: a resumed
+ * sequence's sending step; a Safe app's batch as its one MultiSend
+ * proposal, its last step; or each call. The one home for that mapping.
+ */
+function heldSteps(
+  account: Address,
+  safe: boolean,
+  action: Pick<ReviewedAction, "calls" | "batch">,
+  saved?: ReturnType<typeof findReviewedSequence>,
+): { call: Parameters<typeof openStepHold>[3]; step: number }[] {
+  if (saved?.sending)
+    return [
+      { call: saved.calls[saved.sending.step], step: saved.sending.step },
+    ];
+  const total = saved?.calls.length ?? action.calls.length;
+  return !saved && action.batch && safe && action.calls.length > 1
+    ? [{ call: safeBatchCall(account, action.calls), step: total - 1 }]
+    : action.calls.map((call, step) => ({ call, step }));
+}
+
 type OwnSuccess = { settled: Succeeded; handle: WriteHoldHandle };
 
 class OwnSucceeded extends Error {
@@ -318,6 +339,7 @@ export function useReviewedRun(
   /** The sent step whose hold the latest run's `ended()` awaits. */
   const awaiting = useRef<{
     last: boolean;
+    total: number;
     detached: Detached | null;
     end: () => void;
   } | null>(null);
@@ -370,21 +392,32 @@ export function useReviewedRun(
   const own = useRef<{
     account: Address;
     reservations: string[];
+    /** The step count of the action they ended: only that action's last step closes it. */
+    total: number;
     run?: number;
   } | null>(null);
   const ownSuccess = (
-    calls: readonly Parameters<typeof openStepHold>[3][],
-    account: Address | undefined,
+    action: Pick<ReviewedAction, "calls" | "batch"> & { account?: Address },
   ): OwnSuccess | undefined => {
     const kept = own.current;
     if (
       !kept ||
       !deps?.account ||
+      kept.total !== action.calls.length ||
       kept.account.toLowerCase() !== deps.account.toLowerCase() ||
-      (account && account.toLowerCase() !== kept.account.toLowerCase())
+      (action.account &&
+        action.account.toLowerCase() !== kept.account.toLowerCase())
     )
       return undefined;
-    for (const call of calls) {
+    // Only the action's last step's hold, as `follow` maps it: a success
+    // of an earlier step never completes the action. Its Safe mode may not
+    // be known yet; a reservation is only ever in its own mode's hold.
+    const account = deps.account;
+    const lasts = [false, true].map((safe) => {
+      const steps = heldSteps(account, safe, action);
+      return steps[steps.length - 1].call;
+    });
+    for (const call of lasts) {
       try {
         // A reservation is read only through its own hold: another hold
         // (another intent, or another exact call) never answers for it.
@@ -563,6 +596,7 @@ export function useReviewedRun(
           ? {
               account: deps.account,
               reservations: [last.reservation],
+              total: waiting ? waiting.total : watched!.total,
               run: latest.current,
             }
           : null;
@@ -662,7 +696,7 @@ export function useReviewedRun(
         if (latest.current === id) setState((now) => ({ ...now, ...next }));
       };
       setState({ ...IDLE, phase: "review", total: action.calls.length });
-      const succeeded = ownSuccess(action.calls, action.account);
+      const succeeded = ownSuccess(action);
       if (succeeded) {
         setWatched(null);
         open.current -= 1;
@@ -723,6 +757,8 @@ export function useReviewedRun(
           account: deps!.account!,
           scope: action.scope,
           onConfirmed: action.onConfirmed,
+          locks: action.locks,
+          attemptScoped: action.attemptScoped,
         };
         const finish = (
           seen?: WriteHoldSettled,
@@ -808,22 +844,7 @@ export function useReviewedRun(
             ? null
             : findReviewedSequence(action.scope, account, { storage });
           const total = saved?.calls.length ?? action.calls.length;
-          // A Safe app's batch is held as its one MultiSend proposal, its last step.
-          const steps = saved?.sending
-            ? [
-                {
-                  call: saved.calls[saved.sending.step],
-                  step: saved.sending.step,
-                },
-              ]
-            : !saved && action.batch && safe && action.calls.length > 1
-              ? [
-                  {
-                    call: safeBatchCall(account, action.calls),
-                    step: total - 1,
-                  },
-                ]
-              : action.calls.map((call, step) => ({ call, step }));
+          const steps = heldSteps(account, safe, action, saved);
           // A held step, or the last step's success nothing showed, of this
           // run (or of the saved sequence it resumes), never another run's.
           const found = steps
@@ -952,7 +973,7 @@ export function useReviewedRun(
         // A success already shown is acknowledged before this run checks it.
         await acknowledged.current;
         const settledOwn = () => {
-          const settled = ownSuccess(action.calls, action.account);
+          const settled = ownSuccess(action);
           if (settled) throw new OwnSucceeded(settled);
         };
         settledOwn();
@@ -1100,6 +1121,7 @@ export function useReviewedRun(
             cancelled?.addEventListener("abort", abandon, { once: true });
             awaiting.current = {
               last: error.step === action.calls.length - 1,
+              total: action.calls.length,
               detached: heldStep(error),
               end: abandon,
             };
@@ -1188,6 +1210,7 @@ export function useReviewedRun(
           own.current = {
             account: deps.account,
             reservations: left.map(({ reservation }) => reservation),
+            total: 1,
           };
         const cancelled =
           error instanceof TransactionReviewCancelledError ||

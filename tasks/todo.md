@@ -23,6 +23,7 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - Failing first: every new test was run against origin/main's code (or with the guard removed) and failed; mutation checks on the retake rule, `untouched`, relayr `onUnsent`, the refused-reservation rule and the final-gate settlement check each broke a test.
 - The Safe flag in `holdOf` was dropped: no SDK test fails because of it (a hold's key ignores the Safe mode); Homerun's failure was its fixture counting the `:settled-by` key.
 - Codex pass 1 (FIX-FIRST, 1 High, 3 Medium), each fixed with a failing-first test: own-success matched by reservation and hold, never call bytes (refreshed retry); bound to the sending account; the extra `open` increment removed (dismiss and discard work after a closed success); a reclaim retakes its own live lease before taking a free one (staggered nested expiry).
+- Codex pass 2 (FIX-FIRST, 1 High, 2 Medium), each fixed with a failing-first test: one `heldSteps` home for the step-to-hold mapping (`follow` and `ownSuccess`), so a dismissed Safe batch closes on its MultiSend success; only the action's last step closes it, for an action of the same step count; a followed receipt's completion forwards `locks` and `attemptScoped`.
 - The Safe-proposal dismiss test passes on main for delivery (`onDismissedSettled`), and fails on main for the same-call retry (refused instead of closing as done).
 
 # Run wrapper behavior into useReviewedRun (2026-11-09)
