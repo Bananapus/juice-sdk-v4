@@ -559,3 +559,38 @@ export function leasedOrigin() {
     },
   };
 }
+
+/**
+ * Native-style Web Locks: one holder per name, queued in order, `ifAvailable`
+ * answered null while held, as browsers do.
+ */
+export function nativeLocks(): LockManager {
+  const tails = new Map<string, Promise<unknown>>();
+  const busy = new Set<string>();
+  return {
+    request: (async (
+      name: string,
+      options: LockOptions | ((lock: Lock | null) => unknown),
+      work?: (lock: Lock | null) => unknown,
+    ) => {
+      const run = (work ?? options) as (lock: Lock | null) => unknown;
+      const opts = (work ? options : {}) as LockOptions;
+      if (opts.ifAvailable && busy.has(name)) return run(null);
+      const prior = tails.get(name) ?? Promise.resolve();
+      const turn = prior.then(async () => {
+        busy.add(name);
+        try {
+          return await run({ name, mode: "exclusive" });
+        } finally {
+          busy.delete(name);
+        }
+      });
+      tails.set(
+        name,
+        turn.catch(() => {}),
+      );
+      return turn;
+    }) as LockManager["request"],
+    query: async () => ({ held: [], pending: [] }),
+  };
+}

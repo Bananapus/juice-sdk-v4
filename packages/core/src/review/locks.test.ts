@@ -269,6 +269,44 @@ describe("assertLocksHeld", () => {
 });
 
 describe("keepOutcome", () => {
+  it("queues every kept outcome at teardown in the order kept, before any runs: one kept while the first is saved goes behind the second", async () => {
+    const { lapsingLocksForTests } = await import("../testing.js");
+    const m = await import("./locks.js");
+    const lapsing = lapsingLocksForTests();
+    const told: string[] = [];
+    let confirm!: Promise<boolean>;
+    const write =
+      (name: string, lock: LockHandle, meanwhile?: () => void) => async () => {
+        await lock.assertHeld();
+        // An asynchronous save, during which the receipt recovers.
+        meanwhile?.();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await lock.assertHeld();
+        told.push(name);
+      };
+    await lapsing.locks.request("site", async (lock) => {
+      lapsing.lapse();
+      // A Safe batch's two submissions, both refused for the lapsed lease.
+      await expect(
+        m.keepOutcome(
+          [lock!],
+          write("approval submitted", lock!, () => {
+            confirm ??= m.keepOutcome([lock!], write("confirmed", lock!));
+          }),
+        ),
+      ).resolves.toBe(false);
+      await expect(
+        m.keepOutcome([lock!], write("payment submitted", lock!)),
+      ).resolves.toBe(false);
+    });
+    await confirm;
+    expect(told).toEqual([
+      "approval submitted",
+      "payment submitted",
+      "confirmed",
+    ]);
+  });
+
   it("keeps a save refused for a lapsed lease until every nested lock's work ended, then applies it only if none was taken since", async () => {
     origin();
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });

@@ -2716,9 +2716,16 @@ describe("a write held under an intent", () => {
       old.hold.open(ordinary).claimConfirmed({ hash: HASH }),
     ).resolves.toBe(false);
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
-    // Given back there (its notice never told), it is claimed once again.
-    await handle.releaseConfirmed({ hash: HASH });
+    // Pending until settled there; given back, it is claimed once again,
+    // and delivered, never again.
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBe("pending");
+    await handle.settleConfirmed({ hash: HASH }, false);
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBeUndefined();
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(true);
+    await handle.settleConfirmed({ hash: HASH }, true);
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBe(
+      "delivered",
+    );
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
   });
 

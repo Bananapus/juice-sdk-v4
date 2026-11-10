@@ -270,7 +270,14 @@ function heldSteps(
     : action.calls.map((call, step) => ({ call, step }));
 }
 
-type OwnSuccess = { settled: Succeeded; handle: WriteHoldHandle };
+type OwnSuccess = {
+  settled: Succeeded;
+  handle: WriteHoldHandle;
+  /** The held last step it settled, for its completion. */
+  call: ReviewedCall;
+  step: number;
+  reservation: string;
+};
 
 class OwnSucceeded extends Error {
   constructor(readonly found: OwnSuccess) {
@@ -393,8 +400,6 @@ export function useReviewedRun(
     account: Address;
     reservations: string[];
     run?: number;
-    /** Its followed last step, whose `onConfirmed` was not delivered: told by the run that closes on it. */
-    undelivered?: { step: number; call: ReviewedCall };
   } | null>(null);
   const ownSuccess = (
     action: Pick<ReviewedAction, "calls" | "batch"> & { account?: Address },
@@ -414,9 +419,9 @@ export function useReviewedRun(
     const account = deps.account;
     const lasts = [false, true].map((safe) => {
       const steps = heldSteps(account, safe, action);
-      return steps[steps.length - 1].call;
+      return steps[steps.length - 1];
     });
-    for (const call of lasts) {
+    for (const { call, step } of lasts) {
       try {
         // A reservation is read only through its own hold: another hold
         // (another intent, or another exact call) never answers for it.
@@ -424,7 +429,13 @@ export function useReviewedRun(
         for (const reservation of kept.reservations) {
           const settled = handle.settlementOf(reservation);
           if (settled?.result === "success")
-            return { settled: settled as Succeeded, handle };
+            return {
+              settled: settled as Succeeded,
+              handle,
+              call: call as ReviewedCall,
+              step,
+              reservation,
+            };
         }
       } catch {
         /* A call the hold can't open holds nothing of this form's. */
@@ -614,8 +625,11 @@ export function useReviewedRun(
               reservation: watched.reservation,
             },
       );
+      // Closing the view keeps what this form sent: a later dismiss of the
+      // idle view never forgets a write the first one left followed.
+      const kept = own.current;
       reset();
-      if (closing) own.current = closing;
+      own.current = closing ?? kept;
       return true;
     },
     preload,
@@ -633,44 +647,44 @@ export function useReviewedRun(
     },
     run: async ({ onCancelled, onStopped, ...action }) => {
       /** This form's unshown write of these calls succeeded: the form closes on it. */
-      const close = async ({ settled, handle }: OwnSuccess) => {
+      const close = async (found: OwnSuccess) => {
+        const { settled, handle } = found;
         const kept = own.current;
         own.current = null;
-        // Its onConfirmed never delivered: told under this run's locks first.
-        if (kept?.undelivered && deps?.account) {
-          const told = await load(deps.engine)
-            .then((engine) =>
-              engine.completeReviewedStep(
-                {
-                  step: kept.undelivered!.step,
-                  held: {
-                    call: kept.undelivered!.call,
-                    reservation: kept.reservations[0],
-                  },
-                },
-                {
-                  account: deps.account!,
-                  scope: action.scope,
-                  onConfirmed: action.onConfirmed,
-                  locks: action.locks,
-                  attemptScoped: action.attemptScoped,
-                },
-                deps,
-                null,
-                alive,
-                false,
-              ),
-            )
-            .catch(() => null);
-          if (!told || told.undelivered) {
-            own.current = kept;
-            const failure = new LockLostError(
-              action.locks?.[0]?.name ?? "site",
-            );
-            const error = errorLine(failure);
-            update({ ...IDLE, error, failure });
-            return { status: "failed" as const, error, failure };
-          }
+        // Completed as its run would have, under this run's locks: told to
+        // onConfirmed once (unless another completion did), and done only
+        // once delivered.
+        let failure: unknown;
+        const told = await load(deps!.engine)
+          .then((engine) =>
+            engine.completeReviewedStep(
+              {
+                step: found.step,
+                held: { call: found.call, reservation: found.reservation },
+              },
+              {
+                account: deps!.account!,
+                scope: action.scope,
+                onConfirmed: action.onConfirmed,
+                locks: action.locks,
+                attemptScoped: action.attemptScoped,
+              },
+              deps!,
+              null,
+              alive,
+              false,
+            ),
+          )
+          .catch((error: unknown) => {
+            failure = error;
+            return null;
+          });
+        if (!told || told.undelivered) {
+          own.current = kept;
+          failure ??= new LockLostError(action.locks?.[0]?.name ?? "site");
+          const error = errorLine(failure);
+          update({ ...IDLE, error, failure });
+          return { status: "failed" as const, error, failure };
         }
         const step = action.calls.length - 1;
         update({
@@ -834,7 +848,6 @@ export function useReviewedRun(
                   own.current = {
                     account: deps!.account!,
                     reservations: [target.held.reservation],
-                    undelivered: { step: target.step, call: target.held.call },
                   };
               }
               if (mounted.current)

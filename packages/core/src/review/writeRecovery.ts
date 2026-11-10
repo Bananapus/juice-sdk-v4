@@ -707,6 +707,25 @@ function releasedKey(key: string, id: string): string {
  * exit or as never sent, never by a settlement's cleanup: only it lets a
  * saved sequence send that step again.
  */
+/**
+ * How long a claimed `onConfirmed` notice stays pending: a tab that closed
+ * mid-delivery leaves it claimable again after.
+ * ponytail: a fixed bound, not a heartbeat; a live delivery queued longer
+ * than this behind another holder can be told twice.
+ */
+const CONFIRMING_STALE_MS = 5 * 60_000;
+
+function confirmationState(
+  saved: Record<string, unknown>,
+): "delivered" | "pending" | undefined {
+  const { confirmed } = saved;
+  if (confirmed === true) return "delivered";
+  return typeof confirmed === "number" &&
+    Date.now() - confirmed < CONFIRMING_STALE_MS
+    ? "pending"
+    : undefined;
+}
+
 function exitedKey(key: string, id: string): string {
   return `${key}:exited:${id}`;
 }
@@ -842,6 +861,17 @@ export function createBrowserWriteRecovery(
     if (saved[flag] === true) return false;
     store.setItem(settledKey, JSON.stringify({ ...saved, [flag]: true }));
     return true;
+  }
+  /** The saved settlement with `settled`'s hash, if it is the one saved. */
+  function savedSettlement(
+    store: RecoveryStorage,
+    settled: Pick<ReviewedWriteSettlement, "hash">,
+  ): Record<string, unknown> | undefined {
+    const saved = JSON.parse(store.getItem(settledKey) ?? "null") as Record<
+      string,
+      unknown
+    > | null;
+    return saved?.hash === settled.hash.toLowerCase() ? saved : undefined;
   }
   function storage(): RecoveryStorage {
     const store = recoveryStorage(options.storage);
@@ -1368,40 +1398,68 @@ export function createBrowserWriteRecovery(
     /**
      * Claim the one `onConfirmed` notice of the saved settlement `settled`
      * names (its hash): true for the first claim in any tab or run, false
-     * after. A settlement no longer saved there can't be marked, so every
-     * claim of it is true: a repeated notice over a lost one.
+     * while another claim is pending or once it was delivered. A settlement
+     * no longer saved there can't be marked, so every claim of it is true:
+     * a repeated notice over a lost one.
      */
     claimConfirmedSettled(
       settled: Pick<ReviewedWriteSettlement, "hash">,
     ): boolean {
       requireLock();
       try {
-        return flagSettled(storage(), settled.hash.toLowerCase(), "confirmed");
+        const store = storage();
+        const saved = savedSettlement(store, settled);
+        if (!saved) return true;
+        if (confirmationState(saved)) return false;
+        // Pending from now: delivered or given back by its claimant.
+        store.setItem(
+          settledKey,
+          JSON.stringify({ ...saved, confirmed: Date.now() }),
+        );
+        return true;
       } catch {
         // Storage unavailable: told rather than lost.
         return true;
       }
     },
     /**
-     * Gives back a claim whose notice never reached the site (its lock lost
-     * and not taken back): a later completion claims and tells it again.
+     * Ends a claim: delivered for good, or given back (its notice never
+     * reached the site, its lock lost and not taken back) for a later
+     * completion to claim and tell again.
      */
-    releaseConfirmedSettled(
+    settleConfirmedSettled(
       settled: Pick<ReviewedWriteSettlement, "hash">,
+      delivered: boolean,
     ): void {
       requireLock();
       try {
         const store = storage();
-        const saved = JSON.parse(store.getItem(settledKey) ?? "null") as Record<
-          string,
-          unknown
-        > | null;
-        if (saved?.hash !== settled.hash.toLowerCase() || !saved.confirmed)
+        const saved = savedSettlement(store, settled);
+        if (!saved || saved.confirmed === undefined || saved.confirmed === true)
           return;
-        const { confirmed: _given, ...rest } = saved;
-        store.setItem(settledKey, JSON.stringify(rest));
+        const { confirmed: _pending, ...rest } = saved;
+        store.setItem(
+          settledKey,
+          JSON.stringify(delivered ? { ...rest, confirmed: true } : rest),
+        );
       } catch {
-        /* Unreadable: nothing was claimed there. */
+        /* Unreadable: its claim stays as it was, pending until stale. */
+      }
+    },
+    /**
+     * Whether the settlement's `onConfirmed` notice was delivered, is
+     * pending under a live claim, or neither (undefined: unclaimed, given
+     * back, or a stale claim).
+     */
+    confirmationOf(
+      settled: Pick<ReviewedWriteSettlement, "hash">,
+    ): "delivered" | "pending" | undefined {
+      requireLock();
+      try {
+        const saved = savedSettlement(storage(), settled);
+        return saved ? confirmationState(saved) : undefined;
+      } catch {
+        return undefined;
       }
     },
     /**

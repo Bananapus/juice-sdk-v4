@@ -75,8 +75,8 @@ type Kept = {
   /** `later` re-runs `write` as is: only under locks nobody took since. */
   untouched: boolean;
   keepers: Keeper[];
-  /** Told once the outcome is never applied. */
-  dropped?: () => unknown;
+  /** Told once whether the outcome was applied in the end. */
+  settled?: (applied: boolean) => unknown;
 };
 
 const keeperOf = (lock: LockHandle) =>
@@ -116,7 +116,7 @@ const stamps = (() => {
 /**
  * `later()` under every lock requested afresh, one acquisition each, so
  * the backend serializes it with any other work or outcome under the same
- * name; any failure leaves things as they were, and `dropped` is told.
+ * name; any failure leaves things as they were. `settled` is told which.
  */
 async function reconcile(entry: Kept) {
   for (const keeper of entry.keepers) keeper.kept.delete(entry);
@@ -139,9 +139,9 @@ async function reconcile(entry: Kept) {
       }
     });
   };
-  const applied = await under(0).catch(() => false);
   // Unreconciled, the record stays as the lost lock left it.
-  if (!applied) await Promise.resolve(entry.dropped?.()).catch(() => {});
+  const applied = await under(0).catch(() => false);
+  await Promise.resolve(entry.settled?.(applied)).catch(() => {});
 }
 
 /**
@@ -162,8 +162,10 @@ async function reconcile(entry: Kept) {
  *   so it can't touch a newer attempt's record.
  *
  * If any lock can't be taken back, or the write fails, the record stays as
- * the lost lock left it, its recovery shows, and `dropped` is told (a claim
- * the outcome consumed is given back there, so it stays retryable).
+ * the lost lock left it and its recovery shows. `settled` is told once
+ * whether a kept outcome was applied in the end (a claim it consumed is
+ * then made for good, or given back so it stays retryable); one written
+ * at once resolves true without it.
  *
  * Any lock {@link fencedLocks} or {@link browserLocks} handed out is kept
  * this way: a native one once its work ended, a lease also once it lapsed.
@@ -173,7 +175,7 @@ export async function keepOutcome(
   locks: readonly LockHandle[] | undefined,
   write: () => unknown,
   later?: () => unknown,
-  dropped?: () => unknown,
+  settled?: (applied: boolean) => unknown,
 ): Promise<boolean> {
   const keepers = (locks ?? []).map(keeperOf);
   const keepable = keepers.length > 0 && keepers.every((keeper) => keeper);
@@ -183,7 +185,7 @@ export async function keepOutcome(
       later: later ?? write,
       untouched: !later,
       keepers: keepers as Keeper[],
-      ...(dropped ? { dropped } : {}),
+      ...(settled ? { settled } : {}),
     };
     for (const keeper of entry.keepers) keeper.kept.add(entry);
     // Kept after its work already ended: reconciled now.
@@ -311,9 +313,13 @@ export function fencedLocks(
         // Released: each kept outcome whose locks all ended queues for the
         // lock now, as any request would, and lands before this one resolves.
         keeper.ended = true;
-        for (const entry of [...keeper.kept])
-          if (entry.keepers.every((other) => other.ended))
-            await reconcile(entry);
+        // All queued for the lock in the order they were kept, before any
+        // runs: one kept later always goes behind them.
+        await Promise.all(
+          [...keeper.kept]
+            .filter((entry) => entry.keepers.every((other) => other.ended))
+            .map(reconcile),
+        );
       }) as Promise<Awaited<T>>;
     },
   } as BrowserLocks;

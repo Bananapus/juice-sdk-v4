@@ -1764,12 +1764,32 @@ export function createWriteHold(
         );
         return result?.value === true;
       },
-      /** Gives back a claimed notice the site never got, under the call's lock. */
-      async releaseConfirmed(settled: { hash: Hex }): Promise<void> {
+      /**
+       * Ends a claimed notice under the call's lock: delivered, or given
+       * back (the site never got it) for a later completion to tell.
+       */
+      async settleConfirmed(
+        settled: { hash: Hex },
+        delivered: boolean,
+      ): Promise<void> {
         await locked(
-          async () => recovery.releaseConfirmedSettled(settled),
+          async () => recovery.settleConfirmedSettled(settled, delivered),
           true,
         );
+      },
+      /**
+       * Whether the settlement's `onConfirmed` notice was delivered or is
+       * pending under a live claim; undefined otherwise. Only a delivered
+       * one lets its success be acknowledged.
+       */
+      async confirmation(settled: {
+        hash: Hex;
+      }): Promise<"delivered" | "pending" | undefined> {
+        const result = await locked(
+          async () => recovery.confirmationOf(settled),
+          true,
+        );
+        return result?.value;
       },
       /**
        * Attaches the hash the user found for a held write whose wallet reply
@@ -2355,8 +2375,19 @@ export function createWriteHold(
           settled,
         );
       },
-      releaseConfirmed(settled: { hash: Hex }): Promise<void> {
-        return (legacySaving(settled.hash)?.handle ?? own).releaseConfirmed(
+      settleConfirmed(
+        settled: { hash: Hex },
+        delivered: boolean,
+      ): Promise<void> {
+        return (legacySaving(settled.hash)?.handle ?? own).settleConfirmed(
+          settled,
+          delivered,
+        );
+      },
+      confirmation(settled: {
+        hash: Hex;
+      }): Promise<"delivered" | "pending" | undefined> {
+        return (legacySaving(settled.hash)?.handle ?? own).confirmation(
           settled,
         );
       },

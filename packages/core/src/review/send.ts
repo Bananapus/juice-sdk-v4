@@ -872,11 +872,19 @@ export async function resumeReviewed(
     // This sequence's own step: it is recorded, told, and only then
     // acknowledged, so it is never offered again.
     const kept = await recordSending(saved, settled, storage, expected);
+    // Its notice not delivered yet: held at its receipt, acknowledged by
+    // none, for its completion to tell.
     if (
-      (await tellConfirmed(action, handle, call, step, settled, receipt)) &&
-      settled?.result === "success"
+      (await tellConfirmed(action, handle, call, step, settled, receipt)) !==
+      "delivered"
     )
-      await handle.acknowledge(settled);
+      throw new ReviewedReceiptUnverifiedError(
+        step,
+        (settled as { hash: Hex }).hash,
+        undefined,
+        { call, reservation, hashes: [...saved.completed] },
+      );
+    if (settled?.result === "success") await handle.acknowledge(settled);
     if (kept === null) {
       const total = saved.calls.length;
       tell(deps.onProgress, { step: total - 1, total, phase: "done" });
@@ -932,51 +940,71 @@ async function confirmedReceipt(
 }
 
 /**
+ * Where a step's `onConfirmed` notice is: told to the site (or nothing to
+ * tell), still pending (kept for a lost lock, or another completion's claim
+ * not yet told), or undelivered (its lock never taken back). Only a
+ * delivered one lets its success be acknowledged or shown done.
+ */
+type ConfirmationDelivery = "delivered" | "pending" | "undelivered";
+
+/**
  * Tells `onConfirmed` of a step's verified success, once per settlement:
  * only the completion (a run, `completeReviewedStep`, `resumeReviewed`, in
- * any tab) that claims its notice on the hold tells it.
+ * any tab) that claims its notice on the hold tells it. The claim is made
+ * for good once told, and given back if the site never gets it, so a later
+ * completion tells it.
  */
 async function tellConfirmed(
   action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
-  handle: Pick<WriteHoldHandle, "claimConfirmed" | "releaseConfirmed">,
+  handle: Pick<
+    WriteHoldHandle,
+    "claimConfirmed" | "settleConfirmed" | "confirmation"
+  >,
   call: ReviewedCall,
   step: number,
   settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
-): Promise<boolean> {
-  // Claimed once across tabs, and given back if the site never gets it (its
-  // lock lost and not taken back), so a later completion tells it. False
-  // while it is only kept: its success is then acknowledged by none.
-  return settled?.result === "success" &&
-    receipt &&
-    (await handle.claimConfirmed(settled))
-    ? tellKept(
-        action,
-        () => action.onConfirmed?.(call, step, receipt),
-        () => handle.releaseConfirmed(settled),
-      )
-    : true;
+): Promise<ConfirmationDelivery> {
+  if (settled?.result !== "success" || !receipt) return "delivered";
+  if (!(await handle.claimConfirmed(settled)))
+    // Another completion's: delivered, or not yet.
+    return (await handle.confirmation(settled)) === "delivered"
+      ? "delivered"
+      : "pending";
+  let delivery: ConfirmationDelivery = "pending";
+  const told = await tellKept(
+    action,
+    () => action.onConfirmed?.(call, step, receipt),
+    async (applied) => {
+      delivery = applied ? "delivered" : "undelivered";
+      await handle.settleConfirmed(settled, applied);
+    },
+  );
+  if (!told) return delivery;
+  await handle.settleConfirmed(settled, true);
+  return "delivered";
 }
 
 /**
  * Tells a site what the wallet answered, under its `locks`: refused for a
- * lost one, kept for a fresh lock ({@link keepOutcome}), or dropped when it
- * can't be, `dropped` then told. Any other failure is logged and never
- * changes what was sent. False when the outcome was only kept, not told.
+ * lost one, kept for a fresh lock ({@link keepOutcome}, `settled` told
+ * whether it was applied in the end), or dropped when it can't be kept
+ * (`settled` told false). Any other failure is logged and never changes
+ * what was sent. False when the outcome was only kept, not told.
  */
 const tellKept = async (
   { locks, attemptScoped }: Pick<ReviewedAction, "locks" | "attemptScoped">,
   run: () => unknown,
-  dropped?: () => unknown,
+  settled?: (applied: boolean) => unknown,
 ): Promise<boolean> => {
   let kept = false;
   await tell(() =>
-    keepOutcome(locks, run, attemptScoped ? run : undefined, dropped).then(
+    keepOutcome(locks, run, attemptScoped ? run : undefined, settled).then(
       (applied) => void (kept = !applied),
       async (error) => {
         if ((error as { code?: unknown })?.code !== "LOCK_LOST") throw error;
         kept = true;
-        await dropped?.();
+        await settled?.(false);
       },
     ),
   );
@@ -1098,7 +1126,10 @@ export async function completeReviewedStep(
     )
       await recordSending(record, settled, storage, raw);
   }
-  if (!(await tellConfirmed(action, handle, call, step, settled, confirmed)))
+  if (
+    (await tellConfirmed(action, handle, call, step, settled, confirmed)) !==
+    "delivered"
+  )
     return { settled, receipt: confirmed, undelivered: true };
   if (acknowledge && settled.result === "success")
     await handle.acknowledge(settled);
@@ -1772,7 +1803,8 @@ async function send(
     }
     // From here the step was sent: it ends done, failed as its hold
     // verified, or unverified with what resumes it, never any other way.
-    const unverified = (cause?: unknown) =>
+    /** `completed`: this step's hash already recorded as completed. */
+    const unverified = (cause?: unknown, completed = false) =>
       new ReviewedReceiptUnverifiedError(
         at,
         hash,
@@ -1783,7 +1815,10 @@ async function send(
           call,
           reservation: reserved,
           // This run's sends, its own last: only the steps before it completed.
-          hashes: journal ? [...journal.completed] : hashes.slice(0, -1),
+          hashes:
+            journal && !completed
+              ? [...journal.completed]
+              : (journal?.completed ?? hashes).slice(0, -1),
           ...signed,
         },
         cause === undefined ? {} : { cause },
@@ -1854,7 +1889,18 @@ async function send(
       journal.completed.push(mined);
       await keep();
     }
-    await tellConfirmed(action, handles[step], call, at, settled, receipt);
+    // Its notice not delivered yet: held at its receipt for its completion.
+    if (
+      (await tellConfirmed(
+        action,
+        handles[step],
+        call,
+        at,
+        settled,
+        receipt,
+      )) !== "delivered"
+    )
+      throw unverified(undefined, true);
   }
   onProgress({ step: total - 1, total, phase: "done" });
   return {

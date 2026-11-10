@@ -41,6 +41,7 @@ import {
   speedUpNextSend,
   unreachable,
   unregister,
+  nativeLocks,
 } from "./__fixtures__/reviewedSend.js";
 import type { ReviewConfirmation } from "./confirm.js";
 import { TransactionReceiptUnavailableError } from "./receipt.js";
@@ -2268,6 +2269,55 @@ describe("sendReviewed and its hold's evidence", () => {
       deps,
     );
     expect(told).toHaveBeenCalledOnce();
+    expect(handle.unacknowledgedSuccess()).toBeUndefined();
+  });
+
+  it("a completion meeting another's pending claim acknowledges nothing: undelivered until one tells it", async () => {
+    const { deps, hold, calls, scope, unverified, recover } =
+      await leftAtReceipt();
+    recover();
+    const site = fencedLocks(nativeLocks());
+    let lock!: LockHandle;
+    await site.request("site", async (held) => void (lock = held!));
+    // A routine refresh holds the site's lock.
+    let release!: () => void;
+    const refreshing = site.request(
+      "site",
+      () => new Promise<void>((resolve) => (release = resolve)),
+    );
+    const told = vi.fn(async () => lock.assertHeld());
+    const first = completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: told, locks: [lock] },
+      deps,
+    );
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    // Claimed, its notice queued behind the refresh.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Another completion of the same settlement, while the first one's
+    // notice waits behind the refresh.
+    const other = vi.fn();
+    await expect(
+      completeReviewedStep(
+        unverified,
+        { account: ACCOUNT, scope, onConfirmed: other },
+        deps,
+      ),
+    ).resolves.toMatchObject({ undelivered: true });
+    expect(other).not.toHaveBeenCalled();
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    release();
+    await refreshing;
+    // Taken since, the first one's notice is dropped and given back.
+    await expect(first).resolves.toMatchObject({ undelivered: true });
+    expect(told).not.toHaveBeenCalled();
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    await completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: other },
+      deps,
+    );
+    expect(other).toHaveBeenCalledOnce();
     expect(handle.unacknowledgedSuccess()).toBeUndefined();
   });
 
