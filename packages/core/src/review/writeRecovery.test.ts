@@ -1793,8 +1793,12 @@ describe("releasing a write with no confirmed result", () => {
       journal.withLock(() => journal.resolve(nonceChain() as never)),
     ).resolves.toBeNull();
     const locks = browser().locks;
+    const request = vi.spyOn(locks, "request");
     vi.stubGlobal("navigator", { locks });
-    expect(browserLocks()).toBe(locks);
+    await expect(
+      browserLocks().request("native", async (lock) => lock!.held()),
+    ).resolves.toBe(true);
+    expect(request).toHaveBeenCalledWith("native", {}, expect.any(Function));
   });
 
   it("lets the user end a held write only after confirming they checked their wallet", async () => {
@@ -1946,6 +1950,38 @@ describe("tabs without Web Locks", () => {
     await expect(b.withLock(async () => "taken")).resolves.toBe("taken");
     release();
     await holding;
+  });
+
+  it("fences a journal whose lease another tab took while it slept", async () => {
+    const storage = origin();
+    const [first, second] = [await tab(), await tab()];
+    const a = first.createBrowserWriteRecovery(input, { storage });
+    const b = second.createBrowserWriteRecovery(input, { storage });
+    await expect(a.assertHeld()).rejects.toThrow("require the browser lock");
+    let resume!: () => void;
+    const asleep = new Promise<void>((resolve) => (resume = resolve));
+    let entered!: () => void;
+    const inside = new Promise<void>((resolve) => (entered = resolve));
+    const holding = a.withLock(async () => {
+      await a.assertHeld();
+      entered();
+      await asleep;
+      return a.assertHeld().then(
+        () => "held",
+        (error: unknown) => error,
+      );
+    });
+    await inside;
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + 60_000);
+    await expect(
+      b.withLock(async () => {
+        await b.assertHeld();
+        return "taken";
+      }),
+    ).resolves.toBe("taken");
+    resume();
+    expect(await holding).toBeInstanceOf(first.LockLostError);
   });
 
   it("keeps the user's exit when the lease can't be taken, and blocks new sends", async () => {

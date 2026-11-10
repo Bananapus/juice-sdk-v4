@@ -54,6 +54,7 @@ import {
   createHeldWriteStorage,
   type HeldWriteStorage,
   type ReviewedWriteRecoveryInput,
+  LockLostError,
 } from "./writeRecovery.js";
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as Address;
@@ -129,6 +130,33 @@ function lockManager() {
       }
     },
   } as Pick<LockManager, "request">;
+}
+
+/** {@link lockManager} whose locks this tab can lose, as a lapsed IndexedDB lease. */
+function losableLocks() {
+  const inner = lockManager();
+  let lost = false;
+  const locks = {
+    request: <T>(
+      name: string,
+      options: LockOptions,
+      work: (lock: Lock | null) => Promise<T>,
+    ) =>
+      inner.request(name, options, (lock) =>
+        work(
+          lock &&
+            ({
+              ...lock,
+              signal: new AbortController().signal,
+              held: async () => !lost,
+              assertHeld: async () => {
+                if (lost) throw new LockLostError(name);
+              },
+            } as Lock),
+        ),
+      ),
+  } as Pick<LockManager, "request">;
+  return { locks, lose: () => (lost = true) };
 }
 
 type Tx = {
@@ -7409,4 +7437,58 @@ describe("whether a state was checked on the chain", () => {
       handle.adopt(await handle.state(client), { hash: HASH }, client),
     ).resolves.toMatchObject({ status: "pending-known-hash", hash: HASH });
   });
+});
+
+describe("a send whose lock this tab lost", () => {
+  for (const [label, call] of [
+    ["an exact call", ordinary],
+    ["an intent", { ...ordinary, namespace: "fence:1" }],
+  ] as const) {
+    it(`never reserves ${label} once its lock is lost`, async () => {
+      const { locks, lose } = losableLocks();
+      const { hold } = setup({ locks });
+      const { client } = fakeChain();
+      const { write, send } = wallet(async () => HASH);
+      const handle = hold.open(call);
+      await expect(
+        handle.send(client, (gate) => {
+          lose();
+          return send(gate);
+        }),
+      ).rejects.toBeInstanceOf(LockLostError);
+      expect(write).not.toHaveBeenCalled();
+      expect(handle.peek().status).toBe("clear");
+    });
+
+    it(`never opens the wallet for ${label} once the lock goes after reserving`, async () => {
+      const { locks, lose } = losableLocks();
+      const { hold } = setup({ locks });
+      const { client } = fakeChain();
+      const write = vi.fn(async () => HASH);
+      const handle = hold.open(call);
+      await expect(
+        handle.send(client, (gate) =>
+          submitReviewedContractWrite({
+            request: { chainId: 10 },
+            expectedAccount: ACCOUNT,
+            currentAccount: () => ACCOUNT,
+            review: async () => {},
+            switchChain: async () => {},
+            simulate: async () => ({}),
+            beforeWrite: async () => {
+              await gate.beforeSend();
+              await gate.assertHeld();
+              lose();
+              await gate.assertHeld();
+            },
+            onBeforeWriteAborted: () => gate.onRejected(),
+            onWriteRejected: () => gate.onRejected(),
+            onWriteSubmitted: (hash: Hex) => gate.afterSubmit(hash),
+            write,
+          }),
+        ),
+      ).rejects.toBeInstanceOf(LockLostError);
+      expect(write).not.toHaveBeenCalled();
+    });
+  }
 });

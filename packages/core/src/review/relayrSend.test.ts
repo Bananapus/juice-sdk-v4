@@ -368,6 +368,68 @@ describe("payRelayrReviewed", () => {
     ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
   });
 
+  it("never opens the wallet once its lock was lost while the app saved, and releases the payment", async () => {
+    const { deps, wallet, loseLock } = relayrSetup();
+    reviewUi();
+    await expect(
+      payRelayrReviewed(
+        quoteFor(),
+        10,
+        {
+          account: ACCOUNT,
+          // The tab slept in the app's own save, and its lease lapsed.
+          onSending: async () => void loseLock(),
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    // Released: the same quote reviewed again pays.
+    loseLock(false);
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("releases a payment whose intent lock was lost while it reserved, before the wallet", async () => {
+    const { deps, wallet, chain } = relayrSetup();
+    reviewUi();
+    let lost = false;
+    vi.stubGlobal("navigator", {
+      locks: {
+        request: async (
+          name: string,
+          _options: LockOptions,
+          work: (lock: unknown) => unknown,
+        ) =>
+          work({
+            name,
+            mode: "exclusive",
+            signal: new AbortController().signal,
+            held: async () => !lost,
+            assertHeld: async () => {
+              if (lost)
+                throw Object.assign(new Error(name), { code: "LOCK_LOST" });
+            },
+          }),
+      },
+    });
+    // The tab slept through the reservation's nonce read; the intent lease lapsed.
+    const count = chain.client.getTransactionCount.getMockImplementation()!;
+    chain.client.getTransactionCount.mockImplementationOnce(async () => {
+      lost = true;
+      return count();
+    });
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    lost = false;
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
   it("pays a planned payment with no prompt, and refuses another", async () => {
     const { deps, wallet } = relayrSetup();
     const prompts = reviewUi();

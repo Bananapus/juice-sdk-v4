@@ -938,6 +938,24 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
+  it("never opens the wallet once the hold's lock was lost before it, and releases the step", async () => {
+    const { wallet, deps, hold, holdOf, loseLock } = setup();
+    reviewUi();
+    const call = payCall();
+    const events: string[] = [];
+    const hooks = {
+      // The tab slept here, in the site's own await, and its lease lapsed.
+      beforeWallet: vi.fn(async () => void loseLock()),
+      onUnsent: vi.fn(() => void events.push("released")),
+    };
+    await expect(
+      sendReviewed(action([call], hooks), deps),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+    expect(events).toEqual(["released"]);
+  });
+
   it("runs the site's beforeWallet under the hold, before the wallet, and tells it how the step ended", async () => {
     const { wallet, deps, hold, holdOf } = setup();
     reviewUi();

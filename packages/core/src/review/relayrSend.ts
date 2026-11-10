@@ -660,15 +660,24 @@ async function sendPayment(
             ? browserLocks().request(
                 `nana-sdk:relayr-payment:${account.toLowerCase()}:${intent.key}`,
                 { mode: "exclusive" },
-                async () => {
+                async (lock) => {
                   requireIntentClear(deps, account, intent);
                   await gate.beforeSend();
+                  try {
+                    // A tab asleep through the reservation's reads gave this up.
+                    await lock!.assertHeld();
+                  } catch (error) {
+                    gate.onRejected();
+                    throw error;
+                  }
                 },
               )
             : gate.beforeSend());
           reserved = handle.peek().reservation;
           try {
             await hooks.onSending?.();
+            // The last await before the wallet: every lock is still this tab's.
+            await gate.assertHeld();
           } catch (error) {
             gate.onRejected();
             throw error;

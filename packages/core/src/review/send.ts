@@ -1305,6 +1305,8 @@ async function send(
                 began = step + 1;
                 await action.beforeWallet?.(call, step);
               }
+              // The last await before the wallet: the hold's lock is still this tab's.
+              await gate.assertHeld();
             } catch (error) {
               await released();
               throw error;
@@ -1561,6 +1563,8 @@ async function send(
               }
             try {
               await action.beforeWallet?.(call, at);
+              // The last await before the wallet: the hold's lock is still this tab's.
+              await gate.assertHeld();
             } catch (error) {
               await released();
               throw error;

@@ -147,6 +147,7 @@ describe("published core SDK surfaces", () => {
       "HELD_RELEASE_LABEL",
       "HELD_SEND_AGAIN_LABEL",
       "HELD_SUCCESS_LINE",
+      "LockLostError",
       "NETWORK_ERROR_LINE",
       "RECEIPT_RETRY_MS",
       "RELAYR_FEE_MARGIN_BPS",

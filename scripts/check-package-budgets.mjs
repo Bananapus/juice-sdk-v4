@@ -343,8 +343,11 @@ const budgets = {
     // subpaths): 1,826,211 B packed, 24,550,823 B unpacked, 1,907 files.
     // Their review fixes (overlapping Safe Relayr calls, a cancel only once
     // its hold reads empty): 1,828,553 B packed, 24,564,390 B unpacked.
-    packed: 1_830_000,
-    unpacked: 24_580_000,
+    // Lock fencing (the lease's owner-checked handle, LockLostError and the
+    // holds' checks before a reservation or the wallet) adds no files:
+    // 1,832,946 B packed, 24,594,432 B unpacked.
+    packed: 1_836_000,
+    unpacked: 24_610_000,
     entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {

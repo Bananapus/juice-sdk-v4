@@ -25,7 +25,7 @@ import {
   type WriteHoldHandle,
   type WriteHoldState,
 } from "./writeHold.js";
-import { createHeldWriteStorage } from "./writeRecovery.js";
+import { createHeldWriteStorage, LockLostError } from "./writeRecovery.js";
 
 const ACCOUNT = "0x1111111111111111111111111111111111111111" as Address;
 const TARGET = "0x2222222222222222222222222222222222222222" as Address;
@@ -1617,6 +1617,50 @@ describe("review round 3: rule E across tabs, unreadable settlements, and positi
       (await recovery.retire(allowed, { by: "check", outcome })).retired,
     ).toBe(true);
     expect(allowed.confirmRetirable).toHaveBeenCalledTimes(1);
+  });
+
+  it("never retires once its lock was lost while the app's journal answered", async () => {
+    const page = browser();
+    const { hold, storage } = page.load();
+    let lost = false;
+    const locks = {
+      request: <T>(
+        name: string,
+        options: LockOptions,
+        work: (lock: Lock | null) => Promise<T>,
+      ) =>
+        page.locks.request(name, options, (lock) =>
+          work(
+            lock &&
+              ({
+                ...lock,
+                signal: new AbortController().signal,
+                held: async () => !lost,
+                assertHeld: async () => {
+                  if (lost) throw new LockLostError(name);
+                },
+              } as Lock),
+          ),
+        ),
+    } as Pick<LockManager, "request">;
+    const recovery = createSavedAttemptRecovery({ hold, storage, locks });
+    const { client } = fakeChain();
+    const attempt = attemptOf(async () => ({ result: "unknown" }), {
+      saved: { started: true },
+      // The tab slept while the app's journal answered; its lease lapsed.
+      confirmRetirable: vi
+        .fn(async () => true)
+        .mockImplementationOnce(async () => (lost = true)),
+    });
+    const outcome = await recovery.recover(attempt, client);
+    if (outcome.status !== "check") throw new Error("expected check");
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(false);
+    lost = false;
+    expect(
+      (await recovery.retire(attempt, { by: "check", outcome })).retired,
+    ).toBe(true);
   });
 
   // 2: a settlement that can't be read is never "clear" to a retirement.
