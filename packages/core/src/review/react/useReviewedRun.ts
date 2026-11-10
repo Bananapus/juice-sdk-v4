@@ -288,7 +288,13 @@ export function useReviewedRun(
   } | null>(null);
   /** How many runs are open: a discard waits for none. */
   const open = useRef(0);
-  const settling = useRef(0);
+  /**
+   * Completions under way, until each shows (or its run is gone): while any
+   * is, the hook is busy and no run starts, discards or dismisses, so a
+   * success it acknowledges always shows.
+   */
+  const settling = useRef(new Set<object>());
+  const [completing, setCompleting] = useState(false);
   const mounted = useRef(false);
   /** This render's `run`: a run's end that continues the action runs it. */
   const runLatest = useRef<UseReviewedRunResult["run"]>(async () => null);
@@ -426,13 +432,13 @@ export function useReviewedRun(
   const api: UseReviewedRunResult = {
     ...shownState,
     ...status,
-    busy: status.busy && !state.following,
+    busy: (status.busy && !state.following) || completing,
     held,
     ...actionsOf(shown, held ? view : undefined),
     reset,
     dismiss: () => {
       const waiting = awaiting.current;
-      if ((open.current && !waiting) || settling.current) return false;
+      if ((open.current && !waiting) || settling.current.size) return false;
       if (waiting?.last) {
         awaiting.current = null;
         waiting.end();
@@ -452,7 +458,8 @@ export function useReviewedRun(
     },
     preload,
     discard: async (scope, account = deps?.account) => {
-      if (open.current) throw new ReviewLineError(REVIEWED_RUN_BUSY_LINE);
+      if (open.current || settling.current.size)
+        throw new ReviewLineError(REVIEWED_RUN_BUSY_LINE);
       if (!deps || !account)
         throw new ReviewLineError("Connect a wallet first.");
       const { storage } = deps;
@@ -464,6 +471,12 @@ export function useReviewedRun(
       setWatched(null);
     },
     run: async ({ onCancelled, onStopped, ...action }) => {
+      if (settling.current.size)
+        return {
+          status: "failed",
+          error: REVIEWED_RUN_BUSY_LINE,
+          failure: new ReviewLineError(REVIEWED_RUN_BUSY_LINE),
+        };
       replaced();
       const id = latest.current;
       // A step still confirming is followed in place, in the same review,
@@ -509,12 +522,21 @@ export function useReviewedRun(
           scope: action.scope,
           onConfirmed: action.onConfirmed,
         };
+        const token = {};
+        let pending = 0;
+        const free = () => {
+          settling.current.delete(token);
+          setCompleting(settling.current.size > 0);
+        };
         const finish = (
           seen?: WriteHoldSettled,
           receipt: TransactionReceipt | null = null,
         ) => {
+          if (shown || latest.current !== id) return;
           let unread = false;
-          settling.current += 1;
+          pending += 1;
+          settling.current.add(token);
+          setCompleting(true);
           completed = completed.then(
             (prior) =>
               prior ??
@@ -537,7 +559,7 @@ export function useReviewedRun(
                 }),
           );
           void completed.then((ended) => {
-            settling.current -= 1;
+            if (!--pending) free();
             if (shown || latest.current !== id) return;
             // Nothing advanced (its receipt unread, or its hold not settled
             // for this send yet): it is tried again.
@@ -548,6 +570,7 @@ export function useReviewedRun(
             }
             if (!ended) return;
             shown = true;
+            free();
             // Shown with the receipt completion checked, a failure's too.
             showSettled(id, target.step, total, ended.settled, ended.receipt);
             setWatched(null);
@@ -633,6 +656,8 @@ export function useReviewedRun(
                 }
               : null,
           );
+          // Only its hold is followed now: the confirm can close.
+          if (found) update({ following: true });
           return !!found;
         } catch {
           /* A call the hold can't open holds nothing to show. */

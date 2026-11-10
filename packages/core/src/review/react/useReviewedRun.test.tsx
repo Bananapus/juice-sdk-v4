@@ -938,6 +938,18 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
   }, 15_000);
 
+  test("a Safe proposal followed while its execution's receipt can't be read is following, not busy", async () => {
+    const { seen } = await proposedThenExecuted(0);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(seen.current).toMatchObject({
+      status: "receipt",
+      busy: false,
+      following: true,
+    });
+  });
+
   test("a Safe proposal whose execution's receipt can't be read stays confirming, never done", async () => {
     const { seen, onConfirmed, scope, storage } = await proposedThenExecuted(2);
     await act(async () => {
@@ -1662,6 +1674,43 @@ describe("useReviewedRun", () => {
     });
     expect(closed).toBe(false);
     expect(seen.current).toMatchObject({ status: "review", busy: true });
+  });
+
+  test("a completion under way is busy and refuses a new run, so its done shows and is never hidden", async () => {
+    const prompts = reviewUi();
+    const { wallet, chain, deps } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => (release = resolve));
+    const onConfirmed = vi.fn((..._told: unknown[]) => paused as never);
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const first = await run({
+      ...HANDED_BACK,
+      calls: [payCall()],
+      onConfirmed,
+    });
+    expect(first).toMatchObject({ status: "receipt" });
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
+    await rendered(() => expect(seen.current!.busy).toBe(true));
+    // Another payment while the first completes: refused, nothing reviewed.
+    await expect(run({ calls: [payCall(7n)] })).resolves.toMatchObject({
+      status: "failed",
+      error: REVIEWED_RUN_BUSY_LINE,
+    });
+    expect(prompts).toHaveLength(1);
+    release();
+    await expect((first as ReviewedRunReceipt).ended()).resolves.toMatchObject({
+      status: "done",
+    });
+    await rendered(() =>
+      expect(seen.current).toMatchObject({ status: "done", busy: false }),
+    );
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
   });
 
   test("a run left at its receipt ends failed when its hold settles a revert", async () => {

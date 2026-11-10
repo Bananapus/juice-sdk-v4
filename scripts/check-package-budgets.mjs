@@ -344,7 +344,7 @@ const budgets = {
     // Their review fixes (overlapping Safe Relayr calls, a cancel only once
     // its hold reads empty): 1,828,553 B packed, 24,564,390 B unpacked.
     packed: 1_831_000,
-    unpacked: 24_580_000,
+    unpacked: 24_590_000,
     entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {
