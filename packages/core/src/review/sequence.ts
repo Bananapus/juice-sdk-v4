@@ -34,6 +34,25 @@ export type ReviewedSequenceRecord = {
   sending?: { step: number; reservation: string };
   /** A Safe-connected step's proposal, waiting for its signers (`sending` names its reservation). */
   proposed?: { step: number; safeTxHash: Hex };
+  /** The action's signatures, signed by its first run: every step's outcome shows them. */
+  signatures?: Hex[];
+};
+
+/**
+ * What a sent step's run showed, saved on its hold with its reservation
+ * before the wallet opens: the one source every later done result and
+ * completion callback of that step is built from, never the calls a later
+ * run brings. Its hashes are `prior`, then the step's settled transaction.
+ */
+export type ReviewedOutcome = {
+  account: Address;
+  /** The step's index in the whole action. */
+  step: number;
+  /** The step's call as its run reviewed and sent it. */
+  call: ReviewedCall;
+  /** Every earlier step's hash, in order. */
+  prior: Hex[];
+  signatures?: Hex[];
 };
 
 export const REVIEWED_SEQUENCE_HELD_LINE =
@@ -92,6 +111,46 @@ const encode = (value: unknown): unknown => {
     throw new ReviewLineError(REVIEWED_SEQUENCE_UNSAVABLE_LINE);
   return value;
 };
+
+/**
+ * The outcome as saved: its call exactly, or, when an argument can't be
+ * saved (an unscoped send's), its sent fields and label without the args.
+ */
+export function encodeOutcome(outcome: ReviewedOutcome): string {
+  try {
+    return JSON.stringify(encode(outcome));
+  } catch {
+    const {
+      abi: _abi,
+      args: _args,
+      functionName: _name,
+      ...call
+    } = outcome.call;
+    return JSON.stringify(encode({ ...outcome, call }));
+  }
+}
+
+const hexes = (value: unknown): value is Hex[] =>
+  Array.isArray(value) && value.every((hash) => isHex(hash));
+
+/** A saved outcome, or undefined when none is saved or it doesn't read as one. */
+export function decodeOutcome(
+  raw: string | undefined,
+): ReviewedOutcome | undefined {
+  if (raw === undefined) return undefined;
+  try {
+    const outcome = decode(JSON.parse(raw)) as ReviewedOutcome;
+    return isAddress(outcome.account, { strict: false }) &&
+      Number.isInteger(outcome.step) &&
+      validCall(outcome.call) &&
+      hexes(outcome.prior) &&
+      (outcome.signatures === undefined || hexes(outcome.signatures))
+      ? outcome
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Refuse, before any review, calls that could not be saved exactly. */
 export function assertSavableCalls(calls: readonly ReviewedCall[]): void {
@@ -154,6 +213,17 @@ function legacySource(source: unknown): boolean {
   return false;
 }
 
+function validCall(call: ReviewedCall | undefined): boolean {
+  return (
+    Number.isInteger(call?.chainId) &&
+    isAddress(call!.to, { strict: false }) &&
+    isHex(call!.data) &&
+    (call!.intent === undefined || typeof call!.intent === "string") &&
+    (call!.legacy === undefined ||
+      (Array.isArray(call!.legacy) && call!.legacy.every(legacySource)))
+  );
+}
+
 function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
   if (raw === null) return null;
   try {
@@ -171,18 +241,11 @@ function parse(raw: string | null, key: string): ReviewedSequenceRecord | null {
       isHex(record.modelId) &&
       Array.isArray(record.calls) &&
       record.calls.length > 0 &&
-      record.calls.every(
-        (call) =>
-          Number.isInteger(call?.chainId) &&
-          isAddress(call.to, { strict: false }) &&
-          isHex(call.data) &&
-          (call.intent === undefined || typeof call.intent === "string") &&
-          (call.legacy === undefined ||
-            (Array.isArray(call.legacy) && call.legacy.every(legacySource))),
-      ) &&
+      record.calls.every(validCall) &&
       Array.isArray(record.completed) &&
       record.completed.length < record.calls.length &&
-      record.completed.every((hash) => isHex(hash)) &&
+      hexes(record.completed) &&
+      (record.signatures === undefined || hexes(record.signatures)) &&
       (record.sending === undefined ||
         (step(record.sending.step) &&
           typeof record.sending.reservation === "string")) &&

@@ -292,9 +292,13 @@ export type WriteHoldGate = {
    * Hold the call right before the wallet opens: `beforeWrite`. It reads the
    * account's next nonce for later proof, rechecks, and throws
    * {@link WriteHeldError} if the call became held meanwhile. `actualCall`:
-   * a reused Safe proposal's exact call.
+   * a reused Safe proposal's exact call. `outcome`: what the run shows of
+   * this step, saved with the reservation ({@link outcomeOf} reads it).
    */
-  beforeSend(actualCall?: ReviewedWriteRecoveryInput["call"]): Promise<void>;
+  beforeSend(
+    actualCall?: ReviewedWriteRecoveryInput["call"],
+    outcome?: string,
+  ): Promise<void>;
   /**
    * Throws `LockLostError` unless every lock the send reserved under is still
    * this tab's, on a fresh read: the last await of `beforeWrite`, right before
@@ -1339,7 +1343,7 @@ export function createWriteHold(
         let acrossHeld: (() => Promise<void>) | undefined;
         let reviewed = "";
         const gate: WriteHoldGate = {
-          async beforeSend(actualCall) {
+          async beforeSend(actualCall, outcome) {
             let evidence:
               | Awaited<ReturnType<typeof readReviewedWriteNonce>>
               | undefined;
@@ -1354,6 +1358,8 @@ export function createWriteHold(
             }
             const reserve = () => {
               attempt = recovery.reserve(actualCall, evidence);
+              if (outcome !== undefined)
+                recovery.recordOutcome(attempt.id, outcome);
             };
             try {
               if (hooks.across)
@@ -1777,23 +1783,9 @@ export function createWriteHold(
           true,
         );
       },
-      /**
-       * Keeps the action's hashes through the step `settled` ended on that
-       * settlement, under the call's lock: a later completion of it is done
-       * with all of them, whatever became of its sequence's journal.
-       */
-      async keepHashes(
-        settled: { hash: Hex },
-        hashes: readonly Hex[],
-      ): Promise<void> {
-        await locked(
-          async () => recovery.keepHashesSettled(settled, hashes),
-          true,
-        );
-      },
-      /** The action's hashes kept on `settled` ({@link keepHashes}), if any. */
-      hashesOf(settled: { hash: Hex }): Hex[] | undefined {
-        return recovery.hashesOfSettled(settled);
+      /** What reservation `id`'s run showed, as its send saved it, if any. */
+      outcomeOf(id: string): string | undefined {
+        return recovery.outcomeOf(id);
       },
       /**
        * Whether the settlement's `onConfirmed` notice was delivered or is
@@ -2408,18 +2400,6 @@ export function createWriteHold(
         return (legacySaving(settled.hash)?.handle ?? own).confirmation(
           settled,
         );
-      },
-      keepHashes(
-        settled: { hash: Hex },
-        hashes: readonly Hex[],
-      ): Promise<void> {
-        return (legacySaving(settled.hash)?.handle ?? own).keepHashes(
-          settled,
-          hashes,
-        );
-      },
-      hashesOf(settled: { hash: Hex }): Hex[] | undefined {
-        return (legacySaving(settled.hash)?.handle ?? own).hashesOf(settled);
       },
       async send<T>(
         client: WriteHoldClient,

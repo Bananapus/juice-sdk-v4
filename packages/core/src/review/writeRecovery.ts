@@ -807,6 +807,8 @@ export function createBrowserWriteRecovery(
   /** The latest settlements by reservation, which a later reservation keeps. */
   const settledByKey = `${key}:settled-by`;
   const latestKey = `${key}:latest`;
+  /** What each of the last reservations' runs showed, by reservation. */
+  const outcomeByKey = `${key}:outcome-by`;
   /** The last reservation dropped on a definite wallet rejection or an abort before the wallet opened. */
   const rejectedKey = `${key}:rejected`;
   const legacyKey =
@@ -1448,62 +1450,42 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
-     * Keeps the action's hashes through the step `settled` ended (its
-     * sequence's, in order) on that settlement, wherever it is saved, so a
-     * later completion of it is done with all of them after its sequence's
-     * journal is gone.
+     * Save what reservation `id`'s run showed (its outcome, as the sender
+     * encodes it) beside its settlement: kept for the call's last 8
+     * reservations, as its settlement is, so every later completion and
+     * done of it reads the run's own, whoever acknowledged it.
      */
-    keepHashesSettled(
-      settled: Pick<ReviewedWriteSettlement, "hash">,
-      hashes: readonly Hex[],
-    ): void {
+    recordOutcome(id: string, outcome: string): void {
       requireLock();
-      const hash = settled.hash.toLowerCase();
-      const kept = hashes.map((each) => each.toLowerCase());
-      // Never shortened: a completion that saw less never overwrites more.
-      const longer = (saved: { hashes?: unknown }) =>
-        !Array.isArray(saved.hashes) || saved.hashes.length < kept.length;
       try {
         const store = storage();
-        const saved = savedSettlement(store, settled);
-        if (saved && longer(saved))
-          store.setItem(settledKey, JSON.stringify({ ...saved, hashes: kept }));
-        const by = (JSON.parse(store.getItem(settledByKey) ?? "null") ??
-          {}) as Record<string, { hash?: unknown; hashes?: unknown }>;
-        let changed = false;
-        for (const entry of Object.values(by))
-          if (entry?.hash === hash && longer(entry)) {
-            Object.assign(entry, { hashes: kept });
-            changed = true;
-          }
-        if (changed) store.setItem(settledByKey, JSON.stringify(by));
+        const by = Object.entries(
+          (JSON.parse(store.getItem(outcomeByKey) ?? "null") ?? {}) as Record<
+            string,
+            unknown
+          >,
+        ).filter(([saved]) => saved !== id);
+        store.setItem(
+          outcomeByKey,
+          JSON.stringify(Object.fromEntries([...by.slice(-7), [id, outcome]])),
+        );
       } catch {
-        /* Unsaved: a later completion is done with what its journal has. */
+        /* Unsaved: a completion shows only what it was handed. */
       }
     },
-    /** The action's hashes {@link keepHashesSettled} kept on `settled`, if any. */
-    hashesOfSettled(
-      settled: Pick<ReviewedWriteSettlement, "hash">,
-    ): Hex[] | undefined {
-      const hash = settled.hash.toLowerCase();
-      const valid = (hashes: unknown) =>
-        Array.isArray(hashes) && hashes.every(isBytes32)
-          ? (hashes as Hex[])
-          : undefined;
+    /** Reservation `id`'s outcome {@link recordOutcome} saved, if any. */
+    outcomeOf(id: string): string | undefined {
       try {
-        const store = storage();
-        const saved = savedSettlement(store, settled);
-        const found = valid(saved?.hashes);
-        if (found) return found;
-        const by = (JSON.parse(store.getItem(settledByKey) ?? "null") ??
-          {}) as Record<string, { hash?: unknown; hashes?: unknown }>;
-        for (const entry of Object.values(by))
-          if (entry?.hash === hash && valid(entry.hashes))
-            return valid(entry.hashes);
+        const saved = (
+          JSON.parse(storage().getItem(outcomeByKey) ?? "null") as Record<
+            string,
+            unknown
+          > | null
+        )?.[id];
+        return typeof saved === "string" ? saved : undefined;
       } catch {
-        /* Unreadable: none kept. */
+        return undefined;
       }
-      return undefined;
     },
     /**
      * Whether the settlement's `onConfirmed` notice was delivered, is

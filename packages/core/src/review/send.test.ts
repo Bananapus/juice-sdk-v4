@@ -2067,6 +2067,31 @@ describe("sendReviewed and its hold's evidence", () => {
     };
   }
 
+  it("an unscoped sequence's completion is done with every step's hash, read from what its run saved, whatever it is handed", async () => {
+    const { deps, onConfirmed, unverified, recover, payment } =
+      await leftAtReceipt({ scope: undefined });
+    const approval = `0x${"1".padStart(64, "0")}`;
+    expect(unverified.held?.hashes).toEqual([approval]);
+    recover();
+    await expect(
+      completeReviewedStep(unverified, { account: ACCOUNT, onConfirmed }, deps),
+    ).resolves.toMatchObject({ hashes: [approval, payment] });
+    // Handed only its call and reservation (after a reload), the same.
+    await expect(
+      completeReviewedStep(
+        {
+          step: unverified.step,
+          held: {
+            call: unverified.held!.call,
+            reservation: unverified.held!.reservation,
+          },
+        },
+        { account: ACCOUNT },
+        deps,
+      ),
+    ).resolves.toMatchObject({ hashes: [approval, payment] });
+  });
+
   it("two concurrent completions of a sequence's last step are each done with every step's hash, told once", async () => {
     const { deps, scope, onConfirmed, unverified, recover, payment, storage } =
       await leftAtReceipt();

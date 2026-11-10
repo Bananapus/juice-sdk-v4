@@ -288,6 +288,7 @@ type Completed = {
   settled: WriteHoldSettled;
   receipt: TransactionReceipt | null;
   hashes: Hex[];
+  signatures?: Hex[];
 };
 
 class OwnSucceeded extends Error {
@@ -744,6 +745,7 @@ export function useReviewedRun(
             status: "done" as const,
             hashes: told.hashes,
             receipts: [],
+            ...(told.signatures ? { signatures: told.signatures } : {}),
           };
         } finally {
           open.current -= 1;
@@ -876,6 +878,15 @@ export function useReviewedRun(
                 }),
           );
           void completed.then((ended) => {
+            // Its notice undelivered: the form's own, whichever run shows
+            // now (a retry that replaced this one included), so a later
+            // run closes on it, telling it then.
+            if (
+              ended?.undelivered &&
+              target.step === total - 1 &&
+              target.held?.reservation
+            )
+              keepOwn(deps!.account!, [target.held.reservation]);
             if (shown || alive.aborted) return;
             // Nothing advanced (its receipt unread, its hold not settled
             // for this send yet, or its onConfirmed not delivered): it is
@@ -884,9 +895,6 @@ export function useReviewedRun(
             if (unread || (!ended && seen) || ended?.undelivered) {
               if (ended?.undelivered) {
                 completed = Promise.resolve(null);
-                // A later run of it closes on its success, telling it then.
-                if (target.step === total - 1 && target.held?.reservation)
-                  keepOwn(deps!.account!, [target.held.reservation]);
                 // While the site's work under its locks runs, its notice may
                 // wait for it (kept for a lock this run lost, or another
                 // completion's claim queued behind one it holds): the wait
@@ -1252,7 +1260,8 @@ export function useReviewedRun(
                     failure: new ReviewLineError(line),
                   };
                 }
-                const signatures = error.held?.signatures;
+                // The run's own, as its hold saved them with the step.
+                const { signatures } = ran;
                 if (error.step < action.calls.length - 1) {
                   const started = await runLatest.current({
                     ...action,

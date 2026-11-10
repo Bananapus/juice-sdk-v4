@@ -2727,20 +2727,36 @@ describe("a write held under an intent", () => {
       "delivered",
     );
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
-    // The action's hashes are kept on it there too, read by either handle;
-    // another settlement has none.
-    const APPROVAL = `0x${"ab".repeat(32)}` as const;
-    expect(handle.hashesOf({ hash: HASH })).toBeUndefined();
-    await handle.keepHashes({ hash: HASH }, [APPROVAL, HASH]);
-    expect(handle.hashesOf({ hash: HASH })).toEqual([
-      APPROVAL,
-      HASH.toLowerCase(),
-    ]);
-    expect(old.hold.open(ordinary).hashesOf({ hash: HASH })).toEqual([
-      APPROVAL,
-      HASH.toLowerCase(),
-    ]);
-    expect(handle.hashesOf({ hash: APPROVAL })).toBeUndefined();
+    // A legacy hold's reservation saved no outcome.
+    expect(handle.outcomeOf(legacy.record.id)).toBeUndefined();
+  });
+
+  it("saves a send's outcome with its reservation, for its last 8 reservations, and reads none for another", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    const reservations: string[] = [];
+    for (let index = 0; index < 9; index += 1) {
+      await handle
+        .send(client, async (gate) => {
+          await gate.beforeSend(undefined, `outcome ${index}`);
+          reservations.push(handle.peek().reservation!);
+          gate.onRejected();
+        })
+        .catch(() => undefined);
+    }
+    expect(handle.outcomeOf(reservations[8])).toBe("outcome 8");
+    expect(handle.outcomeOf(reservations[1])).toBe("outcome 1");
+    // Only the last 8 are kept.
+    expect(handle.outcomeOf(reservations[0])).toBeUndefined();
+    expect(handle.outcomeOf("another")).toBeUndefined();
+    // One sent without an outcome saves none.
+    await handle.send(client, async (gate) => {
+      await gate.beforeSend();
+      reservations.push(handle.peek().reservation!);
+      gate.onRejected();
+    });
+    expect(handle.outcomeOf(reservations[9])).toBeUndefined();
   });
 
   it("rechecks the legacy keys right before reserving, and routes every method to the hold in charge", async () => {

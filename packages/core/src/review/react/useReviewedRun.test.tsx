@@ -2415,6 +2415,87 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   }, 30_000);
 
+  /** A payment left at its receipt, its wait and view dismissed, then settled. */
+  async function dismissedAtReceipt(
+    action: Omit<Parameters<UseReviewedRunResult["run"]>[0], "calls"> & {
+      calls: ReturnType<typeof payCall>[];
+    },
+    signature?: `0x${string}`,
+  ) {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    if (signature)
+      wallet.adapter.signMessage.mockImplementation(async () => signature);
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    let lagging = true;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (lagging) throw new Error("lagging node");
+      return read(args);
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const left = await run({ ...HANDED_BACK, ...action });
+    expect(left).toMatchObject({ status: "receipt" });
+    act(() => void seen.current!.dismiss());
+    act(() => void seen.current!.dismiss());
+    lagging = false;
+    const hold = openStepHold(deps.hold, ACCOUNT, false, action.calls[0]);
+    await vi.waitFor(
+      async () => {
+        await act(async () => {
+          globalThis.dispatchEvent(new Event("focus"));
+        });
+        expect(hold.peek().status).toBe("clear");
+        expect(hold.unacknowledgedSuccess()).toBeDefined();
+      },
+      { timeout: 12_000 },
+    );
+    return { run, wallet, left: left as ReviewedRunReceipt };
+  }
+
+  test("a retry under the same intent with refreshed calldata closes on the original send: onConfirmed gets the call that was sent, one send", async () => {
+    const onConfirmed = vi.fn();
+    const original = { ...payCall(5n), intent: "pay:1" };
+    const { run, wallet, left } = await dismissedAtReceipt({
+      calls: [original],
+      onConfirmed,
+    });
+    await expect(
+      run({
+        ...HANDED_BACK,
+        calls: [{ ...payCall(9n), intent: "pay:1" }],
+        onConfirmed,
+      }),
+    ).resolves.toMatchObject({ status: "done", hashes: [left.hash] });
+    expect(onConfirmed).toHaveBeenCalledOnce();
+    expect(onConfirmed.mock.calls[0][0]).toMatchObject({
+      data: original.data,
+      value: original.value,
+    });
+    expect(onConfirmed.mock.calls[0][2]).toMatchObject({
+      transactionHash: left.hash,
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  }, 30_000);
+
+  test("reopening a dismissed signed action closes done with the signatures it signed, signing and sending once", async () => {
+    const signature = `0x${"5e".repeat(65)}` as const;
+    const signed = {
+      calls: [payCall()],
+      signatures: [
+        { kind: "message" as const, chainId: 10, message: "List it" },
+      ],
+    };
+    const { wallet, run, left } = await dismissedAtReceipt(signed, signature);
+    expect(left.signatures).toEqual([signature]);
+    await expect(run({ ...HANDED_BACK, ...signed })).resolves.toMatchObject({
+      status: "done",
+      hashes: [left.hash],
+      signatures: [signature],
+    });
+    expect(wallet.adapter.signMessage).toHaveBeenCalledOnce();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  }, 30_000);
+
   test("a retry under a fresh lock whose old follow delivers behind it: its ended(), awaited in that scope, ends queued; told once after, one send each", async () => {
     vi.stubGlobal("navigator", { locks: nativeLocks() });
     try {
@@ -2620,6 +2701,10 @@ describe("useReviewedRun", () => {
       retryWhileRecovering: random() < 0.4,
       /** Two completions of its held step at once, besides the hook's. */
       concurrentComplete: random() < 0.4,
+      /** A payment under an intent, retried and reopened with refreshed calldata. */
+      refreshed: random() < 0.4,
+      /** The action signs a message before it sends. */
+      signed: random() < 0.4,
     }));
     // A sequence lapsing at each step, on each backend, refreshed or not.
     const sequences = (["lease", "native"] as const).flatMap((backend) =>
@@ -2646,6 +2731,8 @@ describe("useReviewedRun", () => {
           otherIntent: random() < 0.4,
           retryWhileRecovering: random() < 0.4,
           concurrentComplete: random() < 0.4,
+          refreshed: false,
+          signed: random() < 0.4,
         })),
       ),
     );
@@ -2723,6 +2810,8 @@ describe("useReviewedRun", () => {
       otherIntent: false,
       retryWhileRecovering: false,
       concurrentComplete: false,
+      refreshed: false,
+      signed: false,
     };
     // Another intent's payment shown on the same runner after this one's
     // wait was dismissed and completed in the background, then reopened.
@@ -2752,6 +2841,40 @@ describe("useReviewedRun", () => {
         concurrentComplete: true,
       },
     ]);
+    // A signed payment under an intent, its wait and view dismissed, then
+    // reopened with refreshed calldata; and a signed sequence's concurrent
+    // completions: each backend.
+    const outcomes = (["lease", "native"] as const).flatMap((backend) => [
+      {
+        ...quiet,
+        backend,
+        shape: "payment" as const,
+        dismiss: true,
+        reopen: true,
+        refreshed: true,
+        signed: true,
+      },
+      {
+        ...quiet,
+        backend,
+        shape: "sequence" as const,
+        concurrentComplete: true,
+        signed: true,
+      },
+      // Retried with refreshed calldata under a fresh lock while its old
+      // follow recovers, another tab taking the lock after: the retry,
+      // refused by its own success, leaves it to the next run.
+      {
+        ...quiet,
+        backend,
+        shape: "payment" as const,
+        refresh: "after" as const,
+        endedInScope: true,
+        retryWhileRecovering: true,
+        refreshed: true,
+        signed: true,
+      },
+    ]);
     return [
       ...random$,
       ...sequences,
@@ -2760,6 +2883,7 @@ describe("useReviewedRun", () => {
       ...background,
       ...intents,
       ...fresh,
+      ...outcomes,
     ].map((c, index) => ({
       ...c,
       index,
@@ -2767,7 +2891,7 @@ describe("useReviewedRun", () => {
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete): each step told in order, confirmed once before its acknowledgement, one send each across dismiss and reopen, done with every hash in order, every awaited end reached",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -2783,8 +2907,28 @@ describe("useReviewedRun", () => {
         const told: string[] = [];
         const violations: string[] = [];
         const safe = c.shape === "safe";
-        const calls =
-          c.shape === "payment" ? [payCall()] : [approveCall(), payCall()];
+        /** A payment under an intent, its later runs' calldata refreshed. */
+        const refreshing = c.refreshed && c.shape === "payment";
+        const calls = refreshing
+          ? [{ ...payCall(), intent: "pay:prop" }]
+          : c.shape === "payment"
+            ? [payCall()]
+            : [approveCall(), payCall()];
+        /** What every run after the first brings. */
+        const later = refreshing
+          ? [{ ...payCall(11n), intent: "pay:prop" }]
+          : calls;
+        const signs = c.signed && c.shape !== "safe";
+        const SIGNATURE = `0x${"5e".repeat(65)}` as const;
+        const signing = signs
+          ? {
+              signatures: [
+                { kind: "message" as const, chainId: 10, message: "List it" },
+              ],
+            }
+          : {};
+        /** Each onConfirmed's call, by the step it was told. */
+        const confirmedCalls: { step: number; data: string }[] = [];
         const last = calls.length - 1;
         const scope = c.shape === "payment" ? undefined : `pay:${c.shape}`;
         const held = safe ? safeBatchCall(ACCOUNT, calls) : calls[last];
@@ -2835,6 +2979,7 @@ describe("useReviewedRun", () => {
           return `0x${"ab".repeat(32)}`;
         });
         if (safe) wallet.state.safe = true;
+        wallet.adapter.signMessage.mockImplementation(async () => SIGNATURE);
         const send = wallet.adapter.sendTransaction.getMockImplementation()!;
         /** Another intent's payment, sent on the same runner. */
         const otherCall = { ...payCall(9n), intent: "pay:other" };
@@ -2893,22 +3038,25 @@ describe("useReviewedRun", () => {
             await lock.assertHeld();
             told.push(`submitted:${step}`);
           },
-          onConfirmed: async (_call: unknown, step: number) => {
+          onConfirmed: async (call: { data: string }, step: number) => {
             await lock.assertHeld();
             await sleep(c.confirmMs);
             await lock.assertHeld();
             told.push(`confirmed:${step}`);
+            confirmedCalls.push({ step, data: call.data });
           },
         });
         const runOnce = (
           before?: () => Promise<void>,
           endInScope = c.endedInScope,
+          bringing = later,
         ) =>
           browserLocks().request("pay", async (lock) => {
             await before?.();
             const result = await run({
               ...HANDED_BACK,
-              calls,
+              ...signing,
+              calls: bringing,
               ...(safe ? { batch: true } : {}),
               ...(scope ? { scope } : {}),
               locks: [lock!],
@@ -2932,7 +3080,8 @@ describe("useReviewedRun", () => {
               void reopened.push(
                 seen.current!.run({
                   ...HANDED_BACK,
-                  calls,
+                  ...signing,
+                  calls: later,
                   ...(safe ? { batch: true } : {}),
                   ...(scope ? { scope } : {}),
                   ...site({ assertHeld: async () => {} }),
@@ -2943,6 +3092,7 @@ describe("useReviewedRun", () => {
         const first = (await runOnce(
           undefined,
           c.endedInScope && !c.retryWhileRecovering,
+          calls,
         )) as {
           safeTxHash?: string;
           status?: string;
@@ -2957,8 +3107,14 @@ describe("useReviewedRun", () => {
             undelivered?: true;
             settled: { result: string };
             hashes: string[];
+            signatures?: string[];
           } | null;
         }[] = [];
+        /** An observer's onConfirmed, told at once. */
+        const tellNow = (call: { data: string }, step: number) => {
+          told.push(`confirmed:${step}`);
+          confirmedCalls.push({ step, data: call.data });
+        };
         // Two completions of its held step at once (two observers).
         if (c.concurrentComplete && !safe && first?.status === "receipt") {
           const step = first.step!;
@@ -2978,8 +3134,7 @@ describe("useReviewedRun", () => {
                     account: ACCOUNT,
                     ...(scope ? { scope } : {}),
                     // Told at once: the other's read races its record.
-                    onConfirmed: (_call: unknown, told$: number) =>
-                      void told.push(`confirmed:${told$}`),
+                    onConfirmed: tellNow,
                   },
                   deps,
                 ).catch((error: unknown) => {
@@ -2989,12 +3144,13 @@ describe("useReviewedRun", () => {
               ),
             );
             for (const ended of ends) completions.push({ step, ended });
-            // A later one, after both: its hashes read from the hold.
+            // A later one, after both, unscoped and handed only its call:
+            // its hashes and signatures read from the hold.
             completions.push({
               step,
               ended: await completeReviewedStep(
                 { step, held: { call, reservation } },
-                { account: ACCOUNT, ...(scope ? { scope } : {}) },
+                { account: ACCOUNT, onConfirmed: tellNow },
                 deps,
               ).catch((error: unknown) => {
                 violations.push(`a completion threw: ${String(error)}`);
@@ -3190,6 +3346,25 @@ describe("useReviewedRun", () => {
           safe ? 1 : calls.length,
         );
         expect(otherSent).toHaveLength(c.otherIntent && !safe ? 1 : 0);
+        expect(wallet.adapter.signMessage).toHaveBeenCalledTimes(signs ? 1 : 0);
+        // Every onConfirmed, the run's own or a recovery's, gets the call
+        // that step sent, never a later run's.
+        if (!safe)
+          for (const { step, data } of confirmedCalls)
+            expect(data).toBe(calls[step].data);
+        // Every recovered end shows the run's own signatures.
+        const signatures = signs ? [SIGNATURE] : undefined;
+        for (const { ended } of completions)
+          if (ended) expect(ended.signatures).toEqual(signatures);
+        for (const result of results)
+          if (
+            ["done", "receipt"].includes(
+              (result as { status?: string })?.status ?? "",
+            )
+          )
+            expect((result as { signatures?: string[] }).signatures).toEqual(
+              signatures,
+            );
         // A completion that ended its step has the action's hashes through it.
         for (const { step, ended } of completions)
           if (ended && !ended.undelivered && ended.settled.result === "success")
