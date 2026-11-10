@@ -693,10 +693,12 @@ export function useReviewedRun(
           update({
             ...IDLE,
             // Shown now: acknowledged once rendered, so it blocks no new send.
+            // Rendered: the form's own is released, and a later run waits
+            // for this acknowledgement before it sends.
             acknowledge: async () => {
               if (alive.aborted) return;
-              await handle.acknowledge(settled).catch(() => undefined);
               if (own.current === kept) own.current = null;
+              await handle.acknowledge(settled).catch(() => undefined);
             },
             phase: "done",
             step,
