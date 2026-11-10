@@ -403,6 +403,8 @@ export async function signPrepared(
   beforeSign?: () => void,
   /** The caller's async recheck before each signature, ahead of `beforeSign`. */
   reverify?: () => Promise<void>,
+  /** The caller's ownership check, the adapter's last await before the wallet. */
+  fence?: () => Promise<void>,
 ): Promise<Hex[]> {
   const signatures: Hex[] = [];
   const chained = adapter.kind !== "self-reviewing";
@@ -438,8 +440,8 @@ export async function signPrepared(
         write: async () => {
           try {
             return await (typedData
-              ? adapter.signTypedData(typedData)
-              : adapter.signMessage(message!));
+              ? adapter.signTypedData(typedData, { fence })
+              : adapter.signMessage(message!, { fence }));
           } catch (error) {
             if (isDefiniteWalletRejection(error)) {
               throw new TransactionReviewCancelledError(REJECTED);
@@ -568,8 +570,15 @@ export async function signReviewed(
         action.signal,
       );
   }
-  return signPrepared(prepared, account, adapter, undefined, async () => {
-    await action.reverify?.();
-    await assertLocksHeld(action.locks);
-  });
+  return signPrepared(
+    prepared,
+    account,
+    adapter,
+    undefined,
+    async () => {
+      await action.reverify?.();
+      await assertLocksHeld(action.locks);
+    },
+    () => assertLocksHeld(action.locks),
+  );
 }

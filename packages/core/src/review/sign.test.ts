@@ -353,7 +353,9 @@ describe("signReviewed", () => {
     expect(model.kind).toBe("message");
     expect(model.message).toBe(text);
     expect(model.signatures[0].message).toBe(text);
-    expect(adapter.signMessage).toHaveBeenCalledWith(text);
+    expect(adapter.signMessage).toHaveBeenCalledWith(text, {
+      fence: expect.any(Function),
+    });
     expect(signature).toBe(await signer.signMessage({ message: text }));
 
     await signReviewed(
@@ -391,7 +393,9 @@ describe("signReviewed", () => {
     });
     await signReviewed([message(1n)], signed, { adapter });
     expect(prompts[1].model.id).not.toBe(prompts[0].model.id);
-    expect(adapter.signMessage).toHaveBeenCalledWith("List it");
+    expect(adapter.signMessage).toHaveBeenCalledWith("List it", {
+      fence: expect.any(Function),
+    });
   });
 
   it("refuses a message whose calls it cannot show", async () => {

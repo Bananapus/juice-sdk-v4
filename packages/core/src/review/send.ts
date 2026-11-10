@@ -1,4 +1,4 @@
-import { assertLocksHeld, LockLostError, type LockHandle } from "./locks.js";
+import { assertLocksHeld, type LockHandle } from "./locks.js";
 import {
   ReviewedCallRevertedError,
   ReviewedReceiptUnverifiedError,
@@ -199,22 +199,23 @@ export type ReviewedAction = {
   beforeWallet?: (call: ReviewedCall, step: number) => void | Promise<void>;
   /**
    * The site's own locks (`browserLocks`) the action runs under: each
-   * is checked, on a fresh read, before `beforeWallet` and as the last await
-   * before every wallet call and every signature. A lost one throws
-   * `LockLostError`, sends nothing and releases the step's hold, but
-   * `onUnsent` is not called: the lock's new owner owns the site's journal,
-   * and a stale "unsent" write could clear its reservation. The same holds
-   * for a lock lost while the wallet was open: before every `onUnsent`, the
-   * locks are read fresh, and a lost one skips it. A record the
-   * site wrote in `beforeWallet` stays as it was; its recovery reads it like
-   * any interrupted send (ask the user to check their wallet's activity).
+   * is checked, on a fresh read, before `beforeWallet`, and, with the SDK's
+   * own, by the wallet adapter as the last await before every request that
+   * sends or signs (`WalletRequestOptions`). A lost one sends or signs
+   * nothing and releases the step's hold. `onUnsent` then runs only while
+   * every one of `locks` still reads as held, read fresh before each step's
+   * callback: once one is lost, the lock's new owner owns the site's journal,
+   * and a stale "unsent" write could clear its record. A record the site
+   * wrote in `beforeWallet` stays as it was; its recovery reads it like any
+   * interrupted send (ask the user to check their wallet's activity).
    */
   locks?: readonly LockHandle[];
   /**
    * Awaited when nothing was sent for a step whose `beforeWallet` began: a
-   * gate refused, `beforeWallet` threw, or the wallet rejected (4001). Never
-   * after an ambiguous failure, nor once any of `locks` is lost (checked on a
-   * fresh read, whatever ended the attempt, a wallet's 4001 included).
+   * gate refused (the SDK's own lock lost included), `beforeWallet` threw,
+   * or the wallet rejected (4001). Never after an ambiguous failure, nor once
+   * any of `locks` is lost (checked on a fresh read before each step's
+   * callback, whatever ended the attempt, a wallet's 4001 included).
    */
   onUnsent?: (call: ReviewedCall, step: number) => void | Promise<void>;
   /**
@@ -1080,12 +1081,7 @@ async function send(
    * whatever ended the attempt. A site's release callback never stops core's
    * own release.
    */
-  const tellUnsent = async (
-    steps: readonly ReviewedCall[],
-    from: number,
-    cause?: unknown,
-  ) => {
-    if (cause instanceof LockLostError) return;
+  const tellUnsent = async (steps: readonly ReviewedCall[], from: number) => {
     for (const [index, call] of steps.entries()) {
       const held = await Promise.all(
         (action.locks ?? []).map((lock) => lock.held().catch(() => false)),
@@ -1142,14 +1138,19 @@ async function send(
       if (adapter.account()?.toLowerCase() !== account.toLowerCase())
         throw new ReviewLineError(ACCOUNT_CHANGED);
       submitting = true;
-      hash = await adapter.submitToReviewer({
-        account,
-        calls: sent.map((call) => ({ ...call })),
-      });
+      hash = await adapter.submitToReviewer(
+        { account, calls: sent.map((call) => ({ ...call })) },
+        { fence: () => assertLocksHeld(action.locks) },
+      );
     } catch (error) {
-      // Only the site's own refusal or an explicit rejection proves nothing was sent.
-      if (!submitting || isDefiniteWalletRejection(error))
-        await tellUnsent(calls.slice(0, began), 0, error);
+      // Only the site's own refusal, the adapter's or an explicit rejection
+      // proves nothing was sent.
+      if (
+        !submitting ||
+        error instanceof WalletNotInvokedError ||
+        isDefiniteWalletRejection(error)
+      )
+        await tellUnsent(calls.slice(0, began), 0);
       throw error;
     }
     // Every step is told; a site's failure to record it never changes what was sent.
@@ -1280,6 +1281,7 @@ async function send(
         adapter,
         stillReviewed,
         () => assertLocksHeld(action.locks),
+        () => assertLocksHeld(action.locks),
       ),
     };
   }
@@ -1310,10 +1312,12 @@ async function send(
         if (generation(handles[0]) !== reviewedGenerations[0]) {
           throw new WriteHoldStaleReviewError();
         }
-        const released = async (cause?: unknown) => {
+        const released = async () => {
           gate.onRejected();
-          await tellUnsent(calls.slice(0, began), 0, cause);
+          await tellUnsent(calls.slice(0, began), 0);
         };
+        /** Every lock is still this tab's: the hold's and the site's. */
+        const fence = () => assertLocksHeld([gate, ...(action.locks ?? [])]);
         return submitReviewedContractWrite({
           request: batched,
           expectedAccount: account,
@@ -1349,13 +1353,11 @@ async function send(
                 await assertLocksHeld(action.locks);
                 await action.beforeWallet?.(call, step);
               }
-              // The last await before the wallet: every lock is still this tab's.
-              await Promise.all([
-                gate.assertHeld(),
-                assertLocksHeld(action.locks),
-              ]);
+              // Core's own check before the adapter, which fences again as
+              // the last await before the wallet.
+              await fence();
             } catch (error) {
-              await released(error);
+              await released();
               throw error;
             }
           },
@@ -1388,6 +1390,7 @@ async function send(
             const id = await adapter.sendCalls!(
               batched.chainId,
               sent.map(({ to, data, value }) => ({ to, data, value })),
+              { fence },
             );
             // A Safe app answers with the proposal's safeTxHash; anything else can't be followed.
             if (typeof id !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(id))
@@ -1517,14 +1520,16 @@ async function send(
           throw new WriteHoldStaleReviewError();
         }
         /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
-        const released = async (cause?: unknown) => {
+        const released = async () => {
           gate.onRejected();
           if (journal) {
             delete journal.sending;
             await keep();
           }
-          await tellUnsent([call], at, cause);
+          await tellUnsent([call], at);
         };
+        /** Every lock is still this tab's: the hold's and the site's. */
+        const fence = () => assertLocksHeld([gate, ...(action.locks ?? [])]);
         return submitReviewedContractWrite({
           request: reviewed,
           expectedAccount: account,
@@ -1612,13 +1617,11 @@ async function send(
               // The site's own record before the wallet: never under a lost lock.
               await assertLocksHeld(action.locks);
               await action.beforeWallet?.(call, at);
-              // The last await before the wallet: every lock is still this tab's.
-              await Promise.all([
-                gate.assertHeld(),
-                assertLocksHeld(action.locks),
-              ]);
+              // Core's own check before the adapter, which fences again as
+              // the last await before the wallet.
+              await fence();
             } catch (error) {
-              await released(error);
+              await released();
               throw error;
             }
           },
@@ -1665,6 +1668,7 @@ async function send(
               // After a step was sent, the run's end refuses this one, unsent,
               // as late as the wallet's own last check.
               ...(runEnd ? { signal: runEnd } : {}),
+              fence,
             }),
           onPhase: (phase) => progress(phase),
           guard: action.guard,

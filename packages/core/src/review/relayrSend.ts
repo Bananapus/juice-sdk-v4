@@ -621,8 +621,10 @@ async function sendPayment(
   const attempt = () => {
     const held = handle.peek();
     if (held.status !== "clear") throw new WriteHeldError(held);
-    return handle.send<Hex>(client, (gate) =>
-      submitReviewedContractWrite({
+    return handle.send<Hex>(client, (gate) => {
+      /** Every lock is still this tab's: the hold's and the app's. */
+      const fence = () => assertLocksHeld([gate, ...(hooks.locks ?? [])]);
+      return submitReviewedContractWrite({
         request: call,
         expectedAccount: account,
         review: () => Promise.resolve(),
@@ -688,11 +690,9 @@ async function sendPayment(
             await assertLocksHeld(hooks.locks);
             saved = true;
             await hooks.onSending?.();
-            // The last await before the wallet: every lock is still this tab's.
-            await Promise.all([
-              gate.assertHeld(),
-              assertLocksHeld(hooks.locks),
-            ]);
+            // Core's own check before the adapter, which fences again as the
+            // last await before the wallet.
+            await fence();
           } catch (error) {
             gate.onRejected();
             throw error;
@@ -747,14 +747,15 @@ async function sendPayment(
               data: calldata,
               value: amount,
               gas: safe ? 0n : RELAYR_PAYMENT_GAS,
+              fence,
             });
           } catch (error) {
             // Only the wallet's own 4001 says it declined.
             throw relayrWalletPaymentError(error);
           }
         },
-      }),
-    );
+      });
+    });
   };
   let hash: Hex;
   try {
@@ -907,6 +908,7 @@ export async function signReviewedForwardRequests(
     account,
     deps.adapter,
     undefined,
+    () => assertLocksHeld(action.locks),
     () => assertLocksHeld(action.locks),
   );
   return requests.map(({ chainId, request }, index) =>

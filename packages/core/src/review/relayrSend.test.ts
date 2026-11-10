@@ -370,6 +370,50 @@ describe("payRelayrReviewed", () => {
     ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
   });
 
+  it("never pays once the hold's lock lapsed while the wallet client loaded, and fails as unpaid", async () => {
+    const { deps, wallet, loseLock } = relayrSetup();
+    reviewUi();
+    const provider = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_chainId") return "0xa";
+      return `0x${"ab".repeat(32)}`;
+    });
+    const real = viemWalletAdapter({
+      walletClient: async () => {
+        // The tab slept while the wallet client loaded; its lease lapsed.
+        loseLock();
+        return createWalletClient({
+          chain: { id: 10 } as never,
+          transport: custom({ request: provider }, { retryCount: 0 }),
+        });
+      },
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => false,
+      switchChain: async () => undefined,
+    });
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        onSending: async () => {
+          sending = true;
+        },
+      },
+      {
+        ...deps,
+        adapter: { ...wallet.adapter, sendTransaction: real.sendTransaction },
+      },
+    ).catch((caught: unknown) => caught);
+    expect(provider.mock.calls.map(([{ method }]) => method)).not.toContain(
+      "eth_sendTransaction",
+    );
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
+  });
+
   it("never opens the wallet once its lock was lost while the app saved, and releases the payment", async () => {
     const { deps, wallet, loseLock } = relayrSetup();
     reviewUi();

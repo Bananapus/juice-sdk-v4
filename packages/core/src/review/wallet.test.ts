@@ -290,6 +290,37 @@ describe("wallet adapters", () => {
     expect(submit).toHaveBeenCalledWith(request);
   });
 
+  it("selfReviewingAdapter hands nothing over once the call's fence refuses", async () => {
+    const submit = vi.fn(async () => HASH);
+    const signMessage = vi.fn(async () => HASH);
+    const signTypedData = vi.fn(async () => HASH);
+    const adapter = selfReviewingAdapter({
+      account: () => ACCOUNT,
+      submit,
+      signMessage,
+      signTypedData,
+    });
+    const fence = async () => {
+      throw new Error("lock lost");
+    };
+    const request = {
+      account: ACCOUNT,
+      calls: [{ chainId: 10, to: TARGET, data: "0x01" as Hex, value: 0n }],
+    };
+    for (const call of [
+      () => adapter.submitToReviewer!(request, { fence }),
+      () => adapter.signMessage("x", { fence }),
+      () => adapter.signTypedData({} as never, { fence }),
+    ])
+      await expect(call()).rejects.toBeInstanceOf(WalletNotInvokedError);
+    expect(submit).not.toHaveBeenCalled();
+    expect(signMessage).not.toHaveBeenCalled();
+    expect(signTypedData).not.toHaveBeenCalled();
+    await expect(
+      adapter.signMessage("x", { fence: async () => undefined }),
+    ).resolves.toBe(HASH);
+  });
+
   it("viemWalletAdapter refuses an account switch while the wallet client loads", async () => {
     const { client, events } = walletClient();
     let account: Address = ACCOUNT;

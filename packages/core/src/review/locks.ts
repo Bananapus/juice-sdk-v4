@@ -35,7 +35,7 @@ export type LockHandle = {
  * write under several locks: `await assertLocksHeld([a, b]); save()`.
  */
 export async function assertLocksHeld(
-  locks?: readonly (LockHandle | null | undefined)[],
+  locks?: readonly (Pick<LockHandle, "assertHeld"> | null | undefined)[],
 ): Promise<void> {
   await Promise.all((locks ?? []).map((lock) => lock?.assertHeld()));
 }

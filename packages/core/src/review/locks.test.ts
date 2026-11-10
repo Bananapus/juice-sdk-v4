@@ -12,9 +12,10 @@ async function tab() {
 }
 
 /** No Web Locks; one IndexedDB (or none) shared by the tabs. */
-function origin(indexedDB: IDBFactory | undefined = new IDBFactory()) {
+/** No native locks; IndexedDB as given, or none at all for `null`. */
+function origin(indexedDB: IDBFactory | null = new IDBFactory()) {
   vi.stubGlobal("navigator", undefined);
-  vi.stubGlobal("indexedDB", indexedDB);
+  vi.stubGlobal("indexedDB", indexedDB ?? undefined);
   vi.spyOn(console, "info").mockImplementation(() => {});
 }
 
@@ -172,7 +173,7 @@ describe("browserLocks request shapes", () => {
   });
 
   it("takes (name, work) in the in-tab fallback, held only while running", async () => {
-    origin(undefined);
+    origin(null);
     const locks = (await tab()).browserLocks();
     let kept!: LockHandle;
     await expect(

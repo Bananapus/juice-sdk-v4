@@ -31,6 +31,15 @@ export type SelfReviewedRequest = {
  * is confirmed. A `self-reviewing` adapter shows its own review and takes raw
  * calls through `submitToReviewer` only.
  */
+/**
+ * What core hands every sending or signing call: `fence`, its ownership
+ * check (its write hold's lock and the site's `locks`). An adapter awaits it
+ * as the last await before the request reaches the wallet, and its throw
+ * refuses, unsent ({@link WalletNotInvokedError}). An adapter that ignores it
+ * still gets core's own check, made before the adapter is called.
+ */
+export type WalletRequestOptions = { fence?: () => Promise<void> };
+
 export type WalletAdapter = {
   /**
    * Settles once `kind` and `isSafe` can be trusted (Safe{Wallet} over
@@ -55,15 +64,24 @@ export type WalletAdapter = {
      * adapter's last check before the wallet ({@link WalletNotInvokedError}).
      */
     signal?: AbortSignal;
+    /** See {@link WalletRequestOptions}. */
+    fence?: () => Promise<void>;
   }): Promise<Hex>;
-  signTypedData(typedData: TypedDataDefinition): Promise<Hex>;
-  signMessage(message: string): Promise<Hex>;
+  signTypedData(
+    typedData: TypedDataDefinition,
+    options?: WalletRequestOptions,
+  ): Promise<Hex>;
+  signMessage(message: string, options?: WalletRequestOptions): Promise<Hex>;
   sendCalls?(
     chainId: number,
     calls: readonly { to: Address; data: Hex; value: bigint }[],
+    options?: WalletRequestOptions,
   ): Promise<string>;
   /** Self-reviewing adapters only. */
-  submitToReviewer?(request: SelfReviewedRequest): Promise<Hex>;
+  submitToReviewer?(
+    request: SelfReviewedRequest,
+    options?: WalletRequestOptions,
+  ): Promise<Hex>;
 };
 
 /** How long a wallet's `ready` may take before nothing is sent. */
@@ -97,6 +115,16 @@ const NETWORK_CHANGED = "Your wallet changed networks. Review again.";
 const UNREACHABLE =
   "Your wallet could not be reached. Nothing was sent; try again.";
 const RUN_ENDED = "This action was closed. Nothing more was sent.";
+const MOVED = "This action moved to another window. Nothing was sent.";
+
+/** Await a call's {@link WalletRequestOptions.fence}: a refusal is unsent. */
+async function fenced(fence?: () => Promise<void>): Promise<void> {
+  try {
+    await fence?.();
+  } catch (error) {
+    throw Object.assign(new WalletNotInvokedError(MOVED), { cause: error });
+  }
+}
 
 /** The provider requests that send or sign: each is checked again as it is forwarded. */
 const DISPATCHED = new Set([
@@ -120,7 +148,7 @@ const DISPATCHED = new Set([
 async function withConnection<T>(
   options: Parameters<typeof viemWalletAdapter>[0],
   invoke: (connected: { account: Address; client: WalletClient }) => Promise<T>,
-  signal?: AbortSignal,
+  { signal, fence }: { signal?: AbortSignal; fence?: () => Promise<void> } = {},
 ): Promise<T> {
   const account = options.account();
   if (!account) throw new WalletNotInvokedError("Connect a wallet first.");
@@ -175,18 +203,20 @@ async function withConnection<T>(
     chain: inner.chain,
     transport: custom(
       {
-        request: (args: { method: string; params?: unknown }) => {
+        request: async (args: { method: string; params?: unknown }) => {
           const forwardedNow = DISPATCHED.has(args.method);
           if (forwardedNow) {
             try {
+              // The caller's ownership, the last await before the wallet;
+              // then the synchronous checks, with no await before the request.
+              await fenced(fence);
               if (current() !== connector)
                 throw new WalletNotInvokedError(CONNECTION_CHANGED);
             } catch (error) {
               // Unsent only while none of this call's requests went out.
-              if (forwarded)
-                return Promise.reject(new ReviewLineError(CONNECTION_CHANGED));
+              if (forwarded) throw new ReviewLineError(CONNECTION_CHANGED);
               refusal = error;
-              return Promise.reject(error);
+              throw error;
             }
             forwarded = true;
           }
@@ -272,7 +302,7 @@ export function viemWalletAdapter(options: {
     switchChain: async (chainId) => {
       await options.switchChain(chainId);
     },
-    sendTransaction: ({ chainId, to, data, value, gas, signal }) =>
+    sendTransaction: ({ chainId, to, data, value, gas, signal, fence }) =>
       withConnection(
         options,
         ({ account, client }) =>
@@ -284,31 +314,40 @@ export function viemWalletAdapter(options: {
             value,
             ...(gas === undefined ? {} : { gas }),
           }),
-        signal,
+        { signal, fence },
       ),
-    signTypedData: async (typedData) => {
+    signTypedData: async (typedData, request) => {
       // viem does not check the wallet's chain against the domain's.
       const chainId = typedData.domain?.chainId;
       if (chainId !== undefined && options.chainId() !== Number(chainId)) {
         throw new WalletNotInvokedError(NETWORK_CHANGED);
       }
-      return withConnection(options, ({ account, client }) =>
-        client.signTypedData({ ...typedData, account }),
+      return withConnection(
+        options,
+        ({ account, client }) =>
+          client.signTypedData({ ...typedData, account }),
+        request,
       );
     },
-    signMessage: (message) =>
-      withConnection(options, ({ account, client }) =>
-        client.signMessage({ account, message }),
+    signMessage: (message, request) =>
+      withConnection(
+        options,
+        ({ account, client }) => client.signMessage({ account, message }),
+        request,
       ),
-    sendCalls: (chainId, calls) =>
-      withConnection(options, async ({ account, client }) => {
-        const { id } = await client.sendCalls({
-          account,
-          chain: chainOf(client, chainId),
-          calls: calls.map(({ to, data, value }) => ({ to, data, value })),
-        });
-        return id;
-      }),
+    sendCalls: (chainId, calls, request) =>
+      withConnection(
+        options,
+        async ({ account, client }) => {
+          const { id } = await client.sendCalls({
+            account,
+            chain: chainOf(client, chainId),
+            calls: calls.map(({ to, data, value }) => ({ to, data, value })),
+          });
+          return id;
+        },
+        request,
+      ),
   };
 }
 
@@ -338,6 +377,7 @@ export function selfReviewingAdapter(options: {
     throw unsupportedWalletRequest();
   };
   const reject = () => Promise.reject(unsupportedWalletRequest());
+  const { signTypedData, signMessage } = options;
   return {
     kind: "self-reviewing",
     account: options.account,
@@ -345,8 +385,22 @@ export function selfReviewingAdapter(options: {
     isSafe: refuse,
     switchChain: reject,
     sendTransaction: reject,
-    signTypedData: options.signTypedData ?? reject,
-    signMessage: options.signMessage ?? reject,
-    submitToReviewer: (request) => options.submit(request),
+    // Each hands the wallet its request right after the call's fence.
+    signTypedData: signTypedData
+      ? async (typedData, request) => {
+          await fenced(request?.fence);
+          return signTypedData(typedData);
+        }
+      : reject,
+    signMessage: signMessage
+      ? async (message, request) => {
+          await fenced(request?.fence);
+          return signMessage(message);
+        }
+      : reject,
+    submitToReviewer: async (request, call) => {
+      await fenced(call?.fence);
+      return options.submit(request);
+    },
   };
 }
