@@ -717,9 +717,9 @@ function releasedKey(key: string, id: string): string {
 const CONFIRMING_STALE_MS = 5 * 60_000;
 
 function confirmationState(
-  saved: Record<string, unknown>,
+  saved: Record<string, unknown> | undefined,
 ): "delivered" | "pending" | undefined {
-  const { confirmed } = saved;
+  const confirmed = saved?.confirmed;
   if (confirmed === true) return "delivered";
   return typeof confirmed === "number" &&
     Date.now() - confirmed < CONFIRMING_STALE_MS
@@ -854,7 +854,7 @@ export function createBrowserWriteRecovery(
   function flagSettled(
     store: RecoveryStorage,
     hash: string,
-    flag: "acknowledged" | "confirmed",
+    flag: "acknowledged",
   ): boolean {
     const saved = JSON.parse(store.getItem(settledKey) ?? "null") as Record<
       string,
@@ -865,16 +865,44 @@ export function createBrowserWriteRecovery(
     store.setItem(settledKey, JSON.stringify({ ...saved, [flag]: true }));
     return true;
   }
-  /** The saved settlement with `settled`'s hash, if it is the one saved. */
-  function savedSettlement(
+  /**
+   * Each reservation's record (the call's last 8): what its run showed
+   * (`outcome`, as the sender encodes it) and its `onConfirmed` claim
+   * (`confirmed`: true once delivered, a claim's time while pending).
+   */
+  type ReservationRecord = { outcome?: string; confirmed?: true | number };
+  function recordsOf(
+    store: RecoveryStorage,
+  ): Record<string, ReservationRecord> {
+    return JSON.parse(store.getItem(outcomeByKey) ?? "null") ?? {};
+  }
+  /** Changes reservation `id`'s record, kept with the call's last 8. */
+  function changeRecord(
+    store: RecoveryStorage,
+    id: string,
+    change: (now: ReservationRecord) => ReservationRecord,
+  ) {
+    const by = recordsOf(store);
+    const next = change(by[id] ?? {});
+    const kept = Object.entries(by).filter(([saved]) => saved !== id);
+    store.setItem(
+      outcomeByKey,
+      JSON.stringify(
+        id in by
+          ? { ...by, [id]: next }
+          : Object.fromEntries([...kept.slice(-7), [id, next]]),
+      ),
+    );
+  }
+  /** The reservation whose saved settlement is `settled`, if still kept. */
+  function settledBy(
     store: RecoveryStorage,
     settled: Pick<ReviewedWriteSettlement, "hash">,
-  ): Record<string, unknown> | undefined {
-    const saved = JSON.parse(store.getItem(settledKey) ?? "null") as Record<
-      string,
-      unknown
-    > | null;
-    return saved?.hash === settled.hash.toLowerCase() ? saved : undefined;
+  ): string | undefined {
+    const by = (JSON.parse(store.getItem(settledByKey) ?? "null") ??
+      {}) as Record<string, { hash?: unknown }>;
+    const hash = settled.hash.toLowerCase();
+    return Object.entries(by).find(([, saved]) => saved?.hash === hash)?.[0];
   }
   function storage(): RecoveryStorage {
     const store = recoveryStorage(options.storage);
@@ -1399,11 +1427,12 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
-     * Claim the one `onConfirmed` notice of the saved settlement `settled`
-     * names (its hash): true for the first claim in any tab or run, false
-     * while another claim is pending or once it was delivered. A settlement
-     * no longer saved there can't be marked, so every claim of it is true:
-     * a repeated notice over a lost one.
+     * Claim the one `onConfirmed` notice of the settlement `settled` names
+     * (its hash), on its reservation's record, the latest or an earlier one
+     * kept: true for the first claim in any tab or run, false while another
+     * claim is pending or once it was delivered. A settlement no longer kept
+     * can't be marked, so every claim of it is true: a repeated notice over
+     * a lost one.
      */
     claimConfirmedSettled(
       settled: Pick<ReviewedWriteSettlement, "hash">,
@@ -1411,14 +1440,11 @@ export function createBrowserWriteRecovery(
       requireLock();
       try {
         const store = storage();
-        const saved = savedSettlement(store, settled);
-        if (!saved) return true;
-        if (confirmationState(saved)) return false;
+        const id = settledBy(store, settled);
+        if (!id) return true;
+        if (confirmationState(recordsOf(store)[id])) return false;
         // Pending from now: delivered or given back by its claimant.
-        store.setItem(
-          settledKey,
-          JSON.stringify({ ...saved, confirmed: Date.now() }),
-        );
+        changeRecord(store, id, (now) => ({ ...now, confirmed: Date.now() }));
         return true;
       } catch {
         // Storage unavailable: told rather than lost.
@@ -1437,13 +1463,11 @@ export function createBrowserWriteRecovery(
       requireLock();
       try {
         const store = storage();
-        const saved = savedSettlement(store, settled);
-        if (!saved || saved.confirmed === undefined || saved.confirmed === true)
-          return;
-        const { confirmed: _pending, ...rest } = saved;
-        store.setItem(
-          settledKey,
-          JSON.stringify(delivered ? { ...rest, confirmed: true } : rest),
+        const id = settledBy(store, settled);
+        const confirmed = id && recordsOf(store)[id]?.confirmed;
+        if (!id || confirmed === undefined || confirmed === true) return;
+        changeRecord(store, id, ({ confirmed: _pending, ...rest }) =>
+          delivered ? { ...rest, confirmed: true } : rest,
         );
       } catch {
         /* Unreadable: its claim stays as it was, pending until stale. */
@@ -1458,17 +1482,7 @@ export function createBrowserWriteRecovery(
     recordOutcome(id: string, outcome: string): void {
       requireLock();
       try {
-        const store = storage();
-        const by = Object.entries(
-          (JSON.parse(store.getItem(outcomeByKey) ?? "null") ?? {}) as Record<
-            string,
-            unknown
-          >,
-        ).filter(([saved]) => saved !== id);
-        store.setItem(
-          outcomeByKey,
-          JSON.stringify(Object.fromEntries([...by.slice(-7), [id, outcome]])),
-        );
+        changeRecord(storage(), id, (now) => ({ ...now, outcome }));
       } catch {
         /* Unsaved: a completion shows only what it was handed. */
       }
@@ -1476,12 +1490,7 @@ export function createBrowserWriteRecovery(
     /** Reservation `id`'s outcome {@link recordOutcome} saved, if any. */
     outcomeOf(id: string): string | undefined {
       try {
-        const saved = (
-          JSON.parse(storage().getItem(outcomeByKey) ?? "null") as Record<
-            string,
-            unknown
-          > | null
-        )?.[id];
+        const saved = recordsOf(storage())[id]?.outcome;
         return typeof saved === "string" ? saved : undefined;
       } catch {
         return undefined;
@@ -1497,8 +1506,9 @@ export function createBrowserWriteRecovery(
     ): "delivered" | "pending" | undefined {
       requireLock();
       try {
-        const saved = savedSettlement(storage(), settled);
-        return saved ? confirmationState(saved) : undefined;
+        const store = storage();
+        const id = settledBy(store, settled);
+        return id ? confirmationState(recordsOf(store)[id]) : undefined;
       } catch {
         return undefined;
       }

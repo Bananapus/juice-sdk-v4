@@ -2716,6 +2716,47 @@ describe("useReviewedRun", () => {
     }
   }, 40_000);
 
+  test("an older payment reopened after another form's payment of the same intent replaced its settlement is told once: one send and one onConfirmed per payment", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(new Error("lagging"));
+    const confirmed = vi.fn();
+    const call = { ...payCall(5n), intent: "pay:1" };
+    const action = {
+      calls: [call],
+      follow: { timeoutMs: 0 },
+      onConfirmed: confirmed,
+    };
+    const first = harness({ ...deps, account: ACCOUNT });
+    await expect(first.run(action)).resolves.toMatchObject({
+      status: "receipt",
+    });
+    act(() => void first.seen.current!.dismiss());
+    // Told and acknowledged in the background once the node reads it.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    const hold = openStepHold(deps.hold, ACCOUNT, false, call);
+    await rendered(() => expect(first.seen.current!.status).toBe("done"));
+    await rendered(() => expect(hold.unacknowledgedSuccess()).toBeUndefined());
+    expect(confirmed).toHaveBeenCalledOnce();
+    // Another form pays under the same intent: its settlement is the latest.
+    const { sendReviewed } = await import("../send.js");
+    await sendReviewed(
+      {
+        ...action,
+        account: ACCOUNT,
+        calls: [{ ...payCall(6n), intent: "pay:1" }],
+      },
+      deps,
+    );
+    expect(confirmed).toHaveBeenCalledTimes(2);
+    // The first form reopened: done, nothing sent and nothing told again.
+    await expect(first.run(action)).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(confirmed).toHaveBeenCalledTimes(2);
+  }, 20_000);
+
   test("an approval whose onConfirmed was dropped is told before the payment is sent: a retry delivers it, then sends the payment once", async () => {
     const lapsing = lapsingLocksForTests();
     vi.stubGlobal("navigator", { locks: lapsing.locks });
@@ -2859,6 +2900,11 @@ describe("useReviewedRun", () => {
       switchAt: pick(["none", "wallet", "dismiss", "first"] as const),
       /** The lease lapses while a step's onConfirmed is paused. */
       lapseInConfirm: random() < 0.3,
+      /**
+       * Another form pays under its intent, replacing its latest
+       * settlement, before it is reopened.
+       */
+      replaced: random() < 0.4,
     }));
     // A sequence lapsing at each step, on each backend, refreshed or not.
     const sequences = (["lease", "native"] as const).flatMap((backend) =>
@@ -2970,6 +3016,7 @@ describe("useReviewedRun", () => {
       signed: false,
       switchAt: "none" as "none" | "wallet" | "dismiss" | "first",
       lapseInConfirm: false,
+      replaced: false,
     };
     // Another intent's payment shown on the same runner after this one's
     // wait was dismissed and completed in the background, then reopened.
@@ -3058,6 +3105,22 @@ describe("useReviewedRun", () => {
         refreshed: true,
       },
     ]);
+    // Its wait dismissed, told and acknowledged in the background, then
+    // another form's payment of its intent replaces its settlement before
+    // it is reopened: each backend, signed or not.
+    const replaced = (["lease", "native"] as const).flatMap((backend) =>
+      [false, true].map((signed) => ({
+        ...quiet,
+        backend,
+        shape: "payment" as const,
+        dismiss: true,
+        dismissOnce: true,
+        reopen: true,
+        refreshed: true,
+        signed,
+        replaced: true,
+      })),
+    );
     return [
       ...random$,
       ...sequences,
@@ -3068,6 +3131,7 @@ describe("useReviewedRun", () => {
       ...fresh,
       ...outcomes,
       ...owners,
+      ...replaced,
     ].map((c, index) => ({
       ...c,
       index,
@@ -3075,7 +3139,7 @@ describe("useReviewedRun", () => {
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed, switch $switchAt, lapse in confirm $lapseInConfirm): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed, switch $switchAt, lapse in confirm $lapseInConfirm, replaced $replaced): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -3182,7 +3246,15 @@ describe("useReviewedRun", () => {
         /** Another intent's payment, sent on the same runner. */
         const otherCall = { ...payCall(9n), intent: "pay:other" };
         const otherSent: string[] = [];
+        /** Another form's payment under this one's intent. */
+        const replacing = { ...payCall(13n), intent: "pay:prop" };
+        const replacedTold: number[] = [];
+        let replacedSent = 0;
         wallet.adapter.sendTransaction.mockImplementation(async (...args) => {
+          if (args[0].data === replacing.data) {
+            replacedSent += 1;
+            return send(...args);
+          }
           if (args[0].data === otherCall.data) {
             const hash = await send(...args);
             otherSent.push(hash.toLowerCase());
@@ -3471,6 +3543,27 @@ describe("useReviewedRun", () => {
           );
           await settle();
         }
+        // Another form's payment under the same intent, once nothing of
+        // this one blocks it: its settlement replaces this one's as the
+        // latest, before this one is reopened or retried.
+        if (c.replaced && refreshing) {
+          const { sendReviewed } = await import("../send.js");
+          await sendReviewed(
+            {
+              ...HANDED_BACK,
+              account: ACCOUNT,
+              calls: [replacing],
+              onConfirmed: async (_call: unknown, step: number) =>
+                void replacedTold.push(step),
+            },
+            deps,
+          ).catch(() => undefined);
+          const theirs = openStepHold(deps.hold, ACCOUNT, false, replacing);
+          const success = theirs.unacknowledgedSuccess();
+          if (success && success.hash !== sent[last])
+            await act(async () => void (await theirs.acknowledge(success)));
+          await settle();
+        }
         // Reopened while unfinished: its success's receipt reread slowly,
         // dismissed meanwhile and reopened again if the dismiss closed it.
         // Its reopen closes on its success, never sends it again: its next
@@ -3542,6 +3635,8 @@ describe("useReviewedRun", () => {
         expect(unfinished()).toBe(false);
         expect(violations).toEqual([]);
         expect(acknowledged.has(last)).toBe(true);
+        // Another form's payment told once if it was sent, never again.
+        expect(replacedTold).toEqual(replacedSent ? [0] : []);
         // Each step's notice told once, in step order.
         expect(told.filter((name) => name.startsWith("confirmed:"))).toEqual(
           confirming.map((step) => `confirmed:${step}`),
