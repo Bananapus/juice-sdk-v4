@@ -211,6 +211,7 @@ describe("published core SDK surfaces", () => {
       "WriteHoldUnacknowledgedSuccessError",
       "allowanceIntent",
       "approvalIntent",
+      "assertLocksHeld",
       "borrowIntent",
       "bridgeIntent",
       "browserLocks",

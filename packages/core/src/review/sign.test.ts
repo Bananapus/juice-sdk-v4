@@ -26,6 +26,7 @@ import {
   reviewUi,
   setup,
   TERMINAL,
+  clientLock,
 } from "./__fixtures__/reviewedSend.js";
 import { unixTime } from "./decode.js";
 import {
@@ -155,6 +156,19 @@ describe("signReviewed", () => {
       { adapter },
     );
     expect(adapter.signTypedData).toHaveBeenCalledTimes(1);
+  });
+
+  it("signs nothing once the site's lock is lost", async () => {
+    const { adapter } = wallet();
+    reviewUi();
+    await expect(
+      signReviewed(
+        [{ kind: "safe-tx", chainId: 10, safe: SAFE, tx: safeTx() }],
+        { ...signed, locks: [clientLock(false)] },
+        { adapter },
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(adapter.signTypedData).not.toHaveBeenCalled();
   });
 
   it("signs a SafeTx whose hash equals safeTransactionHash", async () => {

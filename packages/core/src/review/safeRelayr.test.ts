@@ -1,4 +1,5 @@
 import { resetSafeRelayrForTests } from "../testing.js";
+import { clientLock } from "./__fixtures__/reviewedSend.js";
 import {
   encodeAbiParameters,
   encodeEventTopics,
@@ -395,6 +396,24 @@ describe("Safe Relayr recovery without a complete quote", () => {
     );
     return request;
   }
+
+  it("hands its saves the store's lock, and saves nothing once it is lost", async () => {
+    const h = harness();
+    vi.mocked(h.store.withLock).mockImplementation(async (_account, run) =>
+      run([clientLock(false)]),
+    );
+    await expect(
+      h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(h.store.save).not.toHaveBeenCalled();
+    vi.mocked(h.store.withLock).mockImplementation(async (_account, run) =>
+      run([clientLock()]),
+    );
+    await expect(
+      h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
+    ).resolves.toBeDefined();
+    expect(h.store.save).toHaveBeenCalled();
+  });
 
   it("rechecks the current proposal before retiring an unused old quote attempt", async () => {
     const h = harness();

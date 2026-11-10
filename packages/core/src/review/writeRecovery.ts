@@ -34,6 +34,7 @@ import {
 } from "./locks.js";
 
 export {
+  assertLocksHeld,
   browserLocks,
   LockLostError,
   type BrowserLocks,

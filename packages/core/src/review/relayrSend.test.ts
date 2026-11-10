@@ -23,6 +23,7 @@ import {
   setup,
   speedUpNextSend,
   TERMINAL,
+  clientLock,
 } from "./__fixtures__/reviewedSend.js";
 import {
   RELAYR_NATIVE_TOKEN,
@@ -428,6 +429,41 @@ describe("payRelayrReviewed", () => {
     await expect(
       payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
     ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("checks the site's own locks last before the wallet, and releases the payment", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    await expect(
+      payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT, locks: [clientLock(false)] },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    await expect(
+      payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT, locks: [clientLock()] },
+        deps,
+      ),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("signs no forward request once the site's lock is lost", async () => {
+    const { deps, signTypedData } = relayrSetup();
+    reviewUi();
+    await expect(
+      signReviewedForwardRequests(
+        [CALL],
+        { account: ACCOUNT, locks: [clientLock(false)] },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(signTypedData).not.toHaveBeenCalled();
   });
 
   it("pays a planned payment with no prompt, and refuses another", async () => {

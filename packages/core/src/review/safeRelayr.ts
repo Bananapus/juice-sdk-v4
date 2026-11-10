@@ -59,6 +59,7 @@ import {
 } from "./relayr.js";
 import { ReviewFixedLineError } from "./lineError.js";
 import { TAB, tabShared } from "./tabState.js";
+import { assertLocksHeld, type LockHandle } from "./locks.js";
 
 /** Exact frozen calldata plus the Safe intent it executes. Context belongs to the app. */
 export type SafeRelayrExecution = {
@@ -110,8 +111,17 @@ export type SafeRelayrStore = {
   list(account: Address): Promise<SafeRelayrSession[]>;
   /** Must finish durable persistence before resolving; never silently swallow failure. */
   save(session: SafeRelayrSession): Promise<void>;
-  /** Serialize overlapping Safe scopes across tabs AND accounts. An account-only lock is insufficient; retain legacy locks too. */
-  withLock<T>(account: Address, run: () => Promise<T>): Promise<T>;
+  /**
+   * Serialize overlapping Safe scopes across tabs AND accounts. An
+   * account-only lock is insufficient; retain legacy locks too. Hand `run`
+   * every lock taken (`browserLocks`' handles): the controller checks them,
+   * on a fresh read, before every `save` under the lock, and a lost one
+   * (`LockLostError`) saves nothing.
+   */
+  withLock<T>(
+    account: Address,
+    run: (locks?: readonly LockHandle[]) => Promise<T>,
+  ): Promise<T>;
 };
 
 function hasFundingRecords(records: unknown): boolean {
@@ -740,13 +750,27 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
    * `fundingObservedAt` another flow saved. Nothing ever clears them; an
    * exit keeps them for reconciliation.
    */
+  /** The locks each account's `withLock` holds, while it runs. */
+  const storeLocks = new Map<string, readonly LockHandle[] | undefined>();
   const store: SafeRelayrStore = {
     get scope() {
       return options.store.scope;
     },
     list: (account) => options.store.list(account),
-    withLock: (account, run) => options.store.withLock(account, run),
+    withLock: (account, run) =>
+      options.store.withLock(account, async (locks) => {
+        const key = account.toLowerCase();
+        const outer = storeLocks.get(key);
+        storeLocks.set(key, locks);
+        try {
+          return await run(locks);
+        } finally {
+          storeLocks.set(key, outer);
+        }
+      }),
     async save(next) {
+      // Under the store's lock: still this tab's, right before the write.
+      await assertLocksHeld(storeLocks.get(next.account.toLowerCase()));
       const saved = (await options.store.list(next.account)).find(
         (session) => session.id === next.id,
       );

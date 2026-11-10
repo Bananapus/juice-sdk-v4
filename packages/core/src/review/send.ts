@@ -1,3 +1,4 @@
+import { assertLocksHeld, type LockHandle } from "./locks.js";
 import {
   ReviewedCallRevertedError,
   ReviewedReceiptUnverifiedError,
@@ -196,6 +197,13 @@ export type ReviewedAction = {
    * `step` is the index in the whole action.
    */
   beforeWallet?: (call: ReviewedCall, step: number) => void | Promise<void>;
+  /**
+   * The site's own locks (`browserLocks`) the action runs under: each
+   * is checked, on a fresh read, as the last await before every wallet call
+   * and every signature. A lost one throws `LockLostError`, sends nothing
+   * and releases the step.
+   */
+  locks?: readonly LockHandle[];
   /**
    * Awaited when nothing was sent for a step whose `beforeWallet` began: a
    * gate refused, `beforeWallet` threw, or the wallet rejected (4001). Never
@@ -790,6 +798,7 @@ export async function resumeReviewed(
     | "context"
     | "title"
     | "beforeWallet"
+    | "locks"
     | "onUnsent"
     | "onSubmitted"
     | "onConfirmed"
@@ -1098,6 +1107,7 @@ async function send(
         began += 1;
         await action.beforeWallet?.(call, step);
       }
+      await assertLocksHeld(action.locks);
       // The site's hooks may have awaited: the gates once more, right before the wallet.
       action.guard?.();
       action.assertWriteState?.();
@@ -1237,7 +1247,13 @@ async function send(
       });
     };
     signed = {
-      signatures: await signPrepared(prepared, account, adapter, stillReviewed),
+      signatures: await signPrepared(
+        prepared,
+        account,
+        adapter,
+        stillReviewed,
+        () => assertLocksHeld(action.locks),
+      ),
     };
   }
 
@@ -1305,8 +1321,11 @@ async function send(
                 began = step + 1;
                 await action.beforeWallet?.(call, step);
               }
-              // The last await before the wallet: the hold's lock is still this tab's.
-              await gate.assertHeld();
+              // The last await before the wallet: every lock is still this tab's.
+              await Promise.all([
+                gate.assertHeld(),
+                assertLocksHeld(action.locks),
+              ]);
             } catch (error) {
               await released();
               throw error;
@@ -1563,8 +1582,11 @@ async function send(
               }
             try {
               await action.beforeWallet?.(call, at);
-              // The last await before the wallet: the hold's lock is still this tab's.
-              await gate.assertHeld();
+              // The last await before the wallet: every lock is still this tab's.
+              await Promise.all([
+                gate.assertHeld(),
+                assertLocksHeld(action.locks),
+              ]);
             } catch (error) {
               await released();
               throw error;

@@ -21,6 +21,7 @@ import {
   TERMINAL,
   action,
   approveCall,
+  clientLock,
   fakeChain,
   liquidityCall,
   payCall,
@@ -936,6 +937,36 @@ describe("sendReviewed", () => {
     ).rejects.toThrow("can't be confirmed here");
     expect(prompts).toHaveLength(0);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("checks the site's own locks last before the wallet and before a signature", async () => {
+    const { wallet, deps, hold, holdOf } = setup();
+    reviewUi();
+    const call = payCall();
+    const onUnsent = vi.fn();
+    await expect(
+      sendReviewed(
+        action([call], { locks: [clientLock(), clientLock(false)], onUnsent }),
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+    expect(onUnsent).toHaveBeenCalledOnce();
+    await expect(
+      sendReviewed(
+        action([payCall(2n)], {
+          signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+          locks: [clientLock(false)],
+        }),
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.signMessage).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    await expect(
+      sendReviewed(action([payCall(3n)], { locks: [clientLock()] }), deps),
+    ).resolves.toBeDefined();
   });
 
   it("never opens the wallet once the hold's lock was lost before it, and releases the step", async () => {

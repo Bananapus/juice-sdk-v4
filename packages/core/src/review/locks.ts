@@ -29,6 +29,17 @@ export type LockHandle = {
   assertHeld(): Promise<void>;
 };
 
+/**
+ * Throws {@link LockLostError} unless every given lock is still this tab's,
+ * on a fresh read; `null` and `undefined` are skipped. One line before a
+ * write under several locks: `await assertLocksHeld([a, b]); save()`.
+ */
+export async function assertLocksHeld(
+  locks?: readonly (LockHandle | null | undefined)[],
+): Promise<void> {
+  await Promise.all((locks ?? []).map((lock) => lock?.assertHeld()));
+}
+
 /** What {@link BrowserLocks} runs under the lock: `null` when `ifAvailable` found it taken. */
 export type LockWork<T> = (lock: LockHandle | null) => T | PromiseLike<T>;
 

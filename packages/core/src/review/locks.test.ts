@@ -243,3 +243,26 @@ describe("browserLocks request shapes", () => {
     await holding;
   });
 });
+
+describe("assertLocksHeld", () => {
+  it("passes while every given lock is held, and skips none", async () => {
+    const { assertLocksHeld, LockLostError } = await tab();
+    const lock = (held: boolean) =>
+      ({
+        name: held ? "kept" : "lost",
+        mode: "exclusive",
+        signal: new AbortController().signal,
+        held: async () => held,
+        assertHeld: async () => {
+          if (!held) throw new LockLostError(held ? "kept" : "lost");
+        },
+      }) as LockHandle;
+    await expect(assertLocksHeld()).resolves.toBeUndefined();
+    await expect(
+      assertLocksHeld([lock(true), null, undefined]),
+    ).resolves.toBeUndefined();
+    await expect(
+      assertLocksHeld([lock(true), lock(false)]),
+    ).rejects.toMatchObject({ code: "LOCK_LOST", lock: "lost" });
+  });
+});

@@ -31,6 +31,7 @@ import {
   createHeldWriteStorage,
   type ReviewedWriteRecoveryInput,
   LockLostError,
+  type LockHandle,
 } from "../writeRecovery.js";
 
 /** A one-chain fake wallet, chain and write hold for the reviewed-send tests. */
@@ -494,6 +495,19 @@ export function watchGuard() {
       const errors = logged.mock.calls.map(([, error]) => error);
       logged.mockRestore();
       return { errors, unhandled };
+    },
+  };
+}
+
+/** A client's own lock, held or already lost (a lapsed IndexedDB lease). */
+export function clientLock(held = true, name = "client"): LockHandle {
+  return {
+    name,
+    mode: "exclusive",
+    signal: new AbortController().signal,
+    held: async () => held,
+    assertHeld: async () => {
+      if (!held) throw new LockLostError(name);
     },
   };
 }
