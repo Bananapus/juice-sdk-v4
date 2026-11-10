@@ -117,6 +117,41 @@ const FREE_LOCKS = {
   ) => work({ name, mode: "exclusive" })) as LockManager["request"],
 };
 
+/**
+ * Native-style Web Locks: one holder per name, queued in order, `ifAvailable`
+ * answered null while held, as browsers do.
+ */
+function nativeLocks(): LockManager {
+  const tails = new Map<string, Promise<unknown>>();
+  const busy = new Set<string>();
+  return {
+    request: (async (
+      name: string,
+      options: LockOptions | ((lock: Lock | null) => unknown),
+      work?: (lock: Lock | null) => unknown,
+    ) => {
+      const run = (work ?? options) as (lock: Lock | null) => unknown;
+      const opts = (work ? options : {}) as LockOptions;
+      if (opts.ifAvailable && busy.has(name)) return run(null);
+      const prior = tails.get(name) ?? Promise.resolve();
+      const turn = prior.then(async () => {
+        busy.add(name);
+        try {
+          return await run({ name, mode: "exclusive" });
+        } finally {
+          busy.delete(name);
+        }
+      });
+      tails.set(
+        name,
+        turn.catch(() => {}),
+      );
+      return turn;
+    }) as LockManager["request"],
+    query: async () => ({ held: [], pending: [] }),
+  };
+}
+
 /** A site callback that fails. */
 /** How a site's callbacks fail: none, by throwing, or by rejecting asynchronously. */
 type Failing = false | "throws" | "rejects";
@@ -2070,39 +2105,144 @@ describe("useReviewedRun", () => {
     ).toBe(true);
   }, 20_000);
 
-  test("a followed receipt's onConfirmed refused for the site's ended lease is kept and applied under it taken back", async () => {
-    const lapsing = lapsingLocksForTests();
-    vi.stubGlobal("navigator", { locks: lapsing.locks });
-    try {
-      reviewUi();
-      const { chain, deps } = setup();
-      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
-      chain.client.getTransactionReceipt.mockImplementation(async () => {
-        throw new Error("lagging node");
-      });
-      const { run } = harness({ ...deps, account: ACCOUNT });
-      const confirmed: string[] = [];
-      const result = await browserLocks().request("pay", (lock) =>
-        run({
-          ...HANDED_BACK,
-          calls: [payCall()],
-          locks: [lock!],
-          onConfirmed: async () => {
-            await lock!.assertHeld();
-            confirmed.push("confirmed");
-          },
-        }),
-      );
-      expect(result).toMatchObject({ status: "receipt" });
-      chain.client.getTransactionReceipt.mockImplementation(read);
-      act(() => void globalThis.dispatchEvent(new Event("focus")));
-      await vi.waitFor(() => expect(confirmed).toEqual(["confirmed"]), {
-        timeout: 12_000,
-      });
-    } finally {
-      vi.unstubAllGlobals();
-    }
+  test.each([
+    ["the lease", () => ({ locks: lapsingLocksForTests().locks })],
+    ["native Web Locks", () => ({ locks: nativeLocks() })],
+  ])(
+    "a followed receipt's onConfirmed refused for the site's ended lock (%s) is kept and applied under it taken back",
+    async (_, backend) => {
+      vi.stubGlobal("navigator", backend());
+      try {
+        reviewUi();
+        const { chain, deps } = setup();
+        const read =
+          chain.client.getTransactionReceipt.getMockImplementation()!;
+        chain.client.getTransactionReceipt.mockImplementation(async () => {
+          throw new Error("lagging node");
+        });
+        const { run } = harness({ ...deps, account: ACCOUNT });
+        const confirmed: string[] = [];
+        const result = await browserLocks().request("pay", (lock) =>
+          run({
+            ...HANDED_BACK,
+            calls: [payCall()],
+            locks: [lock!],
+            onConfirmed: async () => {
+              await lock!.assertHeld();
+              confirmed.push("confirmed");
+            },
+          }),
+        );
+        expect(result).toMatchObject({ status: "receipt" });
+        chain.client.getTransactionReceipt.mockImplementation(read);
+        act(() => void globalThis.dispatchEvent(new Event("focus")));
+        await vi.waitFor(() => expect(confirmed).toEqual(["confirmed"]), {
+          timeout: 12_000,
+        });
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+    20_000,
+  );
+
+  test("a dismissed payment's success, acknowledged by another reader, closes a retry that adds an approval first: the payment never sent twice", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await run({ ...HANDED_BACK, calls: [payCall()] });
+    act(() => void seen.current!.dismiss());
+    await rendered(() => expect(seen.current!.busy).toBe(false));
+    act(() => void seen.current!.dismiss());
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    const handle = openStepHold(deps.hold, ACCOUNT, false, payCall());
+    await vi.waitFor(
+      () => expect(handle.unacknowledgedSuccess()).toBeDefined(),
+      { timeout: 12_000 },
+    );
+    await act(async () => {
+      await handle.acknowledge(handle.unacknowledgedSuccess()!);
+    });
+    // Its allowance spent, preparation now asks for an approval first.
+    await expect(
+      run({ calls: [approveCall(), payCall()], scope: "pay:fresh" }),
+    ).resolves.toMatchObject({ status: "done" });
+    expect(
+      wallet.adapter.sendTransaction.mock.calls.filter(
+        ([tx]) => tx.data === payCall().data,
+      ),
+    ).toHaveLength(1);
   }, 20_000);
+
+  test.each([
+    ["the lease", () => ({ ...lapsingLocksForTests(), lapses: true })],
+    [
+      "native Web Locks",
+      () => ({ locks: nativeLocks(), lapse: () => {}, lapses: false }),
+    ],
+  ])(
+    "onSubmitted refused while the wallet was open (if its lock can lapse) and a late onConfirmed are both kept, one after the other (%s)",
+    async (_, backend) => {
+      const { locks, lapse, lapses } = backend();
+      vi.stubGlobal("navigator", { locks });
+      try {
+        reviewUi();
+        const { chain, deps, wallet } = setup();
+        const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+        wallet.adapter.sendTransaction.mockImplementation(async (...args) => {
+          lapse();
+          return send(...args);
+        });
+        const read =
+          chain.client.getTransactionReceipt.getMockImplementation()!;
+        chain.client.getTransactionReceipt.mockImplementation(async () => {
+          throw new Error("lagging node");
+        });
+        const { run } = harness({ ...deps, account: ACCOUNT });
+        const told: string[] = [];
+        const tries: string[] = [];
+        // The receipt recovers as the scope ends, so its notice is kept
+        // while the submission's replay runs, and outlasts it.
+        const slowly =
+          (name: string, lock: { assertHeld(): Promise<void> }, ms: number) =>
+          async () => {
+            tries.push(name);
+            await lock.assertHeld();
+            await new Promise((resolve) => setTimeout(resolve, ms));
+            await lock.assertHeld();
+            told.push(name);
+          };
+        const result = await browserLocks().request("pay", async (lock) => {
+          const ran = await run({
+            ...HANDED_BACK,
+            calls: [payCall()],
+            locks: [lock!],
+            onSubmitted: slowly("submitted", lock!, 300),
+            onConfirmed: slowly("confirmed", lock!, 400),
+          });
+          chain.client.getTransactionReceipt.mockImplementation(read);
+          act(() => void globalThis.dispatchEvent(new Event("focus")));
+          return ran;
+        });
+        expect(result).toMatchObject({ status: "receipt" });
+        await vi.waitFor(
+          () => expect(told).toEqual(["submitted", "confirmed"]),
+          { timeout: 12_000 },
+        );
+        // A lapsed lease refused it in the wallet: told on its replay.
+        expect(tries.filter((name) => name === "submitted")).toHaveLength(
+          lapses ? 2 : 1,
+        );
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+    20_000,
+  );
 
   test("another account's dismissed success never closes this account's run of the same calls", async () => {
     reviewUi();

@@ -2355,7 +2355,9 @@ describe("a held write", () => {
     expect(hold.durable()).toBe(true);
     await hold.open(ordinary).send(client, wallet(async () => HASH).send);
     expect(
-      [...browser.values.keys()].filter((k) => !k.endsWith(":latest")),
+      [...browser.values.keys()].filter(
+        (k) => !k.endsWith(":latest") && !k.startsWith("nana-sdk:lock-holder:"),
+      ),
     ).toHaveLength(1);
     await expect(hold.open(ordinary).state(client)).resolves.toMatchObject({
       status: "pending-known-hash",
@@ -2713,6 +2715,10 @@ describe("a write held under an intent", () => {
     await expect(
       old.hold.open(ordinary).claimConfirmed({ hash: HASH }),
     ).resolves.toBe(false);
+    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
+    // Given back there (its notice never told), it is claimed once again.
+    await handle.releaseConfirmed({ hash: HASH });
+    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(true);
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
   });
 

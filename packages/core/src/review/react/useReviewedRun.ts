@@ -339,7 +339,6 @@ export function useReviewedRun(
   /** The sent step whose hold the latest run's `ended()` awaits. */
   const awaiting = useRef<{
     last: boolean;
-    total: number;
     detached: Detached | null;
     end: () => void;
   } | null>(null);
@@ -392,8 +391,6 @@ export function useReviewedRun(
   const own = useRef<{
     account: Address;
     reservations: string[];
-    /** The step count of the action they ended: only that action's last step closes it. */
-    total: number;
     run?: number;
   } | null>(null);
   const ownSuccess = (
@@ -403,7 +400,6 @@ export function useReviewedRun(
     if (
       !kept ||
       !deps?.account ||
-      kept.total !== action.calls.length ||
       kept.account.toLowerCase() !== deps.account.toLowerCase() ||
       (action.account &&
         action.account.toLowerCase() !== kept.account.toLowerCase())
@@ -596,7 +592,6 @@ export function useReviewedRun(
           ? {
               account: deps.account,
               reservations: [last.reservation],
-              total: waiting ? waiting.total : watched!.total,
               run: latest.current,
             }
           : null;
@@ -1121,7 +1116,6 @@ export function useReviewedRun(
             cancelled?.addEventListener("abort", abandon, { once: true });
             awaiting.current = {
               last: error.step === action.calls.length - 1,
-              total: action.calls.length,
               detached: heldStep(error),
               end: abandon,
             };
@@ -1210,7 +1204,6 @@ export function useReviewedRun(
           own.current = {
             account: deps.account,
             reservations: left.map(({ reservation }) => reservation),
-            total: 1,
           };
         const cancelled =
           error instanceof TransactionReviewCancelledError ||

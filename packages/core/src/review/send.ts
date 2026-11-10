@@ -872,8 +872,11 @@ export async function resumeReviewed(
     // This sequence's own step: it is recorded, told, and only then
     // acknowledged, so it is never offered again.
     const kept = await recordSending(saved, settled, storage, expected);
-    await tellConfirmed(action, handle, call, step, settled, receipt);
-    if (settled?.result === "success") await handle.acknowledge(settled);
+    if (
+      (await tellConfirmed(action, handle, call, step, settled, receipt)) &&
+      settled?.result === "success"
+    )
+      await handle.acknowledge(settled);
     if (kept === null) {
       const total = saved.calls.length;
       tell(deps.onProgress, { step: total - 1, total, phase: "done" });
@@ -935,35 +938,50 @@ async function confirmedReceipt(
  */
 async function tellConfirmed(
   action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
-  handle: Pick<WriteHoldHandle, "claimConfirmed">,
+  handle: Pick<WriteHoldHandle, "claimConfirmed" | "releaseConfirmed">,
   call: ReviewedCall,
   step: number,
   settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
-): Promise<void> {
-  if (
-    settled?.result === "success" &&
+): Promise<boolean> {
+  // Claimed once across tabs, and given back if the site never gets it (its
+  // lock lost and not taken back), so a later completion tells it. False
+  // while it is only kept: its success is then acknowledged by none.
+  return settled?.result === "success" &&
     receipt &&
     (await handle.claimConfirmed(settled))
-  )
-    await tellKept(action, () => action.onConfirmed?.(call, step, receipt));
+    ? tellKept(
+        action,
+        () => action.onConfirmed?.(call, step, receipt),
+        () => handle.releaseConfirmed(settled),
+      )
+    : true;
 }
 
 /**
  * Tells a site what the wallet answered, under its `locks`: refused for a
  * lost one, kept for a fresh lock ({@link keepOutcome}), or dropped when it
- * can't be. Any other failure is logged and never changes what was sent.
+ * can't be, `dropped` then told. Any other failure is logged and never
+ * changes what was sent. False when the outcome was only kept, not told.
  */
-const tellKept = (
+const tellKept = async (
   { locks, attemptScoped }: Pick<ReviewedAction, "locks" | "attemptScoped">,
   run: () => unknown,
-) =>
-  tell(() =>
-    keepOutcome(locks, run, attemptScoped ? run : undefined).catch((error) => {
-      if ((error as { code?: unknown })?.code !== "LOCK_LOST") throw error;
-    }),
+  dropped?: () => unknown,
+): Promise<boolean> => {
+  let kept = false;
+  await tell(() =>
+    keepOutcome(locks, run, attemptScoped ? run : undefined, dropped).then(
+      (applied) => void (kept = !applied),
+      async (error) => {
+        if ((error as { code?: unknown })?.code !== "LOCK_LOST") throw error;
+        kept = true;
+        await dropped?.();
+      },
+    ),
   );
-
+  return !kept;
+};
 /**
  * A sent step's settlement by its own reservation, and the receipt its hold
  * verified ({@link heldReceipt}), read again until it reads. Null on `follow`'s
@@ -1077,8 +1095,11 @@ export async function completeReviewedStep(
     )
       await recordSending(record, settled, storage, raw);
   }
-  await tellConfirmed(action, handle, call, step, settled, confirmed);
-  if (acknowledge && settled.result === "success")
+  if (
+    (await tellConfirmed(action, handle, call, step, settled, confirmed)) &&
+    acknowledge &&
+    settled.result === "success"
+  )
     await handle.acknowledge(settled);
   return { settled, receipt: confirmed };
 }

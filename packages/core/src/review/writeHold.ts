@@ -1764,6 +1764,13 @@ export function createWriteHold(
         );
         return result?.value === true;
       },
+      /** Gives back a claimed notice the site never got, under the call's lock. */
+      async releaseConfirmed(settled: { hash: Hex }): Promise<void> {
+        await locked(
+          async () => recovery.releaseConfirmedSettled(settled),
+          true,
+        );
+      },
       /**
        * Attaches the hash the user found for a held write whose wallet reply
        * was lost. `hashCheck` says whether it was `attached`, read and found
@@ -2345,6 +2352,11 @@ export function createWriteHold(
       /** A settlement's notice is claimed where it was saved, found by its hash. */
       claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
         return (legacySaving(settled.hash)?.handle ?? own).claimConfirmed(
+          settled,
+        );
+      },
+      releaseConfirmed(settled: { hash: Hex }): Promise<void> {
+        return (legacySaving(settled.hash)?.handle ?? own).releaseConfirmed(
           settled,
         );
       },

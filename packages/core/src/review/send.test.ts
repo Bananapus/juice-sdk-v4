@@ -14,7 +14,12 @@ import {
   type WalletClient,
 } from "viem";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { browserLocks, LockLostError, type LockHandle } from "./locks.js";
+import {
+  browserLocks,
+  fencedLocks,
+  LockLostError,
+  type LockHandle,
+} from "./locks.js";
 import {
   ACCOUNT,
   CHANGED,
@@ -2221,6 +2226,48 @@ describe("sendReviewed and its hold's evidence", () => {
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
   });
 
+  it("gives back a confirmation its site's lock can't take back: unacknowledged, a later completion tells it once", async () => {
+    const { deps, hold, calls, scope, unverified, recover } =
+      await leftAtReceipt();
+    recover();
+    // The site's lock, ended, can't be taken again.
+    let taken = false;
+    let lock!: LockHandle;
+    await fencedLocks({
+      request: (async (
+        name: string,
+        _options: unknown,
+        work: (lock: Lock) => unknown,
+      ) => {
+        if (taken) throw new Error("held elsewhere");
+        taken = true;
+        return work({ name, mode: "exclusive" });
+      }) as LockManager["request"],
+    }).request("site", async (held) => void (lock = held!));
+    const refused = vi.fn(async () => lock.assertHeld());
+    await completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: refused, locks: [lock] },
+      deps,
+    );
+    expect(refused).toHaveBeenCalledOnce();
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    const told = vi.fn();
+    await completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: told },
+      deps,
+    );
+    await completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: told },
+      deps,
+    );
+    expect(told).toHaveBeenCalledOnce();
+    expect(handle.unacknowledgedSuccess()).toBeUndefined();
+  });
+
   it("keeps a run's signatures on the step it left at its receipt", async () => {
     const { wallet, deps, chain } = setup();
     reviewUi();
@@ -2811,7 +2858,7 @@ describe("a wallet's answer after the site's lease lapsed", () => {
     }
   });
 
-  it("leaves the record as the lost lock left it when the fresh lock is unavailable", async () => {
+  it("leaves the record as the lost lock left it when another tab took the lock meanwhile", async () => {
     const { deps, wallet } = setup();
     reviewUi();
     const journal = new Map<string, string>();
@@ -2829,10 +2876,14 @@ describe("a wallet's answer after the site's lease lapsed", () => {
       });
       return send();
     });
-    await order.send(payCall(), deps);
-    // Its recovery still shows: the record still says sending.
-    expect(journal.get("order")).toBe("A sending");
+    const sent = order.send(payCall(), deps);
+    await vi.waitFor(() => expect(release).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 50));
     release();
     await holding;
+    // Queued behind that tab, the replay finds the lock taken since: its
+    // recovery still shows, the record still saying sending.
+    await sent;
+    expect(journal.get("order")).toBe("A sending");
   });
 });

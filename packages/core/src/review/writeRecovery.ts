@@ -1383,6 +1383,28 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
+     * Gives back a claim whose notice never reached the site (its lock lost
+     * and not taken back): a later completion claims and tells it again.
+     */
+    releaseConfirmedSettled(
+      settled: Pick<ReviewedWriteSettlement, "hash">,
+    ): void {
+      requireLock();
+      try {
+        const store = storage();
+        const saved = JSON.parse(store.getItem(settledKey) ?? "null") as Record<
+          string,
+          unknown
+        > | null;
+        if (saved?.hash !== settled.hash.toLowerCase() || !saved.confirmed)
+          return;
+        const { confirmed: _given, ...rest } = saved;
+        store.setItem(settledKey, JSON.stringify(rest));
+      } catch {
+        /* Unreadable: nothing was claimed there. */
+      }
+    },
+    /**
      * How the call's last write ended, if {@link markSettled} saved it for
      * the call's latest reservation; a settlement of an earlier one reads as
      * none, wherever it was kept.

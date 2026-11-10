@@ -52,18 +52,22 @@ export async function assertLocksHeld(
 const isLockLost = (error: unknown) =>
   (error as { code?: unknown } | null)?.code === "LOCK_LOST";
 
-/** A leased handle's way back: taken again only if no other holder took it since. */
+/**
+ * A fenced handle's way back, whatever the backend (native Web Locks, the
+ * IndexedDB lease, this tab's queue): its kept outcomes wait until its work
+ * ended, then each runs under the same lock requested afresh, the handle
+ * reading as held again meanwhile.
+ */
 type Keeper = {
+  name: string;
+  /** This acquisition's stamp: who took the lock last ({@link stamps}). */
+  owner: string;
   ended: boolean;
   kept: Set<Kept>;
-  /**
-   * Hold again under the same owner: its own lease, live or lapsed, while no
-   * other owner took it since; unless `untouched`, otherwise whenever it is
-   * free now. False if not.
-   */
-  retake(untouched: boolean): Promise<boolean>;
-  /** Let go of a retake. */
-  drop(): Promise<void>;
+  /** The lock requested afresh for a kept outcome, while it runs. */
+  revived: LockHandle | null;
+  /** Requests the lock afresh, queued behind any work or outcome under it. */
+  request<T>(work: (lock: LockHandle | null) => Promise<T>): Promise<T>;
 };
 type Kept = {
   locks: readonly LockHandle[];
@@ -71,27 +75,73 @@ type Kept = {
   /** `later` re-runs `write` as is: only under locks nobody took since. */
   untouched: boolean;
   keepers: Keeper[];
+  /** Told once the outcome is never applied. */
+  dropped?: () => unknown;
 };
 
 const keeperOf = (lock: LockHandle) =>
   (lock as { [TAB.keeper]?: Keeper })[TAB.keeper];
 
-/** Under every lock taken again, `later()`; any failure leaves things as they were. */
+/**
+ * Who took each lock last, origin-wide: every fenced acquisition stamps it
+ * under the lock, so a kept outcome can tell nobody took it since.
+ */
+const stamps = (() => {
+  const memory = ((globalThis as { [TAB.stamps]?: Map<string, string> })[
+    TAB.stamps
+  ] ??= new Map<string, string>());
+  const key = (name: string) => `nana-sdk:lock-holder:${name}`;
+  return {
+    get(name: string): string | undefined {
+      try {
+        const saved = globalThis.localStorage?.getItem(key(name));
+        if (saved != null) return saved;
+      } catch {
+        /* Unreadable: this tab's own memory. */
+      }
+      return memory.get(name);
+    },
+    set(name: string, owner: string) {
+      memory.set(name, owner);
+      try {
+        globalThis.localStorage?.setItem(key(name), owner);
+      } catch {
+        // ponytail: in-tab memory only where storage is refused; another
+        // tab's take then goes unseen, so a whole-record replay may land.
+      }
+    },
+  };
+})();
+
+/**
+ * `later()` under every lock requested afresh, one acquisition each, so
+ * the backend serializes it with any other work or outcome under the same
+ * name; any failure leaves things as they were, and `dropped` is told.
+ */
 async function reconcile(entry: Kept) {
   for (const keeper of entry.keepers) keeper.kept.delete(entry);
-  const taken: Keeper[] = [];
-  try {
-    for (const keeper of entry.keepers) {
-      if (!(await keeper.retake(entry.untouched).catch(() => false))) return;
-      taken.push(keeper);
+  const under = async (at: number): Promise<boolean> => {
+    if (at === entry.keepers.length) {
+      await assertLocksHeld(entry.locks);
+      await entry.later();
+      return true;
     }
-    await assertLocksHeld(entry.locks);
-    await entry.later();
-  } catch {
-    // Unreconciled, the record stays as the lost lock left it.
-  } finally {
-    for (const keeper of taken.reverse()) await keeper.drop();
-  }
+    const keeper = entry.keepers[at];
+    return keeper.request(async (fresh) => {
+      if (!fresh) return false;
+      if (entry.untouched && stamps.get(keeper.name) !== keeper.owner)
+        return false;
+      keeper.revived = fresh;
+      try {
+        return await under(at + 1);
+      } finally {
+        keeper.revived = null;
+      }
+    });
+  };
+  const applied = await under(0).catch(() => false);
+  // Unreconciled, the record stays as the lost lock left it.
+  if (!applied) await Promise.resolve(entry.dropped?.()).catch(() => {});
 }
 
 /**
@@ -110,15 +160,18 @@ async function reconcile(entry: Kept) {
  *   so it can't touch a newer attempt's record.
  *
  * If any lock can't be taken back, or the write fails, the record stays as
- * the lost lock left it, and its recovery shows.
+ * the lost lock left it, its recovery shows, and `dropped` is told (a claim
+ * the outcome consumed is given back there, so it stays retryable).
  *
- * Only `browserLocks`' IndexedDB leases are ever lost and kept. Any other
- * failure of `write` throws, as does a lost lock that can't be taken back.
+ * Any lock {@link fencedLocks} or {@link browserLocks} handed out is kept
+ * this way: a native one once its work ended, a lease also once it lapsed.
+ * Any other failure of `write` throws, as does a lost lock that isn't one.
  */
 export async function keepOutcome(
   locks: readonly LockHandle[] | undefined,
   write: () => unknown,
   later?: () => unknown,
+  dropped?: () => unknown,
 ): Promise<boolean> {
   try {
     await write();
@@ -136,6 +189,7 @@ export async function keepOutcome(
       later: later ?? write,
       untouched: !later,
       keepers: keepers as Keeper[],
+      ...(dropped ? { dropped } : {}),
     };
     for (const keeper of entry.keepers) keeper.kept.add(entry);
     // Kept after its work already ended: reconciled now.
@@ -194,13 +248,31 @@ function shaped<T>(
 }
 
 /**
- * Any Web Locks manager (`navigator.locks`, a test's) handing a
- * {@link LockHandle}: a handle it hands already passes through; any other
- * lock is never lost while its work runs.
+ * Any Web Locks manager (`navigator.locks`, a test's, the SDK's own) handing
+ * a {@link LockHandle}: one it hands already is read through; any other
+ * lock is never lost while its work runs. Each handle keeps the outcomes
+ * {@link keepOutcome} refused for it, the same for every backend, and
+ * stamps who took the lock last.
  */
 export function fencedLocks(
   locks: AnyLocks | BrowserLocks | RawLocks,
 ): BrowserLocks {
+  /** `locks.request`, its lock as a handle. */
+  const acquire = <T>(
+    name: string,
+    options: LockOptions,
+    work: (lock: LockHandle | null) => Promise<T>,
+  ) =>
+    (locks as AnyLocks).request(name, options, async (lock) => {
+      if (!lock) return work(null);
+      if (isHandle(lock)) return work(lock);
+      let running = true;
+      try {
+        return await work(handle(lock.name, lock.mode, async () => running));
+      } finally {
+        running = false;
+      }
+    }) as Promise<T>;
   return {
     request<T>(
       name: string,
@@ -208,13 +280,36 @@ export function fencedLocks(
       work?: LockWork<T>,
     ) {
       const [opts, run] = shaped(options, work);
-      return (locks as AnyLocks).request(name, opts, (lock) => {
-        if (!lock) return run(null);
-        if (isHandle(lock)) return run(lock);
-        let running = true;
-        return Promise.resolve(
-          run(handle(lock.name, lock.mode, async () => running)),
-        ).finally(() => (running = false));
+      let keeper: Keeper | undefined;
+      return acquire(name, opts, async (inner) => {
+        // Already fenced (a BrowserLocks passed in): its own keeper keeps.
+        if (!inner || keeperOf(inner)) return run(inner);
+        keeper = {
+          name,
+          owner: globalThis.crypto.randomUUID(),
+          ended: false,
+          kept: new Set(),
+          revived: null,
+          request: (again) => acquire(name, {}, again),
+        };
+        stamps.set(name, keeper.owner);
+        const own = keeper;
+        const lock = handle(
+          name,
+          inner.mode,
+          () => (own.revived ? own.revived.held() : inner.held()),
+          inner.signal,
+        );
+        Object.defineProperty(lock, TAB.keeper, { value: keeper });
+        return run(lock);
+      }).finally(async () => {
+        if (!keeper) return;
+        // Released: each kept outcome whose locks all ended queues for the
+        // lock now, as any request would, and lands before this one resolves.
+        keeper.ended = true;
+        for (const entry of [...keeper.kept])
+          if (entry.keepers.every((other) => other.ended))
+            await reconcile(entry);
       }) as Promise<Awaited<T>>;
     },
   } as BrowserLocks;
@@ -274,7 +369,7 @@ export const LEASE_MS = 15_000;
 const LEASE_RENEW_MS = 5_000;
 const LEASE_POLL_MS = 50;
 type Lease = { owner: string; expires: number };
-type Claim = "take" | "renew" | "retake";
+type Claim = "take" | "renew";
 
 /** Where the origin's leases live: each call one atomic compare-and-set. */
 export type LeaseStore = {
@@ -286,7 +381,7 @@ export type LeaseStore = {
 /**
  * The lease `owner` gets by `claim` over `lease`, or undefined while it
  * can't: `take` while nobody holds it; `renew` only while still `owner`'s
- * and unexpired; `retake` only while the last owner was `owner`, lapsed or not.
+ * and unexpired.
  */
 function claimed(
   lease: Lease | undefined,
@@ -297,15 +392,12 @@ function claimed(
   const refused =
     claim === "renew"
       ? !(lease?.owner === owner && lease.expires > now)
-      : claim === "retake"
-        ? lease?.owner !== owner
-        : lease && lease.expires > now;
+      : lease && lease.expires > now;
   return refused ? undefined : { owner, expires: now + LEASE_MS };
 }
 
 /**
- * Letting go of `lease` for `owner`: still `owner`'s, expired, so a retake
- * can tell nobody took it since; another owner's stays.
+ * Letting go of `lease` for `owner`: expired; another owner's stays.
  */
 const dropped = (lease: Lease | undefined, owner: string) =>
   lease?.owner === owner ? { owner, expires: 0 } : undefined;
@@ -435,17 +527,15 @@ export function leaseLocks(
         }
         const lost = new AbortController();
         let running = true;
-        /** Taken again for its kept outcomes. */
-        let retaken = false;
         const held = async () => {
-          if (!retaken && (!running || lost.signal.aborted)) return false;
+          if (!running || lost.signal.aborted) return false;
           // Never cached: a tab back from suspension reads what is there now.
           const mine = owns(
             await store.read(name).catch(() => undefined),
             owner,
           );
           if (!mine && running) lost.abort(new LockLostError(name));
-          return mine && (running || retaken);
+          return mine && running;
         };
         const renew = setInterval(
           () =>
@@ -455,32 +545,11 @@ export function leaseLocks(
               .catch(() => {}),
           LEASE_RENEW_MS,
         );
-        const keeper: Keeper = {
-          ended: false,
-          kept: new Set(),
-          // Its own lease first, live or lapsed; a scoped outcome also
-          // lands on one another owner took and let go since.
-          retake: async (untouched) =>
-            (retaken =
-              (await store.claim(name, owner, "retake")) ||
-              (!untouched && (await store.claim(name, owner, "take")))),
-          drop: async () => {
-            retaken = false;
-            await store.drop(name, owner).catch(() => {});
-          },
-        };
-        const lock = handle(name, "exclusive", held, lost.signal);
-        Object.defineProperty(lock, TAB.keeper, { value: keeper });
         try {
-          return await work(lock);
+          return await work(handle(name, "exclusive", held, lost.signal));
         } finally {
           running = false;
           clearInterval(renew);
-          keeper.ended = true;
-          // Still this tab's only queue for `name`: no other work here runs between.
-          for (const entry of [...keeper.kept])
-            if (entry.keepers.every((other) => other.ended))
-              await reconcile(entry);
           await store.drop(name, owner).catch(() => {});
         }
       }),
