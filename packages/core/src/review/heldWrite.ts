@@ -121,12 +121,18 @@ export async function followHeldWrite(
     pollMs,
     fastMs = FAST_MS,
     onRead,
+    reservation,
   }: {
     signal: AbortSignal;
     pollMs?: number;
     fastMs?: number;
     /** Each read of the hold as it starts, while it holds the call's lock. */
     onRead?: (read: Promise<unknown>) => void;
+    /**
+     * Follow this reservation's own write: it ends with its saved
+     * settlement, even once a later reservation of the call replaced it.
+     */
+    reservation?: string;
   },
 ): Promise<WriteHoldState | null> {
   const now = handle.peek();
@@ -152,6 +158,8 @@ export async function followHeldWrite(
     const read = handle.state(client).catch(() => null);
     onRead?.(read);
     const state = await read;
+    const own = reservation && handle.settlementOf(reservation);
+    if (own) return { status: "clear", settled: own, reservation };
     if (state?.status === "clear") return state;
     await pause(look < FAST_LOOKS ? fastMs : pollOf(pollMs), signal);
   }

@@ -1690,12 +1690,17 @@ export function createWriteHold(
       released(reservation: string): boolean {
         return recovery.released(reservation);
       },
-      /** How `reservation` settled, if it is this key's latest and settled. */
+      /**
+       * How `reservation` settled, if saved: its latest state, or, once a
+       * later reservation replaced it, its own saved settlement.
+       */
       settlementOf(reservation: string): WriteHoldSettled | undefined {
         const now = peek();
-        return now.status === "clear" && now.reservation === reservation
-          ? now.settled
-          : undefined;
+        return (
+          (now.status === "clear" && now.reservation === reservation
+            ? now.settled
+            : undefined) ?? recovery.settledOf(reservation)
+        );
       },
       /**
        * The user acknowledged a success the hold settled while they were

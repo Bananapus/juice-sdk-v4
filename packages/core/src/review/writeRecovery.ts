@@ -771,6 +771,8 @@ export function createBrowserWriteRecovery(
   const key =
     options.at === undefined ? scope(reviewed) : foundAt(reviewed, options.at);
   const settledKey = `${key}:settled`;
+  /** The latest settlements by reservation, which a later reservation keeps. */
+  const settledByKey = `${key}:settled-by`;
   const latestKey = `${key}:latest`;
   /** The last reservation dropped on a definite wallet rejection or an abort before the wallet opened. */
   const rejectedKey = `${key}:rejected`;
@@ -1296,19 +1298,32 @@ export function createBrowserWriteRecovery(
       settlement: ReviewedWriteSettlement,
     ): void {
       requireLock();
+      const saved = {
+        result: settlement.result,
+        hash: settlement.hash.toLowerCase(),
+        ...(settlement.blockHash
+          ? { blockHash: settlement.blockHash.toLowerCase() }
+          : {}),
+        ...(settlement.safe ? { safe: true } : {}),
+      };
       try {
-        storage().setItem(
+        const store = storage();
+        store.setItem(
           settledKey,
-          JSON.stringify({
-            id: expected.id,
-            result: settlement.result,
-            hash: settlement.hash.toLowerCase(),
-            ...(settlement.blockHash
-              ? { blockHash: settlement.blockHash.toLowerCase() }
-              : {}),
-            ...(settlement.safe ? { safe: true } : {}),
-            at: Date.now(),
-          }),
+          JSON.stringify({ id: expected.id, ...saved, at: Date.now() }),
+        );
+        // ponytail: the last 8 reservations; a follower later than that reads none.
+        const by = Object.entries(
+          (JSON.parse(store.getItem(settledByKey) ?? "null") ?? {}) as Record<
+            string,
+            unknown
+          >,
+        ).filter(([id]) => id !== expected.id);
+        store.setItem(
+          settledByKey,
+          JSON.stringify(
+            Object.fromEntries([...by.slice(-7), [expected.id, saved]]),
+          ),
         );
       } catch {
         /* Only the settling caller learns it. */
@@ -1385,6 +1400,39 @@ export function createBrowserWriteRecovery(
               ...(saved.acknowledged === true || typeof latest.at !== "number"
                 ? { acknowledged: true as const }
                 : {}),
+            }
+          : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    /**
+     * How reservation `id` settled, if {@link markSettled} saved it: kept
+     * when a later reservation of the call replaces it.
+     */
+    settledOf(id: string): ReviewedWriteSettlement | undefined {
+      try {
+        const saved = (
+          JSON.parse(storage().getItem(settledByKey) ?? "null") as Record<
+            string,
+            {
+              result?: unknown;
+              hash?: unknown;
+              blockHash?: unknown;
+              safe?: unknown;
+            }
+          > | null
+        )?.[id];
+        return saved &&
+          (saved.result === "success" || saved.result === "failed") &&
+          isBytes32(saved.hash)
+          ? {
+              result: saved.result,
+              hash: saved.hash as Hex,
+              ...(isBytes32(saved.blockHash)
+                ? { blockHash: saved.blockHash as Hex }
+                : {}),
+              ...(saved.safe === true ? { safe: true as const } : {}),
             }
           : undefined;
       } catch {

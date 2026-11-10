@@ -35,7 +35,7 @@ import {
   writeHeldMessage,
 } from "./messages.js";
 import { launchIntent } from "./intents.js";
-import { createHeldWriteView } from "./heldWrite.js";
+import { createHeldWriteView, followHeldWrite } from "./heldWrite.js";
 import { intent, writeIntentKey } from "./writeIntent.js";
 import {
   createWriteHold,
@@ -3096,6 +3096,42 @@ describe("a write held under an intent", () => {
     const again = wallet(async () => OTHER);
     await a.send(client, again.send);
     expect(again.write).toHaveBeenCalledOnce();
+  });
+
+  it("a write's settlement outlives the next reservation of its intent: a tab that resumes late still reads its own success", async () => {
+    const browser = origin();
+    const locks = lockManager();
+    const tabA = setup({ browser, locks });
+    const tabB = setup({ browser, locks });
+    const { chain, client, receiptOf } = fakeChain();
+    const a = tabA.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    const b = tabB.hold.open(intentCall, { legacy: [{ call: ordinary.call }] });
+    await a.send(client, wallet(async () => HASH).send);
+    const reservation = a.peek().reservation!;
+    expect(reservation).toBeDefined();
+    // Tab B sees it confirm, acknowledges it, then reserves the intent again.
+    chain.txs.push({ ...sent(HASH), input: regenerated.data, block: 95n });
+    await b.onReceipt(receiptOf(chain.txs[0]), client);
+    await b.acknowledge({ result: "success", hash: HASH });
+    const rejected = wallet(async () => {
+      throw Object.assign(new Error("denied"), { code: 4001 });
+    });
+    await b.send(client, rejected.send).catch(() => undefined);
+    expect(b.peek().reservation).not.toBe(reservation);
+    // Tab A, resumed, reads its own write's outcome.
+    expect(a.settlementOf(reservation)).toMatchObject({
+      result: "success",
+      hash: HASH,
+    });
+    const followed = await followHeldWrite(a, client, {
+      signal: new AbortController().signal,
+      reservation,
+    });
+    expect(followed).toMatchObject({
+      status: "clear",
+      reservation,
+      settled: { result: "success", hash: HASH },
+    });
   });
 
   it("Codex: an exit never waits behind another tab's wallet prompt", async () => {
