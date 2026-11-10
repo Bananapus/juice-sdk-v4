@@ -609,12 +609,15 @@ export function createSavedAttemptRecovery(options: {
   /** Under every namespace key's hold lock, in one order, never waiting on a busy one. */
   async function underLocks<R>(
     attempt: SavedAttemptScope,
-    work: () => Promise<R>,
+    work: (assertHeld: () => Promise<void>) => Promise<R>,
   ): Promise<R> {
     const journals = journalsOf(attempt);
+    const assertHeld = async () => {
+      await Promise.all(journals.map((journal) => journal.assertHeld()));
+    };
     const run = (index: number): Promise<R> =>
       index === journals.length
-        ? work()
+        ? work(assertHeld)
         : journals[index].withLock(() => run(index + 1));
     return run(0);
   }
@@ -640,7 +643,7 @@ export function createSavedAttemptRecovery(options: {
     let forced = false;
     try {
       const handles = handlesOf(attempt);
-      const done = await underLocks(attempt, async () => {
+      const done = await underLocks(attempt, async (assertHeld) => {
         try {
           readStrictly(attempt);
         } catch {
@@ -693,6 +696,8 @@ export function createSavedAttemptRecovery(options: {
             ? { hash: lower(reason.hash) }
             : {}),
         });
+        // Decided on reads made before the app's journal answered.
+        await assertHeld();
         storage.setItem(key, value);
         if (storage.getItem(key) !== value) return false;
         settled = states.flatMap((state, index) =>

@@ -1,4 +1,6 @@
 import { resetSafeRelayrForTests } from "../testing.js";
+import { clientLock } from "./__fixtures__/reviewedSend.js";
+import { LockLostError } from "./locks.js";
 import {
   encodeAbiParameters,
   encodeEventTopics,
@@ -366,6 +368,27 @@ beforeEach(() => {
   vi.spyOn(Date, "now").mockReturnValue(NOW * 1000);
 });
 
+/** A store lock whose lease the test can lapse; each acquisition is a fresh one. */
+function leased(h: ReturnType<typeof harness>) {
+  const lease = { current: { lost: false } };
+  vi.mocked(h.store.withLock).mockImplementation(async (_account, run) => {
+    const mine = { lost: false };
+    lease.current = mine;
+    return run([
+      {
+        name: "safe-relayr",
+        mode: "exclusive",
+        signal: new AbortController().signal,
+        held: async () => !mine.lost,
+        assertHeld: async () => {
+          if (mine.lost) throw new LockLostError("safe-relayr");
+        },
+      },
+    ]);
+  });
+  return lease;
+}
+
 describe("Safe Relayr recovery without a complete quote", () => {
   function orphan(
     h: ReturnType<typeof harness>,
@@ -395,6 +418,137 @@ describe("Safe Relayr recovery without a complete quote", () => {
     );
     return request;
   }
+
+  it("hands its saves the store's lock, and saves nothing once it is lost", async () => {
+    const h = harness();
+    vi.mocked(h.store.withLock).mockImplementation(async (_account, run) =>
+      run([clientLock(false)]),
+    );
+    await expect(
+      h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(h.store.save).not.toHaveBeenCalled();
+    vi.mocked(h.store.withLock).mockImplementation(async (_account, run) =>
+      run([clientLock()]),
+    );
+    await expect(
+      h.controller.prepare({ account: ACCOUNT, executions: [execution()] }),
+    ).resolves.toBeDefined();
+    expect(h.store.save).toHaveBeenCalled();
+  });
+
+  /** The store's lock per acquisition, as a lease another tab can take while this one sleeps. */
+  it("never saves an older snapshot over the next owner's payment once the lock went while it read", async () => {
+    const h = harness();
+    const lease = leased(h);
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const id = ready.session.id;
+    const SENT_ELSEWHERE = {
+      ...sentRelayrPayment(
+        relayrPaymentDetails(payment(), {
+          bundleUuid: BUNDLE,
+          destinationChainIds: [1],
+          nowSeconds: NOW,
+        }),
+        `0x${"cd".repeat(32)}`,
+      ),
+      bundleUuid: h.sessions.get(id)!.bundleUuid!,
+    };
+    const list = vi.mocked(h.store.list).getMockImplementation()!;
+    let lists = 0;
+    h.sendPayment.mockImplementationOnce(async ({ beforeSend, onSending }) => {
+      await beforeSend();
+      // onSending loads the session, then its save reads the store again.
+      lists = 2;
+      await onSending();
+      throw new Error("The wallet must not open.");
+    });
+    vi.mocked(h.store.list).mockImplementation(async (account) => {
+      if (lists && --lists === 0) {
+        // Asleep in that read: the lease lapses and the next owner pays.
+        lease.current.lost = true;
+        h.sessions.set(id, {
+          ...h.sessions.get(id)!,
+          paymentStatus: "submitted",
+          payments: [{ ...SENT_ELSEWHERE }],
+        });
+      }
+      return list(account);
+    });
+    await expect(
+      h.controller.fund({ account: ACCOUNT, sessionId: id, paymentChainId: 1 }),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(h.sessions.get(id)).toMatchObject({
+      paymentStatus: "submitted",
+      payments: [{ hash: SENT_ELSEWHERE.hash }],
+    });
+  });
+
+  it("restores a rejected payment's status under a fresh lock after the wallet outlived the lease", async () => {
+    const h = harness();
+    const lease = leased(h);
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    h.sendPayment.mockImplementationOnce(async ({ beforeSend, onSending }) => {
+      await beforeSend();
+      await onSending();
+      // Over 15 s in a mobile wallet, no other tab: the lease lapsed.
+      lease.current.lost = true;
+      throw Object.assign(new Error("User rejected request"), { code: 4001 });
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toThrow("User rejected");
+    expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe("unfunded");
+    expect(
+      (
+        await h.controller.check({
+          account: ACCOUNT,
+          sessionId: ready.session.id,
+        })
+      ).state,
+    ).toBe("ready");
+  });
+
+  it("keeps a sent payment's hash under a fresh lock after the wallet outlived the lease", async () => {
+    const h = harness();
+    const lease = leased(h);
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const send = h.sendPayment.getMockImplementation()!;
+    h.sendPayment.mockImplementationOnce(async (input) =>
+      send({
+        ...input,
+        onSending: async () => {
+          await input.onSending();
+          // The wallet answers after the lease lapsed.
+          lease.current.lost = true;
+        },
+      }),
+    );
+    await h.controller
+      .fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      })
+      .catch(() => undefined);
+    expect(h.sessions.get(ready.session.id)).toMatchObject({
+      paymentStatus: "submitted",
+      payments: [{ hash: HASH }],
+    });
+  });
 
   it("rechecks the current proposal before retiring an unused old quote attempt", async () => {
     const h = harness();
@@ -2458,6 +2612,32 @@ describe("Safe Relayr funding and canonical outcome", () => {
     expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe("unfunded");
     expect(h.sessions.get(ready.session.id)?.payments).toHaveLength(0);
     expect(h.sessions.get(ready.session.id)?.state).toBe("active");
+  });
+
+  it("restores a known unsent attempt under a fresh lock if the lease and the quote lapsed during its save", async () => {
+    const h = harness();
+    const lease = leased(h);
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    vi.mocked(h.store.save).mockImplementation(async (session) => {
+      h.sessions.set(session.id, structuredClone(session));
+      if (session.paymentStatus === "sending") {
+        // Asleep in the save: the lease and the quote both lapse.
+        lease.current.lost = true;
+        vi.mocked(Date.now).mockReturnValue((DEADLINE + 1) * 1000);
+      }
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toThrow("expired");
+    expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe("unfunded");
+    expect(h.sessions.get(ready.session.id)?.payments).toHaveLength(0);
   });
 
   it("keeps a no-hash wallet error pending even when the quote later expires", async () => {

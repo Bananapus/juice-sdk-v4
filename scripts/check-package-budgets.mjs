@@ -343,8 +343,16 @@ const budgets = {
     // subpaths): 1,826,211 B packed, 24,550,823 B unpacked, 1,907 files.
     // Their review fixes (overlapping Safe Relayr calls, a cancel only once
     // its hold reads empty): 1,828,553 B packed, 24,564,390 B unpacked.
-    packed: 1_830_000,
-    unpacked: 24_580_000,
+    // Lock fencing (the lease's owner-checked handle, LockLostError and the
+    // holds' checks before a reservation or the wallet) and clients' locks
+    // at the send, sign and Safe Relayr save boundaries add no files:
+    // 1,835,473 B packed, 24,608,638 B unpacked. A stale tab's rejection
+    // leaving a successor's markers, and Safe Relayr's fresh-lock
+    // reconcile: 1,837,796 B packed, 24,620,613 B unpacked. The wallet
+    // adapter's ownership fence at the transport: 1,839,596 B packed,
+    // 24,632,418 B unpacked. Kept room for the minor's release-note entry.
+    packed: 1_843_000,
+    unpacked: 24_644_000,
     entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {

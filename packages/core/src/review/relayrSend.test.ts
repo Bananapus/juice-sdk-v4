@@ -23,6 +23,7 @@ import {
   setup,
   speedUpNextSend,
   TERMINAL,
+  clientLock,
 } from "./__fixtures__/reviewedSend.js";
 import {
   RELAYR_NATIVE_TOKEN,
@@ -44,6 +45,7 @@ import {
 } from "./relayrSend.js";
 import type { SafeRelayrSession } from "./safeRelayr.js";
 import { openStepHold } from "./writeHold.js";
+import { LockLostError } from "./locks.js";
 import { REVIEWED_PLAN_REFUSED_LINE } from "./plan.js";
 import { reviewPlan } from "./send.js";
 import { signReviewed } from "./sign.js";
@@ -366,6 +368,181 @@ describe("payRelayrReviewed", () => {
     await expect(
       payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
     ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("never pays once the hold's lock lapsed while the wallet client loaded, and fails as unpaid", async () => {
+    const { deps, wallet, loseLock } = relayrSetup();
+    reviewUi();
+    const provider = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_chainId") return "0xa";
+      return `0x${"ab".repeat(32)}`;
+    });
+    const real = viemWalletAdapter({
+      walletClient: async () => {
+        // The tab slept while the wallet client loaded; its lease lapsed.
+        loseLock();
+        return createWalletClient({
+          chain: { id: 10 } as never,
+          transport: custom({ request: provider }, { retryCount: 0 }),
+        });
+      },
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => false,
+      switchChain: async () => undefined,
+    });
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        onSending: async () => {
+          sending = true;
+        },
+      },
+      {
+        ...deps,
+        adapter: { ...wallet.adapter, sendTransaction: real.sendTransaction },
+      },
+    ).catch((caught: unknown) => caught);
+    expect(provider.mock.calls.map(([{ method }]) => method)).not.toContain(
+      "eth_sendTransaction",
+    );
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
+  });
+
+  it("never opens the wallet once its lock was lost while the app saved, and releases the payment", async () => {
+    const { deps, wallet, loseLock } = relayrSetup();
+    reviewUi();
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        // The app saved "sending", the tab slept in that save, and its lease lapsed.
+        onSending: async () => {
+          sending = true;
+          loseLock();
+        },
+      },
+      deps,
+    ).catch((caught: unknown) => caught);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    // Not sent, so the app's saved "sending" restores instead of staying pending.
+    expect(error).toBeInstanceOf(RelayrPaymentNotSentError);
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
+    // Released: the same quote reviewed again pays.
+    loseLock(false);
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("fails as not sent when the app's own save of the attempt refuses for a lost lock", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        // The app saved "sending", then its own rollback met a lapsed lease.
+        onSending: async () => {
+          sending = true;
+          throw new LockLostError("app");
+        },
+      },
+      deps,
+    ).catch((caught: unknown) => caught);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(error).toBeInstanceOf(RelayrPaymentNotSentError);
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
+  });
+
+  it("releases a payment whose intent lock was lost while it reserved, before the wallet", async () => {
+    const { deps, wallet, chain } = relayrSetup();
+    reviewUi();
+    let lost = false;
+    vi.stubGlobal("navigator", {
+      locks: {
+        request: async (
+          name: string,
+          _options: LockOptions,
+          work: (lock: unknown) => unknown,
+        ) =>
+          work({
+            name,
+            mode: "exclusive",
+            signal: new AbortController().signal,
+            held: async () => !lost,
+            assertHeld: async () => {
+              if (lost)
+                throw Object.assign(new Error(name), { code: "LOCK_LOST" });
+            },
+          }),
+      },
+    });
+    // The tab slept through the reservation's nonce read; the intent lease lapsed.
+    const count = chain.client.getTransactionCount.getMockImplementation()!;
+    chain.client.getTransactionCount.mockImplementationOnce(async () => {
+      lost = true;
+      return count();
+    });
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    lost = false;
+    await expect(
+      payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("checks the site's own locks last before the wallet, and releases the payment", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    const onSending = vi.fn(async () => {});
+    await expect(
+      payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT, locks: [clientLock(false)], onSending },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    // The site's own pre-wallet record is never written under a lost lock.
+    expect(onSending).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    await expect(
+      payRelayrReviewed(
+        quoteFor(),
+        10,
+        { account: ACCOUNT, locks: [clientLock()] },
+        deps,
+      ),
+    ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("signs no forward request once the site's lock is lost", async () => {
+    const { deps, signTypedData } = relayrSetup();
+    reviewUi();
+    await expect(
+      signReviewedForwardRequests(
+        [CALL],
+        { account: ACCOUNT, locks: [clientLock(false)] },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(signTypedData).not.toHaveBeenCalled();
   });
 
   it("pays a planned payment with no prompt, and refuses another", async () => {

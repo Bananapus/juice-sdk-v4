@@ -290,6 +290,69 @@ describe("wallet adapters", () => {
     expect(submit).toHaveBeenCalledWith(request);
   });
 
+  it("selfReviewingAdapter hands nothing over once the call's fence refuses", async () => {
+    const submit = vi.fn(async () => HASH);
+    const signMessage = vi.fn(async () => HASH);
+    const signTypedData = vi.fn(async () => HASH);
+    const adapter = selfReviewingAdapter({
+      account: () => ACCOUNT,
+      submit,
+      signMessage,
+      signTypedData,
+    });
+    const fence = async () => {
+      throw new Error("lock lost");
+    };
+    const request = {
+      account: ACCOUNT,
+      calls: [{ chainId: 10, to: TARGET, data: "0x01" as Hex, value: 0n }],
+    };
+    for (const call of [
+      () => adapter.submitToReviewer!(request, { fence }),
+      () => adapter.signMessage("x", { fence }),
+      () => adapter.signTypedData({} as never, { fence }),
+    ])
+      await expect(call()).rejects.toBeInstanceOf(WalletNotInvokedError);
+    expect(submit).not.toHaveBeenCalled();
+    expect(signMessage).not.toHaveBeenCalled();
+    expect(signTypedData).not.toHaveBeenCalled();
+    await expect(
+      adapter.signMessage("x", { fence: async () => undefined }),
+    ).resolves.toBe(HASH);
+  });
+
+  it("selfReviewingAdapter signs nothing once the account switched during the call's fence", async () => {
+    let account: Address = ACCOUNT;
+    const submit = vi.fn(async () => HASH);
+    const signMessage = vi.fn(async () => HASH);
+    const signTypedData = vi.fn(async () => HASH);
+    const adapter = selfReviewingAdapter({
+      account: () => account,
+      submit,
+      signMessage,
+      signTypedData,
+    });
+    // The user moves to another account while the fence's lock read awaits.
+    const fence = async () => {
+      account = "0x3333333333333333333333333333333333333333";
+    };
+    const request = {
+      account: ACCOUNT,
+      calls: [{ chainId: 10, to: TARGET, data: "0x01" as Hex, value: 0n }],
+    };
+    for (const call of [
+      () => adapter.signMessage("x", { fence }),
+      () => adapter.signTypedData({} as never, { fence }),
+      () => adapter.submitToReviewer!(request, { fence }),
+    ]) {
+      account = ACCOUNT;
+      await expect(call()).rejects.toBeInstanceOf(WalletNotInvokedError);
+    }
+    expect(signMessage).not.toHaveBeenCalled();
+    expect(signTypedData).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("viemWalletAdapter refuses an account switch while the wallet client loads", async () => {
     const { client, events } = walletClient();
     let account: Address = ACCOUNT;
