@@ -73,6 +73,8 @@ type Detached = {
   handle: WriteHoldHandle;
   client: WriteHoldClient;
   call: ReviewedCall;
+  /** The sent write's own reservation, followed to its own settlement. */
+  reservation?: string | undefined;
 };
 
 /** A run that failed: `error` is the line to show, `failure` the value thrown. */
@@ -266,8 +268,9 @@ export function useReviewedRun(
     client: WriteHoldClient;
     /** The run that followed it: a reset or a later run ignores its end. */
     run: number;
-    /** The followed step's call and index, and the action's step count. */
+    /** The followed step's call, reservation and index, and the action's step count. */
     call: ReviewedCall;
+    reservation: string | undefined;
     step: number;
     total: number;
     /** Its settlement completes the step, checked, before it shows. */
@@ -289,12 +292,10 @@ export function useReviewedRun(
   /** How many runs are open: a discard waits for none. */
   const open = useRef(0);
   /**
-   * Completions under way, until each shows (or its run is gone): while any
-   * is, the hook is busy and no run starts, discards or dismisses, so a
-   * success it acknowledges always shows.
+   * The latest run's life: aborted when it is replaced, reset, dismissed or
+   * unmounted, so its completion acknowledges nothing it can no longer show.
    */
-  const settling = useRef(new Set<object>());
-  const [completing, setCompleting] = useState(false);
+  const life = useRef(new AbortController());
   const mounted = useRef(false);
   /** This render's `run`: a run's end that continues the action runs it. */
   const runLatest = useRef<UseReviewedRunResult["run"]>(async () => null);
@@ -306,6 +307,8 @@ export function useReviewedRun(
   const leave = useRef(() => {});
   const replaced = () => {
     latest.current += 1;
+    life.current.abort();
+    life.current = new AbortController();
     awaiting.current = null;
     const left = leave.current;
     leave.current = () => {};
@@ -370,6 +373,13 @@ export function useReviewedRun(
             // never stays proposed, and never shows done unverified.
             onSettled: (settled, receipt) => watched.finish(settled, receipt),
             onReleased: () => {
+              // A later reservation's release (another tab's) never ends a
+              // write that settled: its settlement completes it.
+              if (
+                watched.reservation &&
+                watched.handle.settlementOf(watched.reservation)
+              )
+                return;
               watched.released?.();
               if (latest.current === watched.run)
                 setState((now) => ({
@@ -421,6 +431,7 @@ export function useReviewedRun(
     if (target)
       void followHeldWrite(target.handle, target.client, {
         signal: new AbortController().signal,
+        ...(target.reservation ? { reservation: target.reservation } : {}),
       }).then(
         (end) =>
           end?.status === "clear" &&
@@ -432,13 +443,13 @@ export function useReviewedRun(
   const api: UseReviewedRunResult = {
     ...shownState,
     ...status,
-    busy: (status.busy && !state.following) || completing,
+    busy: status.busy && !state.following,
     held,
     ...actionsOf(shown, held ? view : undefined),
     reset,
     dismiss: () => {
       const waiting = awaiting.current;
-      if ((open.current && !waiting) || settling.current.size) return false;
+      if (open.current && !waiting) return false;
       if (waiting?.last) {
         awaiting.current = null;
         waiting.end();
@@ -451,6 +462,7 @@ export function useReviewedRun(
               handle: watched.handle,
               client: watched.client,
               call: watched.call,
+              reservation: watched.reservation,
             },
       );
       reset();
@@ -458,8 +470,7 @@ export function useReviewedRun(
     },
     preload,
     discard: async (scope, account = deps?.account) => {
-      if (open.current || settling.current.size)
-        throw new ReviewLineError(REVIEWED_RUN_BUSY_LINE);
+      if (open.current) throw new ReviewLineError(REVIEWED_RUN_BUSY_LINE);
       if (!deps || !account)
         throw new ReviewLineError("Connect a wallet first.");
       const { storage } = deps;
@@ -471,14 +482,9 @@ export function useReviewedRun(
       setWatched(null);
     },
     run: async ({ onCancelled, onStopped, ...action }) => {
-      if (settling.current.size)
-        return {
-          status: "failed",
-          error: REVIEWED_RUN_BUSY_LINE,
-          failure: new ReviewLineError(REVIEWED_RUN_BUSY_LINE),
-        };
       replaced();
       const id = latest.current;
+      const { signal: alive } = life.current;
       // A step still confirming is followed in place, in the same review,
       // until a reset or a later run ends it.
       const following = new AbortController();
@@ -522,36 +528,26 @@ export function useReviewedRun(
           scope: action.scope,
           onConfirmed: action.onConfirmed,
         };
-        const token = {};
-        let pending = 0;
-        const free = () => {
-          settling.current.delete(token);
-          setCompleting(settling.current.size > 0);
-        };
         const finish = (
           seen?: WriteHoldSettled,
           receipt: TransactionReceipt | null = null,
         ) => {
-          if (shown || latest.current !== id) return;
+          if (shown || alive.aborted) return;
           let unread = false;
-          pending += 1;
-          settling.current.add(token);
-          setCompleting(true);
           completed = completed.then(
             (prior) =>
               prior ??
               (loaded ? Promise.resolve(loaded) : load(deps!.engine))
-                // A run reset or replaced since acknowledges nothing: its
-                // success stays unacknowledged, warning the next run.
+                // A run gone since acknowledges nothing: its success stays
+                // unacknowledged, warning the next run.
                 .then((engine) =>
-                  latest.current === id
-                    ? engine.completeReviewedStep(
-                        target,
-                        action$,
-                        deps!,
-                        receipt,
-                      )
-                    : null,
+                  engine.completeReviewedStep(
+                    target,
+                    action$,
+                    deps!,
+                    receipt,
+                    alive,
+                  ),
                 )
                 .catch(() => {
                   unread = true;
@@ -559,8 +555,7 @@ export function useReviewedRun(
                 }),
           );
           void completed.then((ended) => {
-            if (!--pending) free();
-            if (shown || latest.current !== id) return;
+            if (shown || alive.aborted) return;
             // Nothing advanced (its receipt unread, or its hold not settled
             // for this send yet): it is tried again.
             if (unread || (!ended && seen)) {
@@ -570,7 +565,6 @@ export function useReviewedRun(
             }
             if (!ended) return;
             shown = true;
-            free();
             // Shown with the receipt completion checked, a failure's too.
             showSettled(id, target.step, total, ended.settled, ended.receipt);
             setWatched(null);
@@ -641,6 +635,7 @@ export function useReviewedRun(
                   client: deps.clientFor(found.call.chainId),
                   run: id,
                   call: found.call as ReviewedCall,
+                  reservation,
                   step: found.step,
                   total,
                   finish:
@@ -679,6 +674,7 @@ export function useReviewedRun(
             ),
             client: deps.clientFor(call.chainId),
             call,
+            reservation: target.held?.reservation,
           };
         } catch {
           return null;

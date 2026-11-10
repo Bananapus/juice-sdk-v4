@@ -445,20 +445,24 @@ export function createHeldWriteView(
     if (next.status === "clear") {
       const reservation = next.reservation;
       const mine = wasHeld && (!reservation || reservation === observed);
+      // Its own saved settlement, once a later reservation replaced it.
+      const settled = mine
+        ? (next.settled ?? handle.settlementOf(observed!))
+        : undefined;
       // Whose release it is, only the exit's answer says.
-      if (exiting && mine && !next.settled) return;
+      if (exiting && mine && !settled) return;
       stopFollowing();
-      if (next.settled && mine) {
+      if (settled) {
         seen.delete(observed!);
-        deliver(next.settled, observed!);
+        deliver(settled, observed!);
         set({
           phase: "settled",
           state: next,
-          line: settledLine(next.settled),
+          line: settledLine(settled),
           warning: undefined,
           notice: undefined,
           exit: false,
-          settled: next.settled,
+          settled,
           releasedBy: undefined,
         });
       } else if (mine && withdrawn !== observed) {

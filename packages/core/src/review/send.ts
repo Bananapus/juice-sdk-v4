@@ -946,7 +946,10 @@ async function followSent(
   try {
     while (!signal.aborted) {
       const state = await read(
-        followHeldWrite(handle, client as never, { signal }),
+        followHeldWrite(handle, client as never, {
+          signal,
+          ...(reserved ? { reservation: reserved } : {}),
+        }),
       );
       if (signal.aborted) return null;
       if (
@@ -980,31 +983,35 @@ async function followSent(
  * one acknowledgement of a followed step. Returns the settlement and that
  * checked receipt (a failure's too); null until then. A read that fails or disagrees with the hold throws with
  * nothing advanced: call it again. Call it once per settlement:
- * `onConfirmed` is told each time.
+ * `onConfirmed` is told each time. Its reservation's own saved settlement
+ * completes it after a later reservation of the call replaced it. Once
+ * `signal` aborts (the run that showed it is gone) it returns null and
+ * acknowledges nothing, so the success still warns the next run.
  */
 export async function completeReviewedStep(
   unverified: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
   action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
   deps: ReviewedSendDeps,
   receipt?: TransactionReceipt | null,
+  signal?: AbortSignal,
 ): Promise<{
   settled: WriteHoldSettled;
   receipt: TransactionReceipt | null;
 } | null> {
   const { step, held } = unverified;
-  if (!held) return null;
+  if (!held || signal?.aborted) return null;
   const { call, reservation } = held;
   const client = deps.clientFor(call.chainId);
   const handle = openStepHold(deps.hold, action.account, false, call);
   const state = await handle.state(client);
-  if (
-    state.status !== "clear" ||
-    state.reservation !== reservation ||
-    !state.settled
-  )
-    return null;
-  const { settled } = state;
+  const settled =
+    (state.status === "clear" && state.reservation === reservation
+      ? state.settled
+      : undefined) ??
+    (reservation === undefined ? undefined : handle.settlementOf(reservation));
+  if (!settled) return null;
   const confirmed = await confirmedReceipt(settled, client, receipt);
+  if (signal?.aborted) return null;
   if (action.scope !== undefined) {
     const storage = deps.storage ?? createHeldWriteStorage();
     const { raw, record } = readReviewedSequence(
@@ -1019,6 +1026,7 @@ export async function completeReviewedStep(
       await recordSending(record, settled, storage, raw);
   }
   await tellConfirmed(action, handle, call, step, settled, confirmed);
+  if (signal?.aborted) return null;
   if (settled.result === "success") await handle.acknowledge(settled);
   return { settled, receipt: confirmed };
 }

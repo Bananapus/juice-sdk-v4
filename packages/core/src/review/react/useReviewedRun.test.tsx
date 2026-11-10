@@ -20,7 +20,8 @@ import {
   REVIEWED_ENGINE_LOAD_LINE,
 } from "../messages.js";
 import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
-import { openStepHold, safeBatchCall } from "../writeHold.js";
+import { createWriteHold, openStepHold, safeBatchCall } from "../writeHold.js";
+import { createHeldWriteStorage } from "../writeRecovery.js";
 import { selfReviewingAdapter, viemWalletAdapter } from "../wallet.js";
 import {
   createWalletClient,
@@ -103,6 +104,15 @@ function harness(
   };
   return { seen, run };
 }
+
+/** Web Locks that are always free, as the fixture's. */
+const FREE_LOCKS = {
+  request: (async (
+    name: string,
+    _options: unknown,
+    work: (lock: Lock) => unknown,
+  ) => work({ name, mode: "exclusive" })) as LockManager["request"],
+};
 
 /** A site callback that fails. */
 /** How a site's callbacks fail: none, by throwing, or by rejecting asynchronously. */
@@ -893,11 +903,11 @@ describe("useReviewedRun", () => {
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
   });
 
-  test("dismiss waits for a settled payment's completion: its done shows, never hidden, before the confirm closes", async () => {
+  test("dismissing a Safe payment while its onConfirmed is pending acknowledges nothing: a retry of it is never sent twice", async () => {
     let release!: () => void;
     const paused = new Promise<void>((resolve) => (release = resolve));
     const onConfirmed = vi.fn((..._told: unknown[]) => paused as never);
-    const { seen, wallet } = await proposedThenExecuted(Infinity, {
+    const { seen, wallet, run } = await proposedThenExecuted(Infinity, {
       journal: false,
       onConfirmed,
     });
@@ -906,9 +916,13 @@ describe("useReviewedRun", () => {
     act(() => {
       closed = seen.current!.dismiss();
     });
-    expect(closed).toBe(false);
+    expect(closed).toBe(true);
     release();
-    await rendered(() => expect(seen.current!.status).toBe("done"));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(seen.current!.status).not.toBe("done");
+    await run({ calls: [payCall()] });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
   });
 
@@ -1676,9 +1690,11 @@ describe("useReviewedRun", () => {
     expect(seen.current).toMatchObject({ status: "review", busy: true });
   });
 
-  test("a completion under way is busy and refuses a new run, so its done shows and is never hidden", async () => {
-    const prompts = reviewUi();
-    const { wallet, chain, deps } = setup();
+  /** A payment left at its receipt whose completion waits in onConfirmed. */
+  async function completing() {
+    reviewUi();
+    const context = setup();
+    const { chain, deps, hold } = context;
     const read = chain.client.getTransactionReceipt.getMockImplementation()!;
     chain.client.getTransactionReceipt.mockRejectedValue(
       new Error("lagging node"),
@@ -1686,31 +1702,113 @@ describe("useReviewedRun", () => {
     let release!: () => void;
     const paused = new Promise<void>((resolve) => (release = resolve));
     const onConfirmed = vi.fn((..._told: unknown[]) => paused as never);
-    const { seen, run } = harness({ ...deps, account: ACCOUNT });
-    const first = await run({
+    const hook = harness({ ...deps, account: ACCOUNT });
+    const first = (await hook.run({
       ...HANDED_BACK,
       calls: [payCall()],
       onConfirmed,
-    });
+    })) as ReviewedRunReceipt;
     expect(first).toMatchObject({ status: "receipt" });
     chain.client.getTransactionReceipt.mockImplementation(read);
     act(() => void globalThis.dispatchEvent(new Event("focus")));
     await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
-    await rendered(() => expect(seen.current!.busy).toBe(true));
-    // Another payment while the first completes: refused, nothing reviewed.
-    await expect(run({ calls: [payCall(7n)] })).resolves.toMatchObject({
-      status: "failed",
-      error: REVIEWED_RUN_BUSY_LINE,
-    });
-    expect(prompts).toHaveLength(1);
-    release();
-    await expect((first as ReviewedRunReceipt).ended()).resolves.toMatchObject({
-      status: "done",
-    });
-    await rendered(() =>
-      expect(seen.current).toMatchObject({ status: "done", busy: false }),
-    );
+    /** Lets onConfirmed end, then waits for what follows. */
+    const finish = async () => {
+      release();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+    };
+    /** The payment's success, still unacknowledged. */
+    const warned = () =>
+      openStepHold(hold, ACCOUNT, false, payCall()).unacknowledgedSuccess();
+    return { ...context, ...hook, first, finish, warned };
+  }
+
+  test("a new run while a payment's completion waits in onConfirmed: the payment is acknowledged by nothing, and never sent twice", async () => {
+    const { run, wallet, first, finish, warned } = await completing();
+    reviewUi(async () => null);
+    await expect(run({ calls: [payCall(7n)] })).resolves.toBeNull();
+    await finish();
+    await expect(first.ended()).resolves.toBeNull();
+    expect(warned()).toBeDefined();
+    reviewUi();
+    await run({ calls: [payCall()] });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("a reset while a payment's completion waits in onConfirmed acknowledges nothing: never sent twice", async () => {
+    const { seen, run, wallet, finish, warned } = await completing();
+    act(() => seen.current!.reset());
+    await finish();
+    expect(warned()).toBeDefined();
+    await run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("an unmount while a payment's completion waits in onConfirmed acknowledges nothing: never sent twice", async () => {
+    const { deps, wallet, finish, warned } = await completing();
+    act(() => root?.unmount());
+    await finish();
+    expect(warned()).toBeDefined();
+    const again = harness({ ...deps, account: ACCOUNT });
+    await again.run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
+  test("a payment another tab acknowledged and reserved again still completes its own run: its end is done", async () => {
+    reviewUi();
+    const { chain, deps, memory } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    const { run } = harness({ ...deps, account: ACCOUNT });
+    const first = (await run({
+      ...HANDED_BACK,
+      calls: [payCall()],
+    })) as ReviewedRunReceipt;
+    let ended: unknown = "pending";
+    void first.ended().then((value) => (ended = value));
+    // Another tab, while this one is suspended: it sees the payment
+    // confirm, acknowledges it, then reserves it again and is refused. This
+    // tab reads its storage only once it resumes.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    const away = new Map(memory);
+    const other = openStepHold(
+      createWriteHold({
+        storage: createHeldWriteStorage({
+          durable: () => undefined,
+          memory: away,
+        }),
+        locks: FREE_LOCKS,
+        settle: { intervalMs: 1_000, attempts: 1 },
+      }),
+      ACCOUNT,
+      false,
+      payCall(),
+    );
+    const client = chain.client as never;
+    const settled = await other.state(client);
+    expect(settled).toMatchObject({
+      status: "clear",
+      settled: { result: "success" },
+    });
+    await other.acknowledge(
+      (settled as { settled: { result: "success"; hash: ViemHex } }).settled,
+    );
+    await other
+      .send(client, async (gate) => {
+        await gate.beforeSend();
+        gate.onRejected();
+      })
+      .catch(() => undefined);
+    expect(ended).toBe("pending");
+    memory.clear();
+    for (const [key, value] of away) memory.set(key, value);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await rendered(() => expect(ended).not.toBe("pending"));
+    expect(ended).toMatchObject({ status: "done" });
   });
 
   test("a run left at its receipt ends failed when its hold settles a revert", async () => {
