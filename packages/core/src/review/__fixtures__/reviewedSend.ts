@@ -9,7 +9,9 @@ import {
   type TransactionReceipt,
   type TypedDataDefinition,
 } from "viem";
+import { IDBFactory } from "fake-indexeddb";
 import { vi } from "vitest";
+import { fencedLocks, idbLeases, leaseLocks, tabLocksOn } from "../locks.js";
 import {
   canonicalSafeTxHash,
   safeProposalFor,
@@ -324,11 +326,14 @@ function fakeWallet(chain: ReturnType<typeof fakeChain>) {
 export function speedUpNextSend(
   chain: ReturnType<typeof fakeChain>,
   wallet: ReturnType<typeof fakeWallet>,
+  /** Runs while the wallet is open. */
+  inWallet?: () => void,
 ) {
   const original = `0x${"aa".repeat(32)}` as Hex;
   const replacement = `0x${"bb".repeat(32)}` as Hex;
   const { client, state } = chain;
   wallet.adapter.sendTransaction.mockImplementationOnce(async (tx) => {
+    inWallet?.();
     chain.mine(replacement, tx);
     return original;
   });
@@ -502,15 +507,55 @@ export function watchGuard() {
   };
 }
 
-/** A client's own lock, held or already lost (a lapsed IndexedDB lease). */
+/**
+ * A client's own lock, held or already lost (a lapsed IndexedDB lease).
+ * `assertHeld` reads the lock's own `held`, so a test can override that alone.
+ */
 export function clientLock(held = true, name = "client"): LockHandle {
   return {
     name,
     mode: "exclusive",
     signal: new AbortController().signal,
     held: async () => held,
-    assertHeld: async () => {
-      if (!held) throw new LockLostError(name);
+    async assertHeld() {
+      if (!(await this.held())) throw new LockLostError(name);
+    },
+  };
+}
+
+/** The origin's one IndexedDB: the SDK module caches its lease on the first it sees. */
+const ORIGIN_DB = new IDBFactory();
+
+/**
+ * The site's own locks as a mobile webview has them: no Web Locks, an
+ * IndexedDB lease this tab shares with the origin's other tabs, granted a
+ * task later as a browser's are. `lapse()` moves this tab's clock past its
+ * lease, as a wallet app that keeps the tab asleep over 15 s does;
+ * `otherTab()` is another tab of the same origin (its own queues, the same IndexedDB). `restore()`
+ * after each test.
+ */
+export function leasedOrigin() {
+  vi.stubGlobal("navigator", undefined);
+  vi.stubGlobal("indexedDB", ORIGIN_DB);
+  const info = vi.spyOn(console, "info").mockImplementation(() => {});
+  const now = Date.now;
+  let skew = 0;
+  Date.now = () => now() + skew;
+  return {
+    lapse: () => void (skew += 16_000),
+    otherTab: () => {
+      const locks = fencedLocks(
+        leaseLocks(
+          idbLeases(ORIGIN_DB, () => Date.now()),
+          tabLocksOn(new Map()),
+        ),
+      );
+      return { browserLocks: () => locks };
+    },
+    restore() {
+      Date.now = now;
+      info.mockRestore();
+      vi.unstubAllGlobals();
     },
   };
 }

@@ -237,6 +237,11 @@ export type WriteHeldState = Exclude<WriteHoldStateOf, { status: "clear" }> & {
   reservation?: string;
 };
 
+/** What {@link WriteHoldHandle.attachHash} made of the hash it was given. */
+export type HashCheck = "attached" | "mismatch" | "unverified";
+
+export type AttachedHashState = WriteHoldState & { hashCheck: HashCheck };
+
 /** A send was refused because the exact call is held; `state` says how. */
 export class WriteHeldError extends ReviewLineError {
   readonly name = "WriteHeldError";
@@ -1759,23 +1764,40 @@ export function createWriteHold(
         );
         return result?.value === true;
       },
+      /**
+       * Attaches the hash the user found for a held write whose wallet reply
+       * was lost. `hashCheck` says whether it was `attached`, read and found
+       * to be another transaction (`mismatch`, `HELD_HASH_MISMATCH_LINE`),
+       * or not readable yet (`unverified`, `HELD_HASH_UNVERIFIED_LINE`: try
+       * again).
+       */
       async attachHash(
         client: WriteHoldClient,
         hash: Hex,
-      ): Promise<WriteHoldState> {
+      ): Promise<AttachedHashState> {
+        let hashCheck: HashCheck = "unverified";
         const result = await locked(async () => {
           const record = recovery.read();
-          if (
-            record &&
-            !record.safe &&
-            !record.hash &&
-            !record.mirrorOf &&
-            isBytes32(hash) &&
-            (await client.getChainId().catch(() => null)) === record.chainId
-          ) {
-            const sent = await client
-              .getTransaction({ hash })
-              .catch(() => null);
+          if (record?.hash?.toLowerCase() === hash.toLowerCase())
+            hashCheck = "attached";
+          else if (
+            !record ||
+            record.safe ||
+            record.hash ||
+            record.mirrorOf ||
+            !isBytes32(hash)
+          )
+            hashCheck = "mismatch";
+          else {
+            const chainId = await client.getChainId().catch(() => null);
+            const sent =
+              chainId === null
+                ? null
+                : chainId !== record.chainId
+                  ? undefined
+                  : await client.getTransaction({ hash }).catch(() => null);
+            // Read, and not this attempt: another transaction.
+            hashCheck = sent === null ? "unverified" : "mismatch";
             if (
               sent &&
               sentIsCall(sent, hash, record) &&
@@ -1790,6 +1812,7 @@ export function createWriteHold(
                 sent.blockNumber >= BigInt(record.fromBlock))
             )
               try {
+                hashCheck = "attached";
                 recovery.submitted(hash, record);
               } catch {
                 /* Kept in this tab's memory, it still holds. */
@@ -1797,7 +1820,8 @@ export function createWriteHold(
           }
           return inspect(client);
         }, true);
-        return shown(result?.value ?? peek());
+        if (!result) hashCheck = "unverified";
+        return { ...shown(result?.value ?? peek()), hashCheck };
       },
       /**
        * The app's word that the held Safe proposal ran, with its execution's

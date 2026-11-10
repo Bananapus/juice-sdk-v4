@@ -267,3 +267,40 @@ describe("assertLocksHeld", () => {
     ).rejects.toMatchObject({ code: "LOCK_LOST", lock: "lost" });
   });
 });
+
+describe("keepOutcome", () => {
+  it("keeps a save refused for a lapsed lease until every nested lock's work ended, then applies it only if none was taken since", async () => {
+    origin();
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    const [a, b] = [await tab(), await tab()];
+    const saved: string[] = [];
+    /** A's work under two nested leases; asleep in the wallet, both lapse, then `meanwhile` runs. */
+    const run = (meanwhile: () => Promise<unknown>) =>
+      a.browserLocks().request("outer", (outer) =>
+        a.browserLocks().request("inner", async (inner) => {
+          const locks = [outer!, inner!];
+          vi.setSystemTime(Date.now() + 16_000);
+          await meanwhile();
+          const write = async () => {
+            await a.assertLocksHeld(locks);
+            saved.push(`${saved.length}`);
+          };
+          return a.keepOutcome(locks, write);
+        }),
+      );
+    await expect(run(async () => {})).resolves.toBe(false);
+    // Applied once both ended, under both taken back.
+    expect(saved).toEqual(["0"]);
+    await expect(
+      run(() => b.browserLocks().request("inner", async () => {})),
+    ).resolves.toBe(false);
+    // Another tab took the inner lock meanwhile: never applied.
+    expect(saved).toEqual(["0"]);
+    // A lock it can't take back throws as it was.
+    await expect(
+      a.keepOutcome([{ ...a.browserLocks(), name: "x" } as never], () => {
+        throw new a.LockLostError("x");
+      }),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+  });
+});

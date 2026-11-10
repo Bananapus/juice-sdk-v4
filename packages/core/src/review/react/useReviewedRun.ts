@@ -18,6 +18,8 @@ import {
   settledLine,
   TransactionReviewCancelledError,
   walletReady,
+  WriteHeldError,
+  WriteHoldUnacknowledgedSuccessError,
   type HeldWriteView,
   type ReviewedAction,
   type ReviewedCall,
@@ -243,6 +245,17 @@ const sent = ({ chainId, to, data, value, gas }: ReviewedCall) => [
   gas ?? null,
 ];
 
+type Succeeded = Extract<WriteHoldSettled, { hash: Hex }>;
+
+/** This form's earlier write of the same calls succeeded: the run closes on it, sending nothing. */
+type OwnSuccess = { settled: Succeeded; handle: WriteHoldHandle };
+
+class OwnSucceeded extends Error {
+  constructor(readonly found: OwnSuccess) {
+    super("succeeded");
+  }
+}
+
 export const REVIEWED_RUN_SCOPE_LINE =
   "This action has more than one step and no scope to resume it by. Nothing was sent.";
 
@@ -273,7 +286,7 @@ export function useReviewedRun(
     if (state.acknowledge) acknowledged.current = state.acknowledge();
   }, [state.acknowledge]);
   /** The hold followed after a run, and its chain's client: its view is `held`. */
-  const [watched, setWatched] = useState<{
+  const [watched, setWatchedState] = useState<{
     handle: WriteHoldHandle;
     client: WriteHoldClient;
     /** The run that followed it: a reset or a later run ignores its end. */
@@ -291,6 +304,15 @@ export function useReviewedRun(
     /** That run's end, when its hold is released instead. */
     released?: () => void;
   } | null>(null);
+  /**
+   * `watched` as last set, for a handler that resets and runs from one
+   * render's handle (a "Try again"): never that render's stale copy.
+   */
+  const watchedNow = useRef<typeof watched>(null);
+  const setWatched = (next: typeof watched) => {
+    watchedNow.current = next;
+    setWatchedState(next);
+  };
   /** The latest run: an earlier one's late answers change nothing. */
   const latest = useRef(0);
   /** The sent step whose hold the latest run's `ended()` awaits. */
@@ -315,6 +337,53 @@ export function useReviewedRun(
    * hold keeps the sent step.
    */
   const leave = useRef(() => {});
+  /** The calls of the latest run: a retry of exactly them never replaces its follow. */
+  const followedKey = useRef("");
+  /** Every reservation this runner's runs followed: its own, whatever its calls now. */
+  const mine = useRef(new Set<string>());
+  /**
+   * The reservations `calls`' holds hold now (a held write, or a success
+   * nothing showed), each with its hold.
+   */
+  const holdsOf = (calls: readonly Parameters<typeof openStepHold>[3][]) =>
+    calls.flatMap((call) => {
+      if (!deps?.account) return [];
+      try {
+        // A hold's key is its call's, whatever the Safe mode.
+        const handle = openStepHold(deps.hold, deps.account, false, call);
+        const held = handle.peek();
+        const reservation =
+          held.status !== "clear"
+            ? held.reservation
+            : handle.unacknowledgedSuccess()?.reservation;
+        return reservation ? [{ handle, reservation }] : [];
+      } catch {
+        return [];
+      }
+    });
+  /**
+   * The write this form's last run of `key`'s calls left unshown, or the
+   * last step `dismiss` closed while it was followed (`run`, whose later
+   * showing the user closed, never counts as seen): its success, whoever
+   * acknowledged it, closes a retry of them. Still pending, the hold
+   * refuses the retry, which follows it again.
+   */
+  const own = useRef<{
+    key: string;
+    holds: { handle: WriteHoldHandle; reservation: string }[];
+    run?: number;
+  } | null>(null);
+  const ownSuccess = (key: string) =>
+    own.current?.key !== key
+      ? undefined
+      : own.current.holds
+          .map(({ handle, reservation }) => ({
+            handle,
+            settled: handle.settlementOf(reservation),
+          }))
+          .find(
+            (found): found is OwnSuccess => found.settled?.result === "success",
+          );
   const replaced = () => {
     latest.current += 1;
     life.current.abort();
@@ -342,6 +411,7 @@ export function useReviewedRun(
     acknowledge: (() => Promise<void>) | null,
   ) => {
     if (latest.current !== run) return;
+    if (own.current?.run !== run) own.current = null;
     const finished = step === total - 1;
     setState((now) =>
       settled.result !== "success"
@@ -439,6 +509,7 @@ export function useReviewedRun(
   } = state;
   const status = reviewedRunStatus({ ...state, held });
   const reset = () => {
+    own.current = null;
     replaced();
     setState(IDLE);
     setWatched(null);
@@ -467,9 +538,22 @@ export function useReviewedRun(
     dismiss: () => {
       const waiting = awaiting.current;
       if (open.current && !waiting) return false;
+      /** The followed last step this closes: a retry of it never sends it again. */
+      const last = waiting
+        ? waiting.last && waiting.detached
+        : watched?.step === watched?.total! - 1 && watched;
+      const closing =
+        last && last.reservation
+          ? {
+              key: followedKey.current,
+              holds: [{ handle: last.handle, reservation: last.reservation }],
+              run: latest.current,
+            }
+          : null;
       if (waiting?.last) {
         awaiting.current = null;
         waiting.end();
+        if (closing) own.current = closing;
         return true;
       }
       detach(
@@ -483,6 +567,7 @@ export function useReviewedRun(
             },
       );
       reset();
+      if (closing) own.current = closing;
       return true;
     },
     preload,
@@ -499,7 +584,55 @@ export function useReviewedRun(
       setWatched(null);
     },
     run: async ({ onCancelled, onStopped, ...action }) => {
+      const key = keyOf(action.calls.map(sent));
+      /** This form's unshown write of these calls succeeded: the form closes on it. */
+      const close = ({ settled, handle }: OwnSuccess) => {
+        own.current = null;
+        const step = action.calls.length - 1;
+        update({
+          ...IDLE,
+          // Shown now: acknowledged once rendered, so it blocks no new send.
+          acknowledge: async () => {
+            if (!alive.aborted)
+              await handle.acknowledge(settled).catch(() => undefined);
+          },
+          phase: "done",
+          step,
+          total: action.calls.length,
+          hash: settled.hash,
+          settled: { step, finished: true },
+        });
+        return {
+          status: "done" as const,
+          hashes: [settled.hash],
+          receipts: [],
+        };
+      };
+      // This form's own write is still followed: a retry of it is refused
+      // with the hold's line, and the run following it goes on.
+      const now = watchedNow.current;
+      const followed =
+        now?.reservation && deps?.account && followedKey.current === key
+          ? now
+          : null;
+      const ownState = followed?.handle.peek();
+      if (
+        followed &&
+        ownState?.status !== "clear" &&
+        ownState?.reservation === followed.reservation &&
+        holdsOf(action.calls).some(
+          ({ reservation }) => reservation === followed.reservation,
+        )
+      ) {
+        const failure = new WriteHeldError(
+          ownState as ConstructorParameters<typeof WriteHeldError>[0],
+        );
+        const error = errorLine(failure);
+        setState((now) => ({ ...now, error, failure }));
+        return { status: "failed", error, failure };
+      }
       replaced();
+      followedKey.current = key;
       const id = latest.current;
       const { signal: alive } = life.current;
       // A step still confirming is followed in place, in the same review,
@@ -511,6 +644,27 @@ export function useReviewedRun(
         if (latest.current === id) setState((now) => ({ ...now, ...next }));
       };
       setState({ ...IDLE, phase: "review", total: action.calls.length });
+      const succeeded = ownSuccess(key);
+      if (succeeded) {
+        setWatched(null);
+        open.current += 1;
+        try {
+          return close(succeeded);
+        } finally {
+          open.current -= 1;
+        }
+      }
+      /**
+       * Reservations the action's holds had before this run: another run's
+       * (another form's, sharing a hold). This run never follows one.
+       */
+      const holds = () =>
+        holdsOf(
+          deps?.account && action.batch && action.calls.length > 1
+            ? [...action.calls, safeBatchCall(deps.account, action.calls)]
+            : action.calls,
+        );
+      const before = new Set(holds().map(({ reservation }) => reservation));
       let loaded: ReviewedEngine | undefined;
       /** A step of the action was sent before this run, or by it: never a cancel. */
       let sentAny = false;
@@ -656,18 +810,47 @@ export function useReviewedRun(
                   },
                 ]
               : action.calls.map((call, step) => ({ call, step }));
-          // A held step, or the last step's success nothing showed.
+          // A held step, or the last step's success nothing showed, of this
+          // run (or of the saved sequence it resumes), never another run's.
           const found = steps
             .map(({ call, step }) => ({
               call,
               step,
               handle: openStepHold(hold, account, safe, call),
             }))
-            .find(
-              ({ handle, step }) =>
-                handle.peek().status !== "clear" ||
-                (step === total - 1 && handle.unacknowledgedSuccess()),
-            );
+            .find(({ handle, step, call }) => {
+              const held = handle.peek();
+              const success =
+                step === total - 1 ? handle.unacknowledgedSuccess() : undefined;
+              if (held.status === "clear" && !success) return false;
+              const reservation =
+                held.status !== "clear"
+                  ? held.reservation
+                  : success?.reservation;
+              // A write held before this run, under an intent other forms
+              // share, is followed only when this runner followed it before,
+              // or it is this exact call (or this saved sequence's): another
+              // form's write is never adopted.
+              if (
+                !reservation ||
+                !before.has(reservation) ||
+                mine.current.has(reservation) ||
+                reservation === saved?.sending?.reservation ||
+                !call.intent
+              )
+                return true;
+              if (held.status === "clear") return false;
+              const record = listReviewedWrites(
+                { chainId: call.chainId, account },
+                { storage },
+              ).find(({ record }) => record.id === reservation)?.record;
+              return (
+                !!record &&
+                record.call.to.toLowerCase() === call.to.toLowerCase() &&
+                record.call.data.toLowerCase() === call.data.toLowerCase() &&
+                record.call.value === String(call.value ?? 0n)
+              );
+            });
           // Its settlement completes it as a send's would: a proposal too.
           const reservation =
             found?.handle.peek().reservation ??
@@ -696,6 +879,7 @@ export function useReviewedRun(
               : null,
           );
           // Only its hold is followed now: the confirm can close.
+          if (reservation) mine.current.add(reservation);
           if (found) update({ following: true });
           return !!found;
         } catch {
@@ -753,6 +937,11 @@ export function useReviewedRun(
         const { resumeReviewed, sendReviewed } = loaded;
         // A success already shown is acknowledged before this run checks it.
         await acknowledged.current;
+        const settledOwn = () => {
+          const settled = ownSuccess(key);
+          if (settled) throw new OwnSucceeded(settled);
+        };
+        settledOwn();
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
@@ -823,16 +1012,20 @@ export function useReviewedRun(
             tell(action.follow?.onConfirming, step);
           },
         };
+        const assertWriteState = () => {
+          settledOwn();
+          action.assertWriteState?.();
+        };
+        const gated = {
+          ...action,
+          guard,
+          follow: inPlace,
+          onSubmitted,
+          assertWriteState,
+        };
         const result = saved
-          ? await resumeReviewed(
-              saved,
-              { ...action, guard, follow: inPlace, onSubmitted },
-              tracked,
-            )
-          : await sendReviewed(
-              { ...action, account, guard, follow: inPlace, onSubmitted },
-              tracked,
-            );
+          ? await resumeReviewed(saved, gated, tracked)
+          : await sendReviewed({ ...gated, account }, tracked);
         // A wallet that reviews on its own page reports no progress: the
         // result is the run's last word.
         const calls = saved?.calls ?? action.calls;
@@ -857,6 +1050,7 @@ export function useReviewedRun(
         if (result.status === "proposed") void follow();
         return result;
       } catch (error) {
+        if (error instanceof OwnSucceeded) return close(error.found);
         if (error instanceof ReviewedReceiptUnverifiedError) {
           // Still confirming: followed until its hold settles it.
           update({
@@ -963,6 +1157,21 @@ export function useReviewedRun(
         } catch {
           /* An unreadable sequence adds nothing to what this run saw. */
         }
+        // Refused by a write already held (another form's, sharing the
+        // hold): this run follows it only as its own exact call.
+        const refused =
+          error instanceof WriteHeldError
+            ? error.state.reservation
+            : error instanceof WriteHoldUnacknowledgedSuccessError
+              ? error.success.reservation
+              : undefined;
+        if (refused) before.add(refused);
+        // ponytail: one call only; a sequence's journal keeps its steps.
+        const left = holds().filter(
+          ({ reservation }) => !before.has(reservation),
+        );
+        if (action.calls.length === 1 && left.length)
+          own.current = { key, holds: left };
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);

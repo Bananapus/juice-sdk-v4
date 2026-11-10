@@ -1,3 +1,29 @@
+# Lost-lock keep in one SDK home (2026-11-10)
+
+Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`, lesson "2026-11-10: Fix ordering, not interruptions" in `/Users/jango/Documents/jb/v6/evm/tasks/lessons.md` (lock fixtures grant asynchronously). Design base: 6.2.0 lock fencing (#295).
+
+## Plan refinement
+
+- **Objective:** A wallet answer (hash, sped-up hash, definite 4001) that arrives after the site's IndexedDB lease lapsed is no longer dropped. It is applied under a fresh lock of the same name, only while nobody else took that lock since (and while a caller's own match holds), or not at all, leaving the record as the lost lock left it so recovery still shows. One SDK home; clients get it by passing `locks` as today.
+- **System fit:** Owner is `review/locks.ts` (the lease knows its own owner token, so "nobody took it since" is a compare-and-set there). Consumers: `send.ts` (`onUnsent`, `onSubmitted`, `onConfirmed`, shared by `sendReviewed`, `resumeReviewed`, `completeReviewedStep`), `relayrSend.ts` (`onSent`, including the sped-up mined hash), `safeRelayr.ts` `fund()` (its private `late`/`keep` moves onto the shared one). `signReviewed`/`signReviewedForwardRequests` return signatures to the caller and save nothing themselves; the caller saves under `keepOutcome`. The SDK's own hold/journal writes are unchanged (record compare, unfenced on purpose).
+- **Reuse and simplicity:** One export, `keepOutcome(locks, write, later = write)`, generalizing juicescan `requestKeeping`, plugin `persist(onLost)`, Sticky `withBridgeLock` keep and revnet `keptOutcomes`. The lease reclaims with the same owner token, so the old handle reads as held again during the reconcile and site closures that captured `lock` work unchanged. Release expires the lease record instead of deleting it so a reclaim can tell "untouched since". No new handle member; `LockHandle` type unchanged.
+- **Evidence and unknowns:** 6.2.0 source at origin/main 501c89a; client keeps read in `.worktrees/adopt-{juicescan,plugin,sticky,revnet,homerun}`. Unknown: whether any existing test depends on lease deletion or on `onUnsent` being skipped after a loss (expected to change: it is now kept).
+- **Verification:** Failing-first tests on the real lease (fake IndexedDB, async grants): after the pre-wallet save, the lease lapses, then hash saved under the fresh lock; 4001 runs `onUnsent` under the fresh lock; another tab took the lock (newer attempt) leaves it untouched; reclaim unavailable leaves the record unchanged; Relayr sped-up mined hash saved under the fresh lock; `fund()` tests on real leases. Then `npm run check` serially (Node 22.23.4), pack core, plugin `npm run check` on the tarball from a scratch copy.
+- **Resource budget:** One writer in `.worktrees/sdk-keep`. Edits: `locks.ts`, `send.ts`, `relayrSend.ts`, `safeRelayr.ts`, tests, changeset. Replan if reclaim-by-owner breaks an existing lease test semantics or the package budget needs a raise beyond a few hundred bytes.
+
+- [x] failing tests (send, relayrSend, safeRelayr, locks)
+- [x] `keepOutcome` + lease reclaim in locks.ts
+- [x] send.ts, relayrSend.ts, safeRelayr.ts onto it
+- [x] added scope from the coordinator: shared lines (`REVIEW_STOPPED_LINE`, `LOCK_LOST_LINE`), useReviewedRun follow rules (own reservation only, refused runs adopt nothing, own success closes a retry, dismissed last step remembered), `attachHash` `hashCheck`, `lapsingLocksForTests`
+- [x] changeset (minor core), `npm run check`, pack, plugin and jbm checks on tarball
+- [x] draft PR with per-client deletion map
+
+## Review
+
+- Failing first: every new test was run against origin/main's code (or with the guard removed) and failed; mutation checks on the retake rule, `untouched`, relayr `onUnsent`, the refused-reservation rule and the final-gate settlement check each broke a test.
+- The Safe flag in `holdOf` was dropped: no SDK test fails because of it (a hold's key ignores the Safe mode); Homerun's failure was its fixture counting the `:settled-by` key.
+- The Safe-proposal dismiss test passes on main for delivery (`onDismissedSettled`), and fails on main for the same-call retry (refused instead of closing as done).
+
 # Run wrapper behavior into useReviewedRun (2026-11-09)
 
 Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. Parallel PR #295 owns locks, send and writeHold; this change stays in `review/react/useReviewedRun.ts` and `review/runStatus.ts`.

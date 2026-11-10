@@ -24,6 +24,7 @@ import {
   speedUpNextSend,
   TERMINAL,
   clientLock,
+  leasedOrigin,
 } from "./__fixtures__/reviewedSend.js";
 import {
   RELAYR_NATIVE_TOKEN,
@@ -45,7 +46,7 @@ import {
 } from "./relayrSend.js";
 import type { SafeRelayrSession } from "./safeRelayr.js";
 import { openStepHold } from "./writeHold.js";
-import { LockLostError } from "./locks.js";
+import { browserLocks, LockLostError } from "./locks.js";
 import { REVIEWED_PLAN_REFUSED_LINE } from "./plan.js";
 import { reviewPlan } from "./send.js";
 import { signReviewed } from "./sign.js";
@@ -1131,6 +1132,89 @@ describe("payRelayrReviewed", () => {
     )) as { hash: Hex };
     expect(hash).toBe(replacement);
   });
+
+  it("saves the wallet's hash and a sped-up replacement under a fresh lock once the lease lapsed in the wallet", async () => {
+    const origin = leasedOrigin();
+    try {
+      const { deps, wallet, chain } = relayrSetup();
+      reviewUi();
+      const { original, replacement } = speedUpNextSend(chain, wallet, () =>
+        origin.lapse(),
+      );
+      const saved: Hex[] = [];
+      const paid = await browserLocks().request("payment", (lock) =>
+        payRelayrReviewed(
+          quoteFor(),
+          10,
+          {
+            account: ACCOUNT,
+            locks: [lock!],
+            onSending: () => lock!.assertHeld(),
+            onSent: async (hash) => {
+              await lock!.assertHeld();
+              saved.push(hash);
+            },
+          },
+          deps,
+        ),
+      );
+      // Receipt polling found the speed-up; both were kept, in order.
+      expect(paid).toEqual({ hash: replacement });
+      expect(saved).toEqual([original, replacement]);
+    } finally {
+      origin.restore();
+    }
+  });
+
+  it.each([
+    [
+      "the wallet rejects",
+      () => Object.assign(new Error("User rejected"), { code: 4001 }),
+    ],
+    [
+      "the adapter's fence refuses before the wallet",
+      () => new WalletNotInvokedError("moved"),
+    ],
+  ])(
+    "restores the app's record under a fresh lock when %s after the lease lapsed, and throws that error",
+    async (_, refusal) => {
+      const origin = leasedOrigin();
+      try {
+        const { deps, wallet } = relayrSetup();
+        reviewUi();
+        const error = refusal();
+        wallet.adapter.sendTransaction.mockImplementationOnce(async () => {
+          origin.lapse();
+          throw error;
+        });
+        const journal: string[] = [];
+        await expect(
+          browserLocks().request("rejected-payment", (lock) =>
+            payRelayrReviewed(
+              quoteFor(),
+              10,
+              {
+                account: ACCOUNT,
+                locks: [lock!],
+                onSending: async () => {
+                  await lock!.assertHeld();
+                  journal.push("sending");
+                },
+                onUnsent: async () => {
+                  await lock!.assertHeld();
+                  journal.push("unsent");
+                },
+              },
+              deps,
+            ),
+          ),
+        ).rejects.toBe(error);
+        expect(journal).toEqual(["sending", "unsent"]);
+      } finally {
+        origin.restore();
+      }
+    },
+  );
 
   it("never reads a site's failure to record the mined hash as a refusal", async () => {
     const { deps, wallet, chain } = relayrSetup();

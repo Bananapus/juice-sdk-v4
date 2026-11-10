@@ -9,6 +9,8 @@ export const TAB = {
   memory: Symbol.for("nana-sdk:held-writes"),
   /** Without Web Locks, one queue per action. */
   queues: Symbol.for("nana-sdk:write-lock-queues"),
+  /** How a leased lock's handle is taken again for its kept outcomes (`keepOutcome`). */
+  keeper: Symbol.for("nana-sdk:lock-keeper"),
   /** What each tab memory last saw in durable storage. */
   seen: Symbol.for("nana-sdk:held-writes-seen"),
   /** Every write hold controller's subscribers, by the tab memory their storage shares. */

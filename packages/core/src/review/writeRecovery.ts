@@ -36,6 +36,7 @@ import {
 export {
   assertLocksHeld,
   browserLocks,
+  keepOutcome,
   LockLostError,
   type BrowserLocks,
   type LockHandle,

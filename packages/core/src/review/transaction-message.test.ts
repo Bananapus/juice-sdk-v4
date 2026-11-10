@@ -9,9 +9,12 @@ import {
   type RelayrPaymentRetryRefusal,
 } from "./relayr.js";
 import { SafeRelayrRecoveryError } from "./safeRelayr.js";
+import { LockLostError } from "./locks.js";
 import {
   errorLine,
+  LOCK_LOST_LINE,
   NETWORK_ERROR_LINE,
+  REVIEW_STOPPED_LINE,
   ReviewLineError,
   transactionMessage,
   WriteHoldBusyError,
@@ -99,6 +102,16 @@ describe("transaction diagnostic presentation", () => {
 });
 
 describe("errorLine", () => {
+  it("shows a lost lock's plain line, keeping its developer message for logs", () => {
+    const lost = new LockLostError("order");
+    expect(errorLine(lost)).toBe(LOCK_LOST_LINE);
+    expect(lost.message).toContain('"order" lock was lost');
+    expect(lost).toMatchObject({ code: "LOCK_LOST", lock: "order" });
+    expect(REVIEW_STOPPED_LINE).toBe(
+      "The rest was not sent. Review it again when you are ready.",
+    );
+  });
+
   it("shows only the SDK's own errors, never another error's text", () => {
     expect(errorLine(new ReviewLineError("Relayr HTTP 429"))).toBe(
       "Transaction request failed (HTTP 429)",

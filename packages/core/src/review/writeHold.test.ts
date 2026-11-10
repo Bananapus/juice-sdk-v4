@@ -33,6 +33,8 @@ import {
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
   WRITE_HOLD_STALE_REVIEW_LINE,
   writeHeldMessage,
+  HELD_HASH_MISMATCH_LINE,
+  HELD_HASH_UNVERIFIED_LINE,
 } from "./messages.js";
 import { launchIntent } from "./intents.js";
 import { createHeldWriteView, followHeldWrite } from "./heldWrite.js";
@@ -718,6 +720,52 @@ describe("a held write", () => {
     const late = vi.fn();
     hold.open(ordinary).subscribe(late);
     expect(late).toHaveBeenCalledWith({ status: "clear" });
+  });
+
+  it("tells a hash it could not read yet from one it read and found to be another call", async () => {
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    // The node has not indexed it yet: retryable, never "not that transaction".
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "held-no-hash",
+      hashCheck: "unverified",
+    });
+    // Nor can it say which chain it is on.
+    client.getChainId.mockRejectedValueOnce(new Error("HTTP 429"));
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      hashCheck: "unverified",
+    });
+    // Read, and at a nonce this attempt rules out: another transaction.
+    chain.txs.push({ ...sent(OTHER), nonce: 6 });
+    await expect(handle.attachHash(client, OTHER)).resolves.toMatchObject({
+      status: "held-no-hash",
+      hashCheck: "mismatch",
+    });
+    chain.txs.push(sent(HASH));
+    // The app read it first; the hold's own read is rate limited.
+    await expect(client.getTransaction({ hash: HASH })).resolves.toBeTruthy();
+    client.getTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("HTTP request failed. Status: 429"), {
+        status: 429,
+      }),
+    );
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "held-no-hash",
+      hashCheck: "unverified",
+    });
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: HASH,
+      hashCheck: "attached",
+    });
+    expect(HELD_HASH_UNVERIFIED_LINE).toBe(
+      "Couldn't verify this transaction yet. Try again shortly.",
+    );
+    expect(HELD_HASH_MISMATCH_LINE).toBe(
+      "This hash is not that transaction. Check it in your wallet.",
+    );
   });
 
   it("never attaches a hash the reservation's own evidence contradicts", async () => {
@@ -2432,6 +2480,7 @@ describe("a held write", () => {
       status: "clear",
     });
     await expect(handle.attachHash(client, HASH)).resolves.toEqual({
+      hashCheck: "unverified",
       status: "clear",
     });
     await expect(

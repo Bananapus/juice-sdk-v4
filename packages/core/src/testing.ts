@@ -5,6 +5,13 @@
 import { promptReview, type ReviewSimulation } from "./review/confirm.js";
 import { buildReviewModel, type ReviewModel } from "./review/model.js";
 import { TransactionReviewCancelledError } from "./review/reviewQueue.js";
+import {
+  fencedLocks,
+  LEASE_MS,
+  leaseLocks,
+  memoryLeases,
+  tabLocksOn,
+} from "./review/locks.js";
 import { TAB } from "./review/tabState.js";
 import type { TransactionReviewRequest } from "./review/transactionReview.js";
 
@@ -70,4 +77,25 @@ export function promptReviewForTests(
     },
   );
   return { model, outcome };
+}
+
+/**
+ * Locks whose leases lapse, as `browserLocks`' IndexedDB lease does while a
+ * tab sleeps in a wallet app, for consumer tests that must see the SDK's
+ * real lost-lock handling (a fake that ignores `locks` hides it). Install
+ * `locks` as `navigator.locks`; `browserLocks()` then hands its handles.
+ * `lapse()` moves the leases' clock past every lease; `otherTab()` is another
+ * tab of the same origin. Grants come a task later, as a browser's do.
+ */
+export function lapsingLocksForTests() {
+  let skew = 0;
+  const now = () => Date.now() + skew;
+  const leases = memoryLeases(now);
+  const tab = () =>
+    fencedLocks(leaseLocks(async () => leases, tabLocksOn(new Map()), now));
+  return {
+    locks: tab(),
+    otherTab: tab,
+    lapse: () => void (skew += LEASE_MS + 1),
+  };
 }

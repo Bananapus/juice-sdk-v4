@@ -3,21 +3,21 @@
   "sites": [
     {
       "file": "packages/core/src/review/writeRecovery.ts",
-      "line": 1771,
+      "line": 1772,
       "api": "request",
       "boundary": "Acquire an exclusive Web Locks lock (or, without Web Locks, an IndexedDB lease across tabs) for one account, chain and stable namespace, or one exact call. Coordinate durable reservation, wallet handoff and canonical recovery across tabs; this request is browser coordination and never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"
     },
     {
       "file": "packages/core/src/review/locks.ts",
-      "line": 243,
+      "line": 421,
       "api": "request",
       "boundary": "Take this tab's own queue for a write action before claiming the cross-tab IndexedDB lease. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"
     },
     {
       "file": "packages/core/src/review/locks.ts",
-      "line": 107,
+      "line": 210,
       "api": "request",
       "boundary": "Delegate to a Web Locks manager (navigator.locks, the SDK's own fallback or an app's) and hand its work a LockHandle. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/locks.test.ts"
@@ -66,112 +66,112 @@
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 313,
+      "line": 315,
       "api": "sendTransaction",
       "boundary": "The WalletAdapter boundary: send exactly the reviewed target, calldata, value and gas from the connected account, naming the call's chain so viem refuses a wallet on another one. Reached only from sendReviewed after the core-minted confirmation.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 332,
+      "line": 334,
       "api": "signTypedData",
       "boundary": "The WalletAdapter boundary: sign the exact typed data from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 339,
+      "line": 341,
       "api": "signMessage",
       "boundary": "The WalletAdapter boundary: sign the exact message from the connected account.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 346,
+      "line": 348,
       "api": "sendCalls",
       "boundary": "The WalletAdapter boundary: send the exact calls as one wallet batch from the connected account on the named chain.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 139,
+      "line": 141,
       "api": "rpc:eth_sendTransaction",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 140,
+      "line": 142,
       "api": "rpc:wallet_sendTransaction",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 141,
+      "line": 143,
       "api": "rpc:eth_sendRawTransaction",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 142,
+      "line": 144,
       "api": "rpc:wallet_sendCalls",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 143,
+      "line": 145,
       "api": "rpc:eth_signTypedData_v4",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 144,
+      "line": 146,
       "api": "rpc:personal_sign",
       "boundary": "viemWalletAdapter's dispatch guard names this method only to check the connection again as the request is forwarded; it never makes one.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 229,
+      "line": 231,
       "api": "request",
       "boundary": "viemWalletAdapter's dispatch guard: forwards a sending or signing request once (retries off) to the connected wallet, after checking the account, chain, Safe mode, connector and the site's check again.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 230,
+      "line": 232,
       "api": "request",
       "boundary": "viemWalletAdapter's dispatch guard: forwards a read viem makes before it sends (eth_chainId, say); it never sends or signs.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 406,
+      "line": 408,
       "api": "signTypedData",
       "boundary": "The self-reviewing WalletAdapter boundary: hand the wallet's own page the exact typed data, right after the call's ownership fence and a synchronous recheck of the account it began with.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/wallet.ts",
-      "line": 412,
+      "line": 414,
       "api": "signMessage",
       "boundary": "The self-reviewing WalletAdapter boundary: hand the wallet's own page the exact message, right after the call's ownership fence and a synchronous recheck of the account it began with.",
       "test": "packages/core/src/review/wallet.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1402,
+      "line": 1435,
       "api": "sendCalls",
       "boundary": "sendReviewed with batch, through a Safe app only, hands every reviewed call's exact bytes to the WalletAdapter's sendCalls as one Safe proposal, inside submitReviewedContractWrite under the batch's one MultiSend write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. Only a 4001 releases the hold; an answer that is not a safeTxHash keeps it held.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1674,
+      "line": 1709,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the app's exact gas or else the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. A Safe app whose Safe already queued that call (exact bytes, or the same target, value, operation and function with every arg equal but those its adoptIgnoringArgs lists) returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"
@@ -192,21 +192,21 @@
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 430,
+      "line": 435,
       "api": "signTypedData",
       "boundary": "Sign a stand-in ForwardRequest with a key generated in memory for one fee quote. It never reaches the user's wallet, is never saved, and leaves only inside the stand-in request posted to Relayr.",
       "test": "packages/core/src/review/relayrSend.test.ts"
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 744,
+      "line": 762,
       "api": "sendTransaction",
       "boundary": "Send a Relayr payment the person reviewed (or one within the reviewed fee cap, a reviewPlan round's reviewed fee bound included, or one a reviewPlan plan holds exactly) through the WalletAdapter, to the pinned payment contract and gas only (0 for a Safe app, whose proposal payRelayrReviewed alone allows, and which adopts its queued proposal of the exact payment instead of proposing again), under its write hold, after the runtime, simulation, expiry, account, chain and Safe-mode gates.",
       "test": "packages/core/src/review/relayrSend.test.ts"
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 671,
+      "line": 689,
       "api": "request",
       "boundary": "Take the Relayr payment lock across tabs (Web Locks, or the IndexedDB lease without them) for one account and payment namespace, around only the check that no payment under it on any funding chain may land (or, for a bundle, already succeeded) and the hold's reservation. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/relayrSend.test.ts"

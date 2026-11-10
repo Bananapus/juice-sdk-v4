@@ -1,9 +1,17 @@
+import { ReviewFixedLineError } from "./lineError.js";
+import { LOCK_LOST_LINE } from "./messages.js";
 import { TAB } from "./tabState.js";
 
-/** Thrown by {@link LockHandle.assertHeld} once this tab no longer holds the lock. */
-export class LockLostError extends Error {
+/**
+ * Thrown by {@link LockHandle.assertHeld} once this tab no longer holds the
+ * lock. Its message is for logs; `errorLine` shows {@link LOCK_LOST_LINE}.
+ */
+export class LockLostError extends ReviewFixedLineError {
   readonly name = "LockLostError";
   readonly code = "LOCK_LOST";
+  get line(): string {
+    return LOCK_LOST_LINE;
+  }
   constructor(readonly lock: string) {
     super(`The "${lock}" lock was lost. Its work must stop before writing.`);
   }
@@ -38,6 +46,101 @@ export async function assertLocksHeld(
   locks?: readonly (Pick<LockHandle, "assertHeld"> | null | undefined)[],
 ): Promise<void> {
   await Promise.all((locks ?? []).map((lock) => lock?.assertHeld()));
+}
+
+/** Whether `error` is a lock's {@link LockLostError} (by `code`, so any copy's counts). */
+const isLockLost = (error: unknown) =>
+  (error as { code?: unknown } | null)?.code === "LOCK_LOST";
+
+/** A leased handle's way back: taken again only if no other holder took it since. */
+type Keeper = {
+  ended: boolean;
+  kept: Set<Kept>;
+  /**
+   * Hold again under the same owner: `untouched`, only while no other owner
+   * took it since; otherwise whenever it is free now. False if not.
+   */
+  retake(untouched: boolean): Promise<boolean>;
+  /** Let go of a retake. */
+  drop(): Promise<void>;
+};
+type Kept = {
+  locks: readonly LockHandle[];
+  later: () => unknown;
+  /** `later` re-runs `write` as is: only under locks nobody took since. */
+  untouched: boolean;
+  keepers: Keeper[];
+};
+
+const keeperOf = (lock: LockHandle) =>
+  (lock as { [TAB.keeper]?: Keeper })[TAB.keeper];
+
+/** Under every lock taken again, `later()`; any failure leaves things as they were. */
+async function reconcile(entry: Kept) {
+  for (const keeper of entry.keepers) keeper.kept.delete(entry);
+  const taken: Keeper[] = [];
+  try {
+    for (const keeper of entry.keepers) {
+      if (!(await keeper.retake(entry.untouched).catch(() => false))) return;
+      taken.push(keeper);
+    }
+    await assertLocksHeld(entry.locks);
+    await entry.later();
+  } catch {
+    // Unreconciled, the record stays as the lost lock left it.
+  } finally {
+    for (const keeper of taken.reverse()) await keeper.drop();
+  }
+}
+
+/**
+ * Saves an outcome the work already has from outside (a wallet's hash, a
+ * definite rejection) under `locks`: `write()` runs now, and resolves true.
+ * Its own writes check the locks right before writing. Refused for a lost
+ * lock (`LockLostError`), it resolves false and the outcome is kept: once
+ * the work under every one of `locks` has ended, each lock is taken again
+ * (the same handles read as held again) and, after a fresh check:
+ *
+ * - with `later`, it runs whenever the locks are free. `later` re-reads the
+ *   saved record, matches this attempt by its identity (its attempt or
+ *   reservation id, never the whole record) and merges the outcome into the
+ *   latest record, so another tab's unrelated update meanwhile stays;
+ * - without, `write()` runs again only if no other tab took the locks since,
+ *   so it can't touch a newer attempt's record.
+ *
+ * If any lock can't be taken back, or the write fails, the record stays as
+ * the lost lock left it, and its recovery shows.
+ *
+ * Only `browserLocks`' IndexedDB leases are ever lost and kept. Any other
+ * failure of `write` throws, as does a lost lock that can't be taken back.
+ */
+export async function keepOutcome(
+  locks: readonly LockHandle[] | undefined,
+  write: () => unknown,
+  later?: () => unknown,
+): Promise<boolean> {
+  try {
+    await write();
+    return true;
+  } catch (error) {
+    const keepers = (locks ?? []).map(keeperOf);
+    if (
+      !isLockLost(error) ||
+      !keepers.length ||
+      !keepers.every((keeper) => keeper)
+    )
+      throw error;
+    const entry: Kept = {
+      locks: locks!,
+      later: later ?? write,
+      untouched: !later,
+      keepers: keepers as Keeper[],
+    };
+    for (const keeper of entry.keepers) keeper.kept.add(entry);
+    // Kept after its work already ended: reconciled now.
+    if (entry.keepers.every((keeper) => keeper.ended)) await reconcile(entry);
+    return false;
+  }
 }
 
 /** What {@link BrowserLocks} runs under the lock: `null` when `ifAvailable` found it taken. */
@@ -117,41 +220,46 @@ export function fencedLocks(
 }
 
 type RawWork<T> = (lock: LockHandle | null) => Promise<T>;
-type RawLocks = {
+export type RawLocks = {
   request<T>(name: string, options: LockOptions, work: RawWork<T>): Promise<T>;
 };
 
 const TAB_QUEUES = TAB.queues;
 
+/** Writes one at a time per name within one tab, queued in `queues`. */
+function tabLocksOn(queues: Map<string, Promise<void>>): RawLocks {
+  return {
+    async request<T>(
+      name: string,
+      options: LockOptions,
+      work: RawWork<T>,
+    ): Promise<T> {
+      const held = queues.get(name);
+      if (held && options.ifAvailable) return work(null);
+      let release!: () => void;
+      const mine = new Promise<void>((resolve) => (release = resolve));
+      const queue = (held ?? Promise.resolve()).then(() => mine);
+      queues.set(name, queue);
+      await held;
+      let running = true;
+      try {
+        return await work(handle(name, "exclusive", async () => running));
+      } finally {
+        running = false;
+        release();
+        if (queues.get(name) === queue) queues.delete(name);
+      }
+    },
+  };
+}
+
 // Without Web Locks, writes in this tab still run one at a time per action,
 // across every copy of this module loaded in the tab.
-const tabQueues = ((
-  globalThis as { [TAB_QUEUES]?: Map<string, Promise<void>> }
-)[TAB_QUEUES] ??= new Map<string, Promise<void>>());
+const tabLocks = tabLocksOn(
+  ((globalThis as { [TAB_QUEUES]?: Map<string, Promise<void>> })[TAB_QUEUES] ??=
+    new Map<string, Promise<void>>()),
+);
 let tabLocksNoted = false;
-const tabLocks: RawLocks = {
-  async request<T>(
-    name: string,
-    options: LockOptions,
-    work: RawWork<T>,
-  ): Promise<T> {
-    const held = tabQueues.get(name);
-    if (held && options.ifAvailable) return work(null);
-    let release!: () => void;
-    const mine = new Promise<void>((resolve) => (release = resolve));
-    const queue = (held ?? Promise.resolve()).then(() => mine);
-    tabQueues.set(name, queue);
-    await held;
-    let running = true;
-    try {
-      return await work(handle(name, "exclusive", async () => running));
-    } finally {
-      running = false;
-      release();
-      if (tabQueues.get(name) === queue) tabQueues.delete(name);
-    }
-  },
-};
 
 // Without Web Locks, tabs share an IndexedDB lease per action. A readwrite
 // transaction is atomic across the origin's tabs, so claiming a lease is a
@@ -161,10 +269,45 @@ const tabLocks: RawLocks = {
 // reads as lost.
 const LEASE_DB = "nana-sdk-write-locks";
 const LEASE_STORE = "leases";
-const LEASE_MS = 15_000;
+export const LEASE_MS = 15_000;
 const LEASE_RENEW_MS = 5_000;
 const LEASE_POLL_MS = 50;
 type Lease = { owner: string; expires: number };
+type Claim = "take" | "renew" | "retake";
+
+/** Where the origin's leases live: each call one atomic compare-and-set. */
+export type LeaseStore = {
+  claim(name: string, owner: string, claim: Claim): Promise<boolean>;
+  read(name: string): Promise<Lease | undefined>;
+  drop(name: string, owner: string): Promise<void>;
+};
+
+/**
+ * The lease `owner` gets by `claim` over `lease`, or undefined while it
+ * can't: `take` while nobody holds it; `renew` only while still `owner`'s
+ * and unexpired; `retake` only while the last owner was `owner`, lapsed or not.
+ */
+function claimed(
+  lease: Lease | undefined,
+  owner: string,
+  claim: Claim,
+  now: number,
+): Lease | undefined {
+  const refused =
+    claim === "renew"
+      ? !(lease?.owner === owner && lease.expires > now)
+      : claim === "retake"
+        ? lease?.owner !== owner
+        : lease && lease.expires > now;
+  return refused ? undefined : { owner, expires: now + LEASE_MS };
+}
+
+/**
+ * Letting go of `lease` for `owner`: still `owner`'s, expired, so a retake
+ * can tell nobody took it since; another owner's stays.
+ */
+const dropped = (lease: Lease | undefined, owner: string) =>
+  lease?.owner === owner ? { owner, expires: 0 } : undefined;
 
 function leaseTransaction<T>(
   db: IDBDatabase,
@@ -180,109 +323,170 @@ function leaseTransaction<T>(
   });
 }
 
-/** Whether `lease` is `owner`'s and unexpired. */
-const owns = (lease: Lease | undefined, owner: string) =>
-  lease?.owner === owner && lease.expires > Date.now();
-
-/**
- * Take `name`'s lease for `owner` (`renew`: only extend it while still
- * `owner`'s); false while another tab holds it, or once a renewal finds it lost.
- */
-function claimLease(
+/** One read-and-write of `name`'s lease in a readwrite transaction. */
+function changeLease<T>(
   db: IDBDatabase,
   name: string,
-  owner: string,
-  renew = false,
+  change: (lease: Lease | undefined) => { next?: Lease; value: T },
 ) {
-  return leaseTransaction<boolean>(db, "readwrite", (store, done) => {
-    done(false);
+  return leaseTransaction<T>(db, "readwrite", (store, done) => {
     const read = store.get(name);
     read.onsuccess = () => {
-      const lease = read.result as Lease | undefined;
-      const now = Date.now();
-      if (renew ? !owns(lease, owner) : lease && lease.expires > now) return;
-      store.put({ owner, expires: now + LEASE_MS } satisfies Lease, name);
-      done(true);
+      const { next, value } = change(read.result as Lease | undefined);
+      if (next) store.put(next, name);
+      done(value);
     };
   });
 }
 
-function readLease(db: IDBDatabase, name: string) {
-  return leaseTransaction<Lease | undefined>(db, "readonly", (store, done) => {
-    const read = store.get(name);
-    read.onsuccess = () => done(read.result as Lease | undefined);
-  });
-}
-
-/** Drop `name`'s lease only while it is still `owner`'s. */
-function dropLease(db: IDBDatabase, name: string, owner: string) {
-  return leaseTransaction<void>(db, "readwrite", (store) => {
-    const read = store.get(name);
-    read.onsuccess = () => {
-      if ((read.result as Lease | undefined)?.owner === owner)
-        store.delete(name);
-    };
-  });
-}
-
-function leaseLocks(factory: IDBFactory): RawLocks {
-  let opened: Promise<IDBDatabase> | undefined;
-  const database = () =>
+export function idbLeases(factory: IDBFactory, now: () => number) {
+  let opened: Promise<LeaseStore> | undefined;
+  return () =>
     (opened ??= new Promise<IDBDatabase>((resolve, reject) => {
       const request = factory.open(LEASE_DB, 1);
       request.onupgradeneeded = () =>
         request.result.createObjectStore(LEASE_STORE);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
-    }).catch((error) => {
-      opened = undefined;
-      throw error;
-    }));
+    })
+      .then(
+        (db): LeaseStore => ({
+          claim: (name, owner, claim) =>
+            changeLease(db, name, (lease) => {
+              const next = claimed(lease, owner, claim, now());
+              return { next, value: !!next };
+            }),
+          read: (name) =>
+            leaseTransaction<Lease | undefined>(
+              db,
+              "readonly",
+              (store, done) => {
+                const read = store.get(name);
+                read.onsuccess = () => done(read.result as Lease | undefined);
+              },
+            ),
+          drop: (name, owner) =>
+            changeLease(db, name, (lease) => ({
+              next: dropped(lease, owner),
+              value: undefined,
+            })),
+        }),
+      )
+      .catch((error) => {
+        opened = undefined;
+        throw error;
+      }));
+}
+
+/**
+ * The origin's leases in memory, for tests: each call answers a task later,
+ * as IndexedDB's transactions do.
+ */
+export function memoryLeases(now: () => number): LeaseStore {
+  const leases = new Map<string, Lease>();
+  const later = () => new Promise((resolve) => setTimeout(resolve, 0));
+  return {
+    async claim(name, owner, claim) {
+      await later();
+      const next = claimed(leases.get(name), owner, claim, now());
+      if (next) leases.set(name, next);
+      return !!next;
+    },
+    async read(name) {
+      await later();
+      return leases.get(name);
+    },
+    async drop(name, owner) {
+      await later();
+      const next = dropped(leases.get(name), owner);
+      if (next) leases.set(name, next);
+    },
+  };
+}
+
+/**
+ * Locks over the origin's `leases`, one at a time per name within the tab
+ * (`tab`), its clock `now`.
+ */
+export function leaseLocks(
+  leases: () => Promise<LeaseStore>,
+  tab: RawLocks = tabLocks,
+  now: () => number = () => Date.now(),
+): RawLocks {
+  /** Whether `lease` is `owner`'s and unexpired. */
+  const owns = (lease: Lease | undefined, owner: string) =>
+    lease?.owner === owner && lease.expires > now();
   return {
     request: <T>(name: string, options: LockOptions, work: RawWork<T>) =>
-      tabLocks.request(name, options, async (tabLock) => {
+      tab.request(name, options, async (tabLock) => {
         if (!tabLock) return work(null);
-        let db: IDBDatabase;
+        let store: LeaseStore;
         try {
-          db = await database();
+          store = await leases();
         } catch {
           // IndexedDB refused (as in some private windows): this tab only.
           return work(tabLock);
         }
         const owner = globalThis.crypto.randomUUID();
-        while (!(await claimLease(db, name, owner))) {
+        while (!(await store.claim(name, owner, "take"))) {
           if (options.ifAvailable) return work(null);
           await new Promise((resolve) => setTimeout(resolve, LEASE_POLL_MS));
         }
         const lost = new AbortController();
         let running = true;
+        /** Taken again for its kept outcomes. */
+        let retaken = false;
         const held = async () => {
-          if (!running || lost.signal.aborted) return false;
+          if (!retaken && (!running || lost.signal.aborted)) return false;
           // Never cached: a tab back from suspension reads what is there now.
           const mine = owns(
-            await readLease(db, name).catch(() => undefined),
+            await store.read(name).catch(() => undefined),
             owner,
           );
-          if (!mine) lost.abort(new LockLostError(name));
-          return mine && running;
+          if (!mine && running) lost.abort(new LockLostError(name));
+          return mine && (running || retaken);
         };
         const renew = setInterval(
           () =>
-            void claimLease(db, name, owner, true)
+            void store
+              .claim(name, owner, "renew")
               .then((kept) => kept || lost.abort(new LockLostError(name)))
               .catch(() => {}),
           LEASE_RENEW_MS,
         );
+        const keeper: Keeper = {
+          ended: false,
+          kept: new Set(),
+          retake: async (untouched) =>
+            (retaken = await store.claim(
+              name,
+              owner,
+              untouched ? "retake" : "take",
+            )),
+          drop: async () => {
+            retaken = false;
+            await store.drop(name, owner).catch(() => {});
+          },
+        };
+        const lock = handle(name, "exclusive", held, lost.signal);
+        Object.defineProperty(lock, TAB.keeper, { value: keeper });
         try {
-          return await work(handle(name, "exclusive", held, lost.signal));
+          return await work(lock);
         } finally {
           running = false;
           clearInterval(renew);
-          await dropLease(db, name, owner).catch(() => {});
+          keeper.ended = true;
+          // Still this tab's only queue for `name`: no other work here runs between.
+          for (const entry of [...keeper.kept])
+            if (entry.keepers.every((other) => other.ended))
+              await reconcile(entry);
+          await store.drop(name, owner).catch(() => {});
         }
       }),
   };
 }
+
+export { tabLocksOn };
 
 const inTabLocks = fencedLocks(tabLocks);
 let leasedLocks: BrowserLocks | undefined;
@@ -312,5 +516,7 @@ export function browserLocks(): BrowserLocks {
     );
   }
   if (!globalThis.indexedDB) return inTabLocks;
-  return (leasedLocks ??= fencedLocks(leaseLocks(globalThis.indexedDB)));
+  return (leasedLocks ??= fencedLocks(
+    leaseLocks(idbLeases(globalThis.indexedDB, () => Date.now())),
+  ));
 }

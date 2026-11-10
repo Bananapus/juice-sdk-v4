@@ -1,6 +1,7 @@
 import { resetSafeRelayrForTests } from "../testing.js";
 import { clientLock } from "./__fixtures__/reviewedSend.js";
-import { LockLostError } from "./locks.js";
+import { IDBFactory } from "fake-indexeddb";
+import { browserLocks } from "./locks.js";
 import {
   encodeAbiParameters,
   encodeEventTopics,
@@ -368,25 +369,31 @@ beforeEach(() => {
   vi.spyOn(Date, "now").mockReturnValue(NOW * 1000);
 });
 
-/** A store lock whose lease the test can lapse; each acquisition is a fresh one. */
+/** The origin's one IndexedDB: the SDK module caches its lease on the first it sees. */
+const ORIGIN_DB = new IDBFactory();
+
+/**
+ * The store's locks as a mobile webview has them (no Web Locks): two nested
+ * IndexedDB leases, as revnet takes them, each acquisition a fresh one.
+ * `lapse()` moves the clock past them, as a wallet app that keeps the tab
+ * asleep over 15 s does.
+ */
 function leased(h: ReturnType<typeof harness>) {
-  const lease = { current: { lost: false } };
-  vi.mocked(h.store.withLock).mockImplementation(async (_account, run) => {
-    const mine = { lost: false };
-    lease.current = mine;
-    return run([
-      {
-        name: "safe-relayr",
-        mode: "exclusive",
-        signal: new AbortController().signal,
-        held: async () => !mine.lost,
-        assertHeld: async () => {
-          if (mine.lost) throw new LockLostError("safe-relayr");
-        },
-      },
-    ]);
-  });
-  return lease;
+  vi.stubGlobal("navigator", undefined);
+  vi.stubGlobal("indexedDB", ORIGIN_DB);
+  vi.spyOn(console, "info").mockImplementation(() => {});
+  vi.mocked(h.store.withLock).mockImplementation(((
+    account: string,
+    run: (locks: unknown[]) => Promise<unknown>,
+  ) =>
+    browserLocks().request("safe-relayr", (lock) =>
+      browserLocks().request(`safe-relayr:${account}`, (accountLock) =>
+        run([lock, accountLock]),
+      ),
+    )) as never);
+  return {
+    lapse: () => void vi.mocked(Date.now).mockReturnValue(Date.now() + 16_000),
+  };
 }
 
 describe("Safe Relayr recovery without a complete quote", () => {
@@ -469,7 +476,7 @@ describe("Safe Relayr recovery without a complete quote", () => {
     vi.mocked(h.store.list).mockImplementation(async (account) => {
       if (lists && --lists === 0) {
         // Asleep in that read: the lease lapses and the next owner pays.
-        lease.current.lost = true;
+        lease.lapse();
         h.sessions.set(id, {
           ...h.sessions.get(id)!,
           paymentStatus: "submitted",
@@ -498,7 +505,7 @@ describe("Safe Relayr recovery without a complete quote", () => {
       await beforeSend();
       await onSending();
       // Over 15 s in a mobile wallet, no other tab: the lease lapsed.
-      lease.current.lost = true;
+      lease.lapse();
       throw Object.assign(new Error("User rejected request"), { code: 4001 });
     });
     await expect(
@@ -519,6 +526,43 @@ describe("Safe Relayr recovery without a complete quote", () => {
     ).toBe("ready");
   });
 
+  it("restores a rejected payment after another tab's unrelated update meanwhile, keeping that update", async () => {
+    const h = harness();
+    const lease = leased(h);
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    const id = ready.session.id;
+    h.sendPayment.mockImplementationOnce(async ({ beforeSend, onSending }) => {
+      await beforeSend();
+      await onSending();
+      lease.lapse();
+      // Another tab takes both locks and saves unrelated progress.
+      delete (globalThis as Record<symbol, unknown>)[
+        Symbol.for("nana-sdk:write-lock-queues")
+      ];
+      vi.resetModules();
+      const other = await import("./locks.js");
+      await other.browserLocks().request("safe-relayr", () =>
+        other.browserLocks().request(`safe-relayr:${ACCOUNT}`, async () => {
+          h.sessions.set(id, {
+            ...h.sessions.get(id)!,
+            context: { progress: "B" },
+          });
+        }),
+      );
+      throw Object.assign(new Error("User rejected request"), { code: 4001 });
+    });
+    await expect(
+      h.controller.fund({ account: ACCOUNT, sessionId: id, paymentChainId: 1 }),
+    ).rejects.toThrow("User rejected");
+    expect(h.sessions.get(id)).toMatchObject({
+      paymentStatus: "unfunded",
+      context: { progress: "B" },
+    });
+  });
+
   it("keeps a sent payment's hash under a fresh lock after the wallet outlived the lease", async () => {
     const h = harness();
     const lease = leased(h);
@@ -533,7 +577,7 @@ describe("Safe Relayr recovery without a complete quote", () => {
         onSending: async () => {
           await input.onSending();
           // The wallet answers after the lease lapsed.
-          lease.current.lost = true;
+          lease.lapse();
         },
       }),
     );
@@ -961,6 +1005,7 @@ describe("Safe Relayr recovery without a complete quote", () => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("Safe Relayr execution identity", () => {
@@ -2625,7 +2670,7 @@ describe("Safe Relayr funding and canonical outcome", () => {
       h.sessions.set(session.id, structuredClone(session));
       if (session.paymentStatus === "sending") {
         // Asleep in the save: the lease and the quote both lapse.
-        lease.current.lost = true;
+        lease.lapse();
         vi.mocked(Date.now).mockReturnValue((DEADLINE + 1) * 1000);
       }
     });

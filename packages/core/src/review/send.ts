@@ -1,4 +1,4 @@
-import { assertLocksHeld, type LockHandle } from "./locks.js";
+import { assertLocksHeld, keepOutcome, type LockHandle } from "./locks.js";
 import {
   ReviewedCallRevertedError,
   ReviewedReceiptUnverifiedError,
@@ -202,20 +202,32 @@ export type ReviewedAction = {
    * is checked, on a fresh read, before `beforeWallet`, and, with the SDK's
    * own, by the wallet adapter as the last await before every request that
    * sends or signs (`WalletRequestOptions`). A lost one sends or signs
-   * nothing and releases the step's hold. `onUnsent` then runs only while
-   * every one of `locks` still reads as held, read fresh before each step's
-   * callback: once one is lost, the lock's new owner owns the site's journal,
-   * and a stale "unsent" write could clear its record. A record the site
-   * wrote in `beforeWallet` stays as it was; its recovery reads it like any
-   * interrupted send (ask the user to check their wallet's activity).
+   * nothing and releases the step's hold. `onUnsent` runs only while every
+   * one of `locks` still reads as held, read fresh before each step's
+   * callback. A wallet answer that comes after one was lost (a lease that
+   * lapsed while the user was in the wallet) is kept ({@link keepOutcome}):
+   * `onUnsent`, and an `onSubmitted` or `onConfirmed` whose own write
+   * refused for the lost lock, run again once the site's work under `locks`
+   * ended, under the same locks taken back, and only if no other tab took
+   * them since. Otherwise the record the site wrote in `beforeWallet` stays
+   * as it was; its recovery reads it like any interrupted send (ask the user
+   * to check their wallet's activity).
    */
   locks?: readonly LockHandle[];
   /**
+   * The site's `onUnsent`, `onSubmitted` and `onConfirmed` change only this
+   * attempt's own record, matched by its identity (an attempt or reservation
+   * id, never the whole record), and merge into the latest one. A late
+   * answer after a lost lock then lands under `locks` taken back even when
+   * another tab held them meanwhile (a routine refresh), not only when
+   * nobody did ({@link keepOutcome}'s `later`).
+   */
+  attemptScoped?: boolean;
+  /**
    * Awaited when nothing was sent for a step whose `beforeWallet` began: a
    * gate refused (the SDK's own lock lost included), `beforeWallet` threw,
-   * or the wallet rejected (4001). Never after an ambiguous failure, nor once
-   * any of `locks` is lost (checked on a fresh read before each step's
-   * callback, whatever ended the attempt, a wallet's 4001 included).
+   * or the wallet rejected (4001). Never after an ambiguous failure. Once
+   * any of `locks` is lost, it waits for them to be taken back (see `locks`).
    */
   onUnsent?: (call: ReviewedCall, step: number) => void | Promise<void>;
   /**
@@ -807,6 +819,7 @@ export async function resumeReviewed(
     | "title"
     | "beforeWallet"
     | "locks"
+    | "attemptScoped"
     | "onUnsent"
     | "onSubmitted"
     | "onConfirmed"
@@ -921,7 +934,7 @@ async function confirmedReceipt(
  * any tab) that claims its notice on the hold tells it.
  */
 async function tellConfirmed(
-  action: Pick<ReviewedAction, "onConfirmed">,
+  action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
   handle: Pick<WriteHoldHandle, "claimConfirmed">,
   call: ReviewedCall,
   step: number,
@@ -933,8 +946,23 @@ async function tellConfirmed(
     receipt &&
     (await handle.claimConfirmed(settled))
   )
-    await tell(action.onConfirmed, call, step, receipt);
+    await tellKept(action, () => action.onConfirmed?.(call, step, receipt));
 }
+
+/**
+ * Tells a site what the wallet answered, under its `locks`: refused for a
+ * lost one, kept for a fresh lock ({@link keepOutcome}), or dropped when it
+ * can't be. Any other failure is logged and never changes what was sent.
+ */
+const tellKept = (
+  { locks, attemptScoped }: Pick<ReviewedAction, "locks" | "attemptScoped">,
+  run: () => unknown,
+) =>
+  tell(() =>
+    keepOutcome(locks, run, attemptScoped ? run : undefined).catch((error) => {
+      if ((error as { code?: unknown })?.code !== "LOCK_LOST") throw error;
+    }),
+  );
 
 /**
  * A sent step's settlement by its own reservation, and the receipt its hold
@@ -1010,7 +1038,10 @@ async function followSent(
  */
 export async function completeReviewedStep(
   unverified: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
-  action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
+  action: Pick<
+    ReviewedAction,
+    "account" | "scope" | "onConfirmed" | "locks" | "attemptScoped"
+  >,
   deps: ReviewedSendDeps,
   receipt?: TransactionReceipt | null,
   signal?: AbortSignal,
@@ -1094,13 +1125,11 @@ async function send(
    * own release.
    */
   const tellUnsent = async (steps: readonly ReviewedCall[], from: number) => {
-    for (const [index, call] of steps.entries()) {
-      const held = await Promise.all(
-        (action.locks ?? []).map((lock) => lock.held().catch(() => false)),
-      );
-      if (held.includes(false)) return;
-      await tell(action.onUnsent, call, from + index);
-    }
+    for (const [index, call] of steps.entries())
+      await tellKept(action, async () => {
+        await assertLocksHeld(action.locks);
+        await action.onUnsent?.(call, from + index);
+      });
   };
   const connected = adapter.account();
   if (!connected) throw new ReviewLineError("Connect a wallet first.");
@@ -1167,10 +1196,12 @@ async function send(
     }
     // Every step is told; a site's failure to record it never changes what was sent.
     for (const [step, call] of calls.entries())
-      await tell(action.onSubmitted, call, step, hash, {
-        safe: false,
-        adopted: false,
-      });
+      await tellKept(action, () =>
+        action.onSubmitted?.(call, step, hash, {
+          safe: false,
+          adopted: false,
+        }),
+      );
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
@@ -1393,10 +1424,12 @@ async function send(
             gate.afterSubmit(submitted);
             // Every step went: each is told, whatever an earlier callback does.
             for (const [step, call] of calls.entries())
-              await tell(action.onSubmitted, call, step, submitted, {
-                safe: true,
-                adopted: false,
-              });
+              await tellKept(action, () =>
+                action.onSubmitted?.(call, step, submitted, {
+                  safe: true,
+                  adopted: false,
+                }),
+              );
           },
           write: async () => {
             const id = await adapter.sendCalls!(
@@ -1664,10 +1697,12 @@ async function send(
           // An adopted proposal's nonce lets the hold prove its execution onchain.
           onWriteSubmitted: async (submitted) => {
             gate.afterSubmit(submitted, queued?.tx);
-            await tell(action.onSubmitted, call, at, submitted, {
-              safe,
-              adopted: !!queued,
-            });
+            await tellKept(action, () =>
+              action.onSubmitted?.(call, at, submitted, {
+                safe,
+                adopted: !!queued,
+              }),
+            );
           },
           write: async ({ chainId, to, data, value, gas }) =>
             queued?.proposalHash ??

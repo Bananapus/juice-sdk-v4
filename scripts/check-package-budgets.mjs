@@ -353,9 +353,12 @@ const budgets = {
     // 24,632,418 B unpacked. Kept room for the minor's release-note entry.
     // useReviewedRun's stopped/dismiss/following rules, settlements by
     // reservation and acknowledgement after done renders, merged with lock
-    // fencing: 1,843,570 B packed, 24,668,765 B unpacked.
-    packed: 1_847_000,
-    unpacked: 24_680_000,
+    // fencing: 1,843,570 B packed, 24,668,765 B unpacked. Lost-lock keep
+    // (keepOutcome, the lease refactor, lapsingLocksForTests), the hook's
+    // own-reservation and dismissed-step rules and attachHash's hashCheck:
+    // 1,863,423 B packed, 24,749,620 B unpacked.
+    packed: 1_867_000,
+    unpacked: 24_762_000,
     entries: 1_910,
   },
   "@bananapus/nana-sdk-react": {
