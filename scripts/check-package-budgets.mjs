@@ -356,10 +356,12 @@ const budgets = {
     // fencing: 1,843,570 B packed, 24,668,765 B unpacked. Lost-lock keep
     // (keepOutcome, the lease refactor, lapsingLocksForTests), the hook's
     // own-reservation and dismissed-step rules and attachHash's hashCheck:
-    // 1,863,423 B packed, 24,749,620 B unpacked.
-    packed: 1_885_000,
-    unpacked: 24_846_000,
-    entries: 1_910,
+    // 1,863,423 B packed, 24,749,620 B unpacked. With the forward-only
+    // ownership merge (react/ownership): 1,887,652 B packed, 24,856,127 B
+    // unpacked, 1,915 entries.
+    packed: 1_890_000,
+    unpacked: 24_866_000,
+    entries: 1_920,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",

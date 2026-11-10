@@ -35,6 +35,7 @@ import {
   encodeEventTopics,
   numberToHex,
   parseAbi,
+  type Address,
   type Hex as ViemHex,
 } from "viem";
 import {
@@ -107,7 +108,12 @@ function harness(
     });
     return result;
   };
-  return { seen, run };
+  /** The app's deps, updated in place, now hold `account`. */
+  const switchAccount = (account: Address) => {
+    deps!.account = account;
+    act(() => root!.render(<Probe />));
+  };
+  return { seen, run, switchAccount };
 }
 
 /** Web Locks that are always free, as the fixture's. */
@@ -2452,6 +2458,150 @@ describe("useReviewedRun", () => {
     return { run, wallet, left: left as ReviewedRunReceipt };
   }
 
+  test("a payment dismissed after the wallet switched accounts stays its sender's: once it settles and shows, switching back and retrying closes as done, one send", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    let lagging = true;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (lagging) throw new Error("lagging node");
+      return read(args);
+    });
+    // One deps object the app updates in place when the account changes.
+    const given = {
+      engine: () => import("../send.js"),
+      ...deps,
+      account: ACCOUNT as typeof OTHER,
+    };
+    const seen: { current?: UseReviewedRunResult } = {};
+    function Probe() {
+      seen.current = useReviewedRun(given);
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    act(() => root!.render(<Probe />));
+    const run = async (...args: Parameters<UseReviewedRunResult["run"]>) => {
+      let result!: Awaited<ReturnType<UseReviewedRunResult["run"]>>;
+      await act(async () => {
+        result = await seen.current!.run(...args);
+      });
+      return result;
+    };
+    const switchTo = (account: typeof OTHER) => {
+      wallet.state.account = account;
+      given.account = account;
+      act(() => root!.render(<Probe />));
+    };
+    const call = { ...payCall(), intent: "pay:1" };
+    const action = { ...HANDED_BACK, calls: [call] };
+    const sent = await run(action);
+    expect(sent).toMatchObject({ status: "receipt" });
+    // Switched to B, then only its wait dismissed: its follow goes on.
+    switchTo(OTHER);
+    act(() => void seen.current!.dismiss());
+    lagging = false;
+    const hold = openStepHold(deps.hold, ACCOUNT, false, call);
+    await vi.waitFor(
+      async () => {
+        await act(async () => {
+          globalThis.dispatchEvent(new Event("focus"));
+        });
+        expect(hold.peek()).toMatchObject({
+          status: "clear",
+          settled: { result: "success" },
+        });
+      },
+      { timeout: 12_000 },
+    );
+    // Acknowledged in the background (by its follow, or another reader).
+    const success = hold.unacknowledgedSuccess();
+    if (success)
+      await act(async () => {
+        await hold.acknowledge(success);
+      });
+    switchTo(ACCOUNT);
+    await expect(run(action)).resolves.toMatchObject({
+      status: "done",
+      hashes: [(sent as ReviewedRunReceipt).hash],
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  }, 30_000);
+
+  test("a dismissed wait's ownership survives its notice coming back undelivered: once told and shown, a retry of the same intent closes as done, one send", async () => {
+    const lapsing = lapsingLocksForTests();
+    vi.stubGlobal("navigator", { locks: lapsing.locks });
+    try {
+      reviewUi();
+      const { chain, deps, wallet } = setup();
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      let lagging = true;
+      chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (lagging) throw new Error("lagging node");
+        return read(args);
+      });
+      const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+      wallet.adapter.sendTransaction.mockImplementationOnce(async (...args) => {
+        // The lease lapses while the wallet is open.
+        lapsing.lapse();
+        return send(...args);
+      });
+      const { seen, run } = harness({ ...deps, account: ACCOUNT });
+      const confirmed: number[] = [];
+      const call = { ...payCall(), intent: "pay:1" };
+      const hold = openStepHold(deps.hold, ACCOUNT, false, call);
+      await browserLocks().request("pay", async (lock) => {
+        const result = await run({
+          ...HANDED_BACK,
+          calls: [call],
+          locks: [lock!],
+          onConfirmed: async (_call, step) => {
+            await lock!.assertHeld();
+            confirmed.push(step);
+          },
+        });
+        expect(result).toMatchObject({ status: "receipt" });
+        // Only its wait dismissed; then its notice, under the lapsed lease,
+        // comes back undelivered while this scope still runs.
+        act(() => void seen.current!.dismiss());
+        lagging = false;
+        await vi.waitFor(
+          async () => {
+            await act(async () => {
+              globalThis.dispatchEvent(new Event("focus"));
+            });
+            const success = hold.unacknowledgedSuccess();
+            expect(success).toBeDefined();
+            await expect(hold.confirmation(success!)).resolves.toBe("pending");
+          },
+          { timeout: 12_000 },
+        );
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        });
+      });
+      // Told once the scope ended, then shown and acknowledged.
+      await vi.waitFor(() => expect(confirmed).toEqual([0]), {
+        timeout: 12_000,
+      });
+      await vi.waitFor(
+        async () => {
+          await act(async () => {
+            globalThis.dispatchEvent(new Event("focus"));
+          });
+          expect(hold.unacknowledgedSuccess()).toBeUndefined();
+        },
+        { timeout: 12_000 },
+      );
+      await expect(
+        run({ ...HANDED_BACK, calls: [call] }),
+      ).resolves.toMatchObject({ status: "done" });
+      expect(confirmed).toEqual([0]);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, 40_000);
+
   test("a retry under the same intent with refreshed calldata closes on the original send: onConfirmed gets the call that was sent, one send", async () => {
     const onConfirmed = vi.fn();
     const original = { ...payCall(5n), intent: "pay:1" };
@@ -2705,6 +2855,10 @@ describe("useReviewedRun", () => {
       refreshed: random() < 0.4,
       /** The action signs a message before it sends. */
       signed: random() < 0.4,
+      /** The wallet switches to another account and back: when. */
+      switchAt: pick(["none", "wallet", "dismiss", "first"] as const),
+      /** The lease lapses while a step's onConfirmed is paused. */
+      lapseInConfirm: random() < 0.3,
     }));
     // A sequence lapsing at each step, on each backend, refreshed or not.
     const sequences = (["lease", "native"] as const).flatMap((backend) =>
@@ -2733,6 +2887,8 @@ describe("useReviewedRun", () => {
           concurrentComplete: random() < 0.4,
           refreshed: false,
           signed: random() < 0.4,
+          switchAt: pick(["none", "wallet", "dismiss", "first"] as const),
+          lapseInConfirm: random() < 0.3,
         })),
       ),
     );
@@ -2812,6 +2968,8 @@ describe("useReviewedRun", () => {
       concurrentComplete: false,
       refreshed: false,
       signed: false,
+      switchAt: "none" as "none" | "wallet" | "dismiss" | "first",
+      lapseInConfirm: false,
     };
     // Another intent's payment shown on the same runner after this one's
     // wait was dismissed and completed in the background, then reopened.
@@ -2875,6 +3033,31 @@ describe("useReviewedRun", () => {
         signed: true,
       },
     ]);
+    // Switched to another account just before its wait is dismissed, and
+    // back; and a lease lapsing during a paused onConfirmed after its wait
+    // was dismissed, with ended() awaited in scope: each backend.
+    const owners = (["lease", "native"] as const).flatMap((backend) => [
+      {
+        ...quiet,
+        backend,
+        shape: "payment" as const,
+        dismiss: true,
+        dismissOnce: true,
+        reopen: true,
+        acknowledgedElsewhere: true,
+        refreshed: true,
+        switchAt: "dismiss" as const,
+      },
+      {
+        ...quiet,
+        backend,
+        shape: "payment" as const,
+        dismiss: true,
+        dismissOnce: true,
+        lapseInConfirm: true,
+        refreshed: true,
+      },
+    ]);
     return [
       ...random$,
       ...sequences,
@@ -2884,6 +3067,7 @@ describe("useReviewedRun", () => {
       ...intents,
       ...fresh,
       ...outcomes,
+      ...owners,
     ].map((c, index) => ({
       ...c,
       index,
@@ -2891,7 +3075,7 @@ describe("useReviewedRun", () => {
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed, switch $switchAt, lapse in confirm $lapseInConfirm): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -2965,8 +3149,22 @@ describe("useReviewedRun", () => {
         };
         const refreshes: Promise<unknown>[] = [];
         let wallets = 0;
+        /** Set once the hook mounts: the app's deps switch accounts. */
+        let switchAccount = (_account: typeof OTHER) => {};
+        /** The wallet switches to another account, then back. */
+        const away = async (between?: () => void) => {
+          wallet.state.account = OTHER;
+          switchAccount(OTHER);
+          between?.();
+          await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          });
+          wallet.state.account = ACCOUNT;
+          switchAccount(ACCOUNT);
+        };
         const inWallet = async () => {
           const at = wallets++;
+          if (at === 0 && c.switchAt === "wallet") await away();
           if (at !== (c.shape === "sequence" ? c.lapseAt : 0)) return;
           if (c.lapse) lapsing.lapse();
           if (c.refresh === "wallet")
@@ -3019,11 +3217,14 @@ describe("useReviewedRun", () => {
               throw new Error("lagging node");
             },
           );
-        const { seen, run } = harness({
+        const mounted = harness({
           ...deps,
           ...(safe ? { adapter: { ...wallet.adapter, sendCalls } } : {}),
           account: ACCOUNT,
         });
+        const { seen, run } = mounted;
+        switchAccount = mounted.switchAccount;
+        let lapsedInConfirm = false;
         const tries = new Map<number, number>();
         const sleep = (ms: number) =>
           new Promise((resolve) => setTimeout(resolve, ms));
@@ -3041,6 +3242,11 @@ describe("useReviewedRun", () => {
           onConfirmed: async (call: { data: string }, step: number) => {
             await lock.assertHeld();
             await sleep(c.confirmMs);
+            // The lease lapses while it is paused, before its last fence.
+            if (c.lapseInConfirm && !lapsedInConfirm) {
+              lapsedInConfirm = true;
+              lapsing.lapse();
+            }
             await lock.assertHeld();
             told.push(`confirmed:${step}`);
             confirmedCalls.push({ step, data: call.data });
@@ -3100,6 +3306,7 @@ describe("useReviewedRun", () => {
         } | null;
         /** Every run's end: a done one has each step's hash, in order. */
         const results: unknown[] = [first];
+        if (c.switchAt === "first") await away();
         /** Every completion's end, by the step it completed. */
         const completions: {
           step: number;
@@ -3210,8 +3417,12 @@ describe("useReviewedRun", () => {
         await act(async () => {});
         const unshown = seen.current!.status !== "done";
         if (c.dismiss) {
-          act(() => void seen.current!.dismiss());
-          if (!c.dismissOnce) act(() => void seen.current!.dismiss());
+          const dismissing = () => {
+            act(() => void seen.current!.dismiss());
+            if (!c.dismissOnce) act(() => void seen.current!.dismiss());
+          };
+          if (c.switchAt === "dismiss") await away(dismissing);
+          else dismissing();
         }
         recover();
         const handle = openStepHold(deps.hold, ACCOUNT, safe, held);
@@ -3304,8 +3515,10 @@ describe("useReviewedRun", () => {
           await settle();
         }
         // Retried, under a fresh lock, only while its sequence is saved
-        // unfinished or its last success is unacknowledged.
+        // unfinished, its last step still held (a dismissed proposal's
+        // follow gone with its view) or its last success is unacknowledged.
         const unfinished = () =>
+          handle.peek().status !== "clear" ||
           !!handle.unacknowledgedSuccess() ||
           (scope !== undefined &&
             findReviewedSequence(scope, ACCOUNT, { storage: deps.storage }) !==

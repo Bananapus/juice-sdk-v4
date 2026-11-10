@@ -53,6 +53,7 @@ import {
   none,
   type HeldViewActions,
 } from "./heldView.js";
+import { mergeOwn, type OwnChange, type OwnEntry } from "./ownership.js";
 import type { Address, Hex, TransactionReceipt } from "viem";
 
 /** The send engine: the review model, its decoder and the ABIs it reads. */
@@ -80,6 +81,8 @@ type Detached = {
   handle: WriteHoldHandle;
   client: WriteHoldClient;
   call: ReviewedCall;
+  /** The account that sent it. */
+  account: Address;
   /** The sent write's own reservation, followed to its own settlement. */
   reservation?: string | undefined;
 };
@@ -277,6 +280,8 @@ function heldSteps(
 type OwnSuccess = {
   settled: Succeeded;
   handle: WriteHoldHandle;
+  /** The account that sent it. */
+  account: Address;
   /** The held last step it settled, for its completion. */
   call: ReviewedCall;
   step: number;
@@ -337,6 +342,8 @@ export function useReviewedRun(
     client: WriteHoldClient;
     /** The run that followed it: a reset or a later run ignores its end. */
     run: number;
+    /** The account that sent it. */
+    account: Address;
     /** The followed step's call, reservation and index, and the action's step count. */
     call: ReviewedCall;
     reservation: string | undefined;
@@ -363,7 +370,11 @@ export function useReviewedRun(
   const latest = useRef(0);
   /** The sent step whose hold the latest run's `ended()` awaits. */
   const awaiting = useRef<{
+    /** The run whose `ended()` awaits it. */
+    run: number;
     last: boolean;
+    /** The account that sent it and its reservation: its dismissal's entry. */
+    owner: { account: Address; reservation: string | undefined };
     detached: Detached | null;
     end: () => void;
   } | null>(null);
@@ -389,12 +400,15 @@ export function useReviewedRun(
    * The reservations `calls`' holds hold now (a held write, or a success
    * nothing showed), each with its hold.
    */
-  const holdsOf = (calls: readonly Parameters<typeof openStepHold>[3][]) =>
+  const holdsOf = (
+    account: Address | undefined,
+    calls: readonly Parameters<typeof openStepHold>[3][],
+  ) =>
     calls.flatMap((call) => {
-      if (!deps?.account) return [];
+      if (!deps || !account) return [];
       try {
         // A hold's key is its call's, whatever the Safe mode.
-        const handle = openStepHold(deps.hold, deps.account, false, call);
+        const handle = openStepHold(deps.hold, account, false, call);
         const held = handle.peek();
         const reservation =
           held.status !== "clear"
@@ -415,27 +429,34 @@ export function useReviewedRun(
    * One entry per account and reservation: keeping or showing one never
    * touches another's.
    */
-  const own = useRef(
-    new Map<string, { account: Address; reservation: string; run?: number }>(),
-  );
-  const ownKey = (account: Address, reservation: string) =>
-    `${account.toLowerCase()}:${reservation}`;
-  const keepOwn = (account: Address, reservations: string[], run?: number) => {
-    for (const reservation of reservations)
-      own.current.set(ownKey(account, reservation), {
-        account,
-        reservation,
-        ...(run === undefined ? {} : { run }),
-      });
-  };
-  /** Its success shown: that entry alone is released (unless `run` keeps it). */
-  const shownOwn = (reservation: string | undefined, run?: number) => {
-    for (const [key, entry] of own.current)
-      if (
-        entry.reservation === reservation &&
-        (run === undefined || entry.run !== run)
-      )
-        own.current.delete(key);
+  const own = useRef(new Map<string, OwnEntry>());
+  /**
+   * Every change to a form's write, under the account that sent it, goes
+   * through {@link mergeOwn}: forward only. A showing (`shown`) changes
+   * the reservation's entry whichever account it is under.
+   */
+  const changeOwn = (
+    account: Address,
+    reservations: readonly (string | undefined)[],
+    change: OwnChange,
+  ) => {
+    for (const reservation of reservations) {
+      if (!reservation) continue;
+      const keys = [...own.current]
+        .filter(
+          ([, entry]) =>
+            change.kind === "shown" && entry.reservation === reservation,
+        )
+        .map(([key]) => key);
+      const mine = `${account.toLowerCase()}:${reservation}`;
+      for (const key of keys.length ? keys : [mine]) {
+        const entry = own.current.get(key);
+        own.current.set(
+          key,
+          mergeOwn(entry, entry?.account ?? account, reservation, change),
+        );
+      }
+    }
   };
   const ownSuccess = (
     action: Pick<ReviewedAction, "calls" | "batch"> & { account?: Address },
@@ -448,7 +469,9 @@ export function useReviewedRun(
       return undefined;
     const kept = [...own.current.values()]
       .filter(
-        (entry) => entry.account.toLowerCase() === deps.account!.toLowerCase(),
+        (entry) =>
+          entry.state === "owned" &&
+          entry.account.toLowerCase() === deps.account!.toLowerCase(),
       )
       .map((entry) => entry.reservation);
     if (!kept.length) return undefined;
@@ -471,6 +494,7 @@ export function useReviewedRun(
             return {
               settled: settled as Succeeded,
               handle,
+              account,
               call: call as ReviewedCall,
               step,
               reservation,
@@ -507,12 +531,13 @@ export function useReviewedRun(
     settled: WriteHoldSettled,
     receipt: TransactionReceipt | null,
     acknowledge: (() => Promise<void>) | null,
+    account: Address,
     reservation?: string,
   ) => {
     if (latest.current !== run) return;
     // Shown: its own entry is released, unless `dismiss` closed it while
     // this run followed it (its showing the user closed never counts).
-    shownOwn(reservation, run);
+    changeOwn(account, [reservation], { kind: "shown", run });
     const finished = step === total - 1;
     setState((now) =>
       settled.result !== "success"
@@ -638,13 +663,19 @@ export function useReviewedRun(
     dismiss: () => {
       const waiting = awaiting.current;
       if (open.current && !waiting) return false;
-      /** The followed last step this closes: a retry of it never sends it again. */
+      /**
+       * The followed last step this closes, under the account that sent it,
+       * and the run that followed it: a retry of it never sends it again.
+       */
       const last = waiting
-        ? waiting.last && waiting.detached
+        ? waiting.last && { ...waiting.owner, run: waiting.run }
         : watched?.step === watched?.total! - 1 && watched;
       const closing = () => {
-        if (last && last.reservation && deps?.account)
-          keepOwn(deps.account, [last.reservation], latest.current);
+        if (last)
+          changeOwn(last.account, [last.reservation], {
+            kind: "dismiss",
+            run: last.run,
+          });
       };
       if (waiting?.last) {
         awaiting.current = null;
@@ -659,6 +690,7 @@ export function useReviewedRun(
               handle: watched.handle,
               client: watched.client,
               call: watched.call,
+              account: watched.account,
               reservation: watched.reservation,
             },
       );
@@ -682,6 +714,19 @@ export function useReviewedRun(
       setWatched(null);
     },
     run: async ({ onCancelled, onStopped, ...action }) => {
+      /**
+       * The account this run sends from, read once: every continuation of
+       * it uses this one, whatever account the app's deps hold by then.
+       */
+      const runAccount = deps?.account;
+      /**
+       * The wallet's Safe mode, only while it still speaks for the run's
+       * account: another account's mode never names this run's holds.
+       */
+      const runSafe = () =>
+        deps && deps.account?.toLowerCase() === runAccount?.toLowerCase()
+          ? deps.adapter.isSafe()
+          : undefined;
       /** This form's unshown write of these calls succeeded: the form closes on it. */
       const close = async (found: OwnSuccess) => {
         const { settled, handle } = found;
@@ -702,7 +747,7 @@ export function useReviewedRun(
                   held: { call: found.call, reservation: found.reservation },
                 },
                 {
-                  account: deps!.account!,
+                  account: found.account,
                   scope: action.scope,
                   onConfirmed: action.onConfirmed,
                   locks: action.locks,
@@ -732,7 +777,9 @@ export function useReviewedRun(
             // for this acknowledgement before it sends.
             acknowledge: async () => {
               if (alive.aborted) return;
-              shownOwn(found.reservation);
+              changeOwn(found.account, [found.reservation], {
+                kind: "shown",
+              });
               await handle.acknowledge(settled).catch(() => undefined);
             },
             phase: "done",
@@ -758,7 +805,7 @@ export function useReviewedRun(
       // calls' holds'. A scoped sequence's journal answers for its own.
       const followed =
         now?.reservation &&
-        deps?.account &&
+        runAccount &&
         (action.scope === undefined || action.calls.length === 1)
           ? now
           : null;
@@ -767,7 +814,7 @@ export function useReviewedRun(
         followed &&
         ownState?.status !== "clear" &&
         ownState?.reservation === followed.reservation &&
-        holdsOf(action.calls).some(
+        holdsOf(runAccount, action.calls).some(
           ({ reservation }) => reservation === followed.reservation,
         )
       ) {
@@ -803,8 +850,9 @@ export function useReviewedRun(
        */
       const holds = () =>
         holdsOf(
-          deps?.account && action.batch && action.calls.length > 1
-            ? [...action.calls, safeBatchCall(deps.account, action.calls)]
+          runAccount,
+          runAccount && action.batch && action.calls.length > 1
+            ? [...action.calls, safeBatchCall(runAccount, action.calls)]
             : action.calls,
         );
       const before = new Set(holds().map(({ reservation }) => reservation));
@@ -846,7 +894,7 @@ export function useReviewedRun(
         > = Promise.resolve(null);
         let shown = false;
         const action$ = {
-          account: deps!.account!,
+          account: runAccount!,
           scope: action.scope,
           onConfirmed: action.onConfirmed,
           locks: action.locks,
@@ -881,12 +929,10 @@ export function useReviewedRun(
             // Its notice undelivered: the form's own, whichever run shows
             // now (a retry that replaced this one included), so a later
             // run closes on it, telling it then.
-            if (
-              ended?.undelivered &&
-              target.step === total - 1 &&
-              target.held?.reservation
-            )
-              keepOwn(deps!.account!, [target.held.reservation]);
+            if (ended?.undelivered && target.step === total - 1)
+              changeOwn(action$.account, [target.held?.reservation], {
+                kind: "keep",
+              });
             if (shown || alive.aborted) return;
             // Nothing advanced (its receipt unread, its hold not settled
             // for this send yet, or its onConfirmed not delivered): it is
@@ -919,13 +965,14 @@ export function useReviewedRun(
                 ? acknowledging(
                     openStepHold(
                       deps!.hold,
-                      deps!.account!,
+                      action$.account,
                       false,
                       target.held!.call,
                     ),
                     ended.settled,
                   )
                 : null,
+              action$.account,
               target.held?.reservation,
             );
             setWatched(null);
@@ -942,8 +989,9 @@ export function useReviewedRun(
         finish?: (typeof watched & {})["finish"],
         released?: () => void,
       ): Promise<boolean | null> => {
-        if (latest.current !== id || !deps?.account) return false;
-        const { account, adapter, hold, storage } = deps;
+        if (latest.current !== id || !deps || !runAccount) return false;
+        const { adapter, hold, storage } = deps;
+        const account = runAccount;
         // Its Safe mode is read only once the wallet says it is known.
         try {
           await walletReady(adapter);
@@ -952,7 +1000,8 @@ export function useReviewedRun(
         }
         try {
           if (latest.current !== id) return false;
-          const safe = adapter.isSafe();
+          const safe = runSafe();
+          if (safe === undefined) return null;
           const saved = !action.scope
             ? null
             : findReviewedSequence(action.scope, account, { storage });
@@ -1009,6 +1058,7 @@ export function useReviewedRun(
                   handle: found.handle,
                   client: deps.clientFor(found.call.chainId),
                   run: id,
+                  account,
                   call: found.call as ReviewedCall,
                   reservation,
                   step: found.step,
@@ -1039,17 +1089,15 @@ export function useReviewedRun(
         target: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
       ): Detached | null => {
         const call = target.held?.call ?? action.calls[target.step];
-        if (!deps?.account || !call) return null;
+        if (!deps || !runAccount || !call) return null;
         try {
+          const safe = runSafe();
+          if (safe === undefined) return null;
           return {
-            handle: openStepHold(
-              deps.hold,
-              deps.account,
-              deps.adapter.isSafe(),
-              call,
-            ),
+            handle: openStepHold(deps.hold, runAccount, safe, call),
             client: deps.clientFor(call.chainId),
             call,
+            account: runAccount,
             reservation: target.held?.reservation,
           };
         } catch {
@@ -1057,11 +1105,11 @@ export function useReviewedRun(
         }
       };
       try {
-        if (!deps?.account)
+        if (!deps || !runAccount)
           throw new ReviewLineError("Connect a wallet first.");
         if (
           action.account &&
-          action.account.toLowerCase() !== deps.account.toLowerCase()
+          action.account.toLowerCase() !== runAccount.toLowerCase()
         )
           throw new ReviewLineError(REVIEWED_ACCOUNT_CHANGED_LINE);
         if (action.calls.length > 1 && action.scope === undefined)
@@ -1090,7 +1138,8 @@ export function useReviewedRun(
           if (settled) throw new OwnSucceeded(settled);
         };
         settledOwn();
-        const { account, guard } = deps;
+        const { guard } = deps;
+        const account = runAccount;
         const tracked: ReviewedSendDeps = {
           ...deps,
           onProgress: (progress) => {
@@ -1228,7 +1277,12 @@ export function useReviewedRun(
             leave.current = abandon;
             cancelled?.addEventListener("abort", abandon, { once: true });
             awaiting.current = {
+              run: id,
               last: error.step === action.calls.length - 1,
+              owner: {
+                account: runAccount!,
+                reservation: error.held?.reservation,
+              },
               detached: heldStep(error),
               end: abandon,
             };
@@ -1290,9 +1344,9 @@ export function useReviewedRun(
         // A resume can complete a step the wallet sent before the reload.
         try {
           const after =
-            action.scope === undefined || !deps?.account
+            action.scope === undefined || !runAccount
               ? null
-              : findReviewedSequence(action.scope, deps.account, {
+              : findReviewedSequence(action.scope, runAccount, {
                   storage: deps.storage,
                 });
           if (
@@ -1318,10 +1372,11 @@ export function useReviewedRun(
         const left = holds().filter(
           ({ reservation }) => !before.has(reservation),
         );
-        if (action.calls.length === 1 && left.length && deps?.account)
-          keepOwn(
-            deps.account,
+        if (action.calls.length === 1 && left.length && runAccount)
+          changeOwn(
+            runAccount,
             left.map(({ reservation }) => reservation),
+            { kind: "keep" },
           );
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
