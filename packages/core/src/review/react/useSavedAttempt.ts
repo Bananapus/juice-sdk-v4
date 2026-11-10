@@ -183,6 +183,16 @@ export function useSavedAttempt<T>(
     ): Promise<Retired> => {
       const retired = await lifecycle.recovery.retire(attempt, reason);
       if (!current(lifecycle)) return retired;
+      if (retired.retired && reason.by === "settled") {
+        // Settled is final, whether or not the app's clearing of it has
+        // rendered yet: shown so, never recovered again.
+        setShown({
+          of: lifecycle,
+          outcome: { status: "none", retired: "settled" },
+          recovering: false,
+        });
+        return retired;
+      }
       if (!retired.retired && retired.reason === "unreadable")
         setUnreadable(lifecycle);
       await recover();

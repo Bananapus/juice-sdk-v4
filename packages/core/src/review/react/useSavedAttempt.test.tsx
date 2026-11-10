@@ -597,7 +597,12 @@ describe("useSavedAttempt", () => {
       by: "settled",
       hash: "0xab",
     });
-    await answer({ status: "none", retired: "settled" });
+    // Settled is final: shown so, without recovering it again.
+    expect(seen.current!.outcome).toEqual({
+      status: "none",
+      retired: "settled",
+    });
+    expect(recovery.recover).toHaveBeenCalledTimes(1);
     await act(async () => void seen.current!.recover());
     await answer({ ...done });
     await render({ recovery, attempt, client, onDone });
@@ -771,6 +776,42 @@ describe("useSavedAttempt", () => {
       hash: "0xab",
     });
     // The cleared attempt is not recovered again.
+    expect(recovery.recover).toHaveBeenCalledTimes(1);
+  });
+
+  test("never recovers an attempt onDone retired, even before the attempt it cleared has rendered", async () => {
+    const { recovery, answer } = fakeRecovery();
+    const attempt = attemptOf();
+    function Clears() {
+      const [current, setCurrent] = useState<SavedAttempt<string> | null>(
+        attempt,
+      );
+      useSavedAttempt({
+        recovery,
+        attempt: current,
+        client,
+        onDone: async () => {
+          setCurrent(null);
+          return true;
+        },
+      });
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Clears />));
+    await answer({
+      status: "done",
+      result: "success",
+      authenticated: false,
+      hash: "0xab",
+      reason: "r",
+    });
+    await vi.waitFor(() => expect(recovery.retire).toHaveBeenCalledOnce());
+    await act(async () => {});
+    expect(recovery.retire).toHaveBeenCalledWith(attempt, {
+      by: "settled",
+      hash: "0xab",
+    });
     expect(recovery.recover).toHaveBeenCalledTimes(1);
   });
 
