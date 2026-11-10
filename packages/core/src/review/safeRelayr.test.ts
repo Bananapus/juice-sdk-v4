@@ -368,6 +368,27 @@ beforeEach(() => {
   vi.spyOn(Date, "now").mockReturnValue(NOW * 1000);
 });
 
+/** A store lock whose lease the test can lapse; each acquisition is a fresh one. */
+function leased(h: ReturnType<typeof harness>) {
+  const lease = { current: { lost: false } };
+  vi.mocked(h.store.withLock).mockImplementation(async (_account, run) => {
+    const mine = { lost: false };
+    lease.current = mine;
+    return run([
+      {
+        name: "safe-relayr",
+        mode: "exclusive",
+        signal: new AbortController().signal,
+        held: async () => !mine.lost,
+        assertHeld: async () => {
+          if (mine.lost) throw new LockLostError("safe-relayr");
+        },
+      },
+    ]);
+  });
+  return lease;
+}
+
 describe("Safe Relayr recovery without a complete quote", () => {
   function orphan(
     h: ReturnType<typeof harness>,
@@ -417,26 +438,6 @@ describe("Safe Relayr recovery without a complete quote", () => {
   });
 
   /** The store's lock per acquisition, as a lease another tab can take while this one sleeps. */
-  function leased(h: ReturnType<typeof harness>) {
-    const lease = { current: { lost: false } };
-    vi.mocked(h.store.withLock).mockImplementation(async (_account, run) => {
-      const mine = { lost: false };
-      lease.current = mine;
-      return run([
-        {
-          name: "safe-relayr",
-          mode: "exclusive",
-          signal: new AbortController().signal,
-          held: async () => !mine.lost,
-          assertHeld: async () => {
-            if (mine.lost) throw new LockLostError("safe-relayr");
-          },
-        },
-      ]);
-    });
-    return lease;
-  }
-
   it("never saves an older snapshot over the next owner's payment once the lock went while it read", async () => {
     const h = harness();
     const lease = leased(h);
@@ -2611,6 +2612,32 @@ describe("Safe Relayr funding and canonical outcome", () => {
     expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe("unfunded");
     expect(h.sessions.get(ready.session.id)?.payments).toHaveLength(0);
     expect(h.sessions.get(ready.session.id)?.state).toBe("active");
+  });
+
+  it("restores a known unsent attempt under a fresh lock if the lease and the quote lapsed during its save", async () => {
+    const h = harness();
+    const lease = leased(h);
+    const ready = await h.controller.prepare({
+      account: ACCOUNT,
+      executions: [execution()],
+    });
+    vi.mocked(h.store.save).mockImplementation(async (session) => {
+      h.sessions.set(session.id, structuredClone(session));
+      if (session.paymentStatus === "sending") {
+        // Asleep in the save: the lease and the quote both lapse.
+        lease.current.lost = true;
+        vi.mocked(Date.now).mockReturnValue((DEADLINE + 1) * 1000);
+      }
+    });
+    await expect(
+      h.controller.fund({
+        account: ACCOUNT,
+        sessionId: ready.session.id,
+        paymentChainId: 1,
+      }),
+    ).rejects.toThrow("expired");
+    expect(h.sessions.get(ready.session.id)?.paymentStatus).toBe("unfunded");
+    expect(h.sessions.get(ready.session.id)?.payments).toHaveLength(0);
   });
 
   it("keeps a no-hash wallet error pending even when the quote later expires", async () => {

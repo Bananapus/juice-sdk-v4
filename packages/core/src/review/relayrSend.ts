@@ -608,7 +608,10 @@ async function sendPayment(
     ...(hooks.intent ? { intent: hooks.intent.key } : {}),
   };
   const handle = openStepHold(deps.hold, account, safe, call);
-  /** The attempt is saved (`onSending`), and the wallet not yet asked. */
+  /**
+   * The app's `onSending` began, so its saved "sending" record may stand:
+   * any refusal before the wallet then says "not sent", so the app restores it.
+   */
   let saved = false;
   let invoked = false;
   /** The reservation this payment's send took. */
@@ -683,10 +686,8 @@ async function sendPayment(
           try {
             // The site's own record before the wallet: never under a lost lock.
             await assertLocksHeld(hooks.locks);
-            await hooks.onSending?.();
-            // Saved as sending: a refusal from here on says "not sent", so
-            // the app restores its record instead of leaving it pending.
             saved = true;
+            await hooks.onSending?.();
             // The last await before the wallet: every lock is still this tab's.
             await Promise.all([
               gate.assertHeld(),

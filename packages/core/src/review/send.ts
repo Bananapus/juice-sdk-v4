@@ -1073,10 +1073,12 @@ async function send(
     resuming ? undefined : call.simulationBlockNumber,
   );
   /**
-   * Tell the site its steps from `from` were not sent, only while every one
-   * of its locks is still this tab's, on a fresh read: once one was lost, the
-   * lock's new owner owns the site's journal, whatever ended the attempt. A
-   * site's release callback never stops core's own release.
+   * Tell the site its steps from `from` were not sent, each only while every
+   * one of its locks is still this tab's, read fresh right before that
+   * step's callback (an earlier callback's await may have outlived the
+   * lease): once one was lost, the lock's new owner owns the site's journal,
+   * whatever ended the attempt. A site's release callback never stops core's
+   * own release.
    */
   const tellUnsent = async (
     steps: readonly ReviewedCall[],
@@ -1084,12 +1086,13 @@ async function send(
     cause?: unknown,
   ) => {
     if (cause instanceof LockLostError) return;
-    const held = await Promise.all(
-      (action.locks ?? []).map((lock) => lock.held().catch(() => false)),
-    );
-    if (held.includes(false)) return;
-    for (const [index, call] of steps.entries())
+    for (const [index, call] of steps.entries()) {
+      const held = await Promise.all(
+        (action.locks ?? []).map((lock) => lock.held().catch(() => false)),
+      );
+      if (held.includes(false)) return;
       await tell(action.onUnsent, call, from + index);
+    }
   };
   const connected = adapter.account();
   if (!connected) throw new ReviewLineError("Connect a wallet first.");

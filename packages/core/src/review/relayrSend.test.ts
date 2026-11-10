@@ -45,6 +45,7 @@ import {
 } from "./relayrSend.js";
 import type { SafeRelayrSession } from "./safeRelayr.js";
 import { openStepHold } from "./writeHold.js";
+import { LockLostError } from "./locks.js";
 import { REVIEWED_PLAN_REFUSED_LINE } from "./plan.js";
 import { reviewPlan } from "./send.js";
 import { signReviewed } from "./sign.js";
@@ -397,6 +398,30 @@ describe("payRelayrReviewed", () => {
     await expect(
       payRelayrReviewed(quoteFor(), 10, { account: ACCOUNT }, deps),
     ).resolves.toMatchObject({ hash: expect.stringMatching(/^0x/) });
+  });
+
+  it("fails as not sent when the app's own save of the attempt refuses for a lost lock", async () => {
+    const { deps, wallet } = relayrSetup();
+    reviewUi();
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        // The app saved "sending", then its own rollback met a lapsed lease.
+        onSending: async () => {
+          sending = true;
+          throw new LockLostError("app");
+        },
+      },
+      deps,
+    ).catch((caught: unknown) => caught);
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(error).toBeInstanceOf(RelayrPaymentNotSentError);
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
   });
 
   it("releases a payment whose intent lock was lost while it reserved, before the wallet", async () => {

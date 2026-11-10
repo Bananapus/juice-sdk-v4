@@ -1015,6 +1015,36 @@ describe("sendReviewed", () => {
     expect(hold.open(holdOf(call)).peek().status).toBe("clear");
   });
 
+  it("checks the site's locks again before each step's unsent callback", async () => {
+    const { deps } = setup();
+    const journal = new Map<number, string>();
+    let lost = false;
+    const submit = vi.fn(async (): Promise<Hex> => {
+      throw Object.assign(new Error("no"), { code: 4001 });
+    });
+    await expect(
+      sendReviewed(
+        action([approveCall(), payCall()], {
+          locks: [{ ...clientLock(true, "order"), held: async () => !lost }],
+          beforeWallet: (_, step) => void journal.set(step, "A"),
+          onUnsent: async (_, step) => {
+            journal.delete(step);
+            // Asleep in step 0's save: A's lease lapses, and B saves both steps.
+            if (step === 0) {
+              lost = true;
+              journal.set(0, "B").set(1, "B");
+            }
+          },
+        }),
+        {
+          ...deps,
+          adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+        },
+      ),
+    ).rejects.toThrow();
+    expect(journal.get(1)).toBe("B");
+  });
+
   it("never lets a self-reviewing wallet's rejection after the site's lock lapsed clear the next owner's record", async () => {
     const { deps } = setup();
     const order = siteOrder();

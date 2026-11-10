@@ -1857,8 +1857,10 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     signal?: AbortSignal;
     onStatus?: SafeRelayrStatus;
   }): Promise<SafeRelayrResult> {
-    // What the wallet proved after the lock was lost, applied under a fresh
-    // lock to the saved record only while it is still this attempt's.
+    // Once this attempt saved "sending", every later save goes through
+    // `keep`: one refused for a lost lock leaves what it would have saved
+    // (the attempt's outcome) to be applied under a fresh lock, to the saved
+    // record only while it is still this attempt's.
     let late:
       | ((current: SafeRelayrSession) => SafeRelayrSession | undefined)
       | undefined;
@@ -1952,6 +1954,28 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
           requireOpenPayment();
           verified = true;
         };
+        /**
+         * Nothing was sent after "sending" was saved: the status before this
+         * attempt again. A lost lock leaves it to the fresh-lock reconcile,
+         * and the caller still gets the reason nothing was sent.
+         */
+        const restoreUnsent = async () => {
+          session = {
+            ...session,
+            paymentStatus: checked.session.paymentStatus,
+          };
+          const restored = session;
+          await keep(restored, (current) =>
+            current.paymentStatus === "sending" &&
+            current.bundleUuid === restored.bundleUuid &&
+            JSON.stringify(current.payments) ===
+              JSON.stringify(restored.payments)
+              ? { ...current, paymentStatus: restored.paymentStatus }
+              : undefined,
+          ).catch((saveError) => {
+            if (!(saveError instanceof LockLostError)) throw saveError;
+          });
+        };
         const onSending = async () => {
           checkAccount(account, signal);
           if (!verified || sending)
@@ -1978,11 +2002,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
             checkAccount(account, signal);
             requireOpenPayment();
           } catch (error) {
-            session = {
-              ...session,
-              paymentStatus: checked.session.paymentStatus,
-            };
-            await store.save(session);
+            await restoreUnsent();
             throw error;
           }
           sending = true;
@@ -2105,22 +2125,7 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
               "unpaid" &&
             session.payments.length === checked.session.payments.length
           ) {
-            session = {
-              ...session,
-              paymentStatus: checked.session.paymentStatus,
-            };
-            const restored = session;
-            await keep(restored, (current) =>
-              current.paymentStatus === "sending" &&
-              current.bundleUuid === restored.bundleUuid &&
-              JSON.stringify(current.payments) ===
-                JSON.stringify(restored.payments)
-                ? { ...current, paymentStatus: restored.paymentStatus }
-                : undefined,
-            ).catch((saveError) => {
-              // Reconciled below: the wallet's answer is what the user sees.
-              if (!(saveError instanceof LockLostError)) throw saveError;
-            });
+            await restoreUnsent();
             throw error;
           }
           if (
