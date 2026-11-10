@@ -1,5 +1,31 @@
 # juice-sdk-core
 
+## 6.2.0
+
+### Minor Changes
+
+- 3204539: Fence the `browserLocks()` IndexedDB lease, so a tab whose lease lapsed while it was suspended (as while the user is in a wallet app) can't keep writing, and check clients' locks at the SDK's wallet and signature boundaries.
+  - `browserLocks().request` takes `(name, work)` as well as `(name, options, work)`, as `navigator.locks` does.
+  - `work` gets a `LockHandle`: `name`, `mode`, `signal` (aborted once the lock is known lost), `held()` (a fresh read) and `assertHeld()`, which throws the exported `LockLostError` (`code: "LOCK_LOST"`). Native Web Locks never lose it. The IndexedDB lease gives each acquisition its own owner token, renews only while the lease is still its own and unexpired, and releases only its own.
+  - `assertLocksHeld(locks)` checks several handles in one line, right before a client's own journal write.
+  - `locks` on `sendReviewed`, `resumeReviewed`, `payRelayrReviewed`, `signReviewed` and `signReviewedForwardRequests`: the client's handles are checked before `beforeWallet`/`onSending`, and, with the SDK's own, as the last await before every request that sends or signs. A lost one sends or signs nothing and releases the step's hold. `onUnsent` runs only while every one of `locks` reads as held, read fresh right before each step's callback, so a wallet rejection that arrives after the lock lapsed never clears the next owner's record. A loss of only the SDK's own lock still calls `onUnsent`.
+  - `WalletAdapter` calls that send or sign take an optional `fence` (`sendTransaction`'s `{ fence }`, and a `WalletRequestOptions` second argument on `signTypedData`, `signMessage`, `sendCalls` and `submitToReviewer`). `viemWalletAdapter` awaits it as the last await before forwarding each sending or signing request, after loading its wallet client, and `selfReviewingAdapter` right before handing the request over; its refusal is a `WalletNotInvokedError`. A custom adapter that ignores it keeps working, checked by the SDK just before the adapter is called; to close the window inside the adapter, await `fence` right before the wallet request.
+  - `assertLocksHeld` takes anything with `assertHeld()`.
+  - A Relayr payment refused before the wallet once the app's `onSending` began (including its own save refused for a lost lock) fails as not sent (`RelayrPaymentNotSentError`), so the app's record restores instead of staying pending.
+  - A release after a lost lock (a rejected or unsent step) leaves the record alone unless it is still the step's own unsent reservation, so it can't hide the next owner's write or settlement.
+  - `SafeRelayrStore.withLock(account, run)` hands `run` the locks it took (`run(locks)`); the controller checks them after every read and right before every `save` under the lock. A wallet rejection or payment hash that arrives after the lock was lost is saved under a fresh lock, only while the saved record is still that attempt's. Stores that call `run()` keep working, unfenced.
+  - The SDK's own holds check their locks right before a reservation, before a saved attempt's retirement, and as the last await before the wallet opens (`WriteHoldGate.assertHeld()`).
+
+- 9d58260: `useReviewedRun` owns the run rules every site's wrapper re-derived:
+  - A run closed after an earlier step was sent (here, in a resumed sequence, or in the continuation a late approval receipt reopened) ends `stopped`, a new `ReviewedRunStatus` beside `cancelled`, with `lastSubmittedStep`. The action's new `onStopped(step)` is told once that state has rendered, as `onCancelled` is.
+  - `dismiss()` closes a run's confirm and says whether it closed (never while its review or wallet is open). A held step before the last ends the run there: nothing more is reviewed, the hold keeps the step, and it is followed detached; the new `onDismissedSettled(call)` dep hears its success. A held last step only stops the run's wait (`ended()` is null): it stays followed and shown. Otherwise it resets, still following any hold it showed.
+  - `following` is true while the run only follows a sent step's hold, and `busy` is now false then: the confirm can close.
+  - A run whose engine failed to load or whose send threw is free to run again (now covered by a test).
+
+- b66b9e6: A write's settlement outlives the next reservation of its call or intent: the hold keeps the last 8 reservations' settlements by id. `handle.settlementOf(reservation)` reads it after a later reservation replaced it (another tab acknowledged it and reserved again), so a held-write view still delivers its own write's outcome, and `followHeldWrite(handle, client, { signal, reservation })` ends with that reservation's settlement instead of following the newer one.
+
+  `completeReviewedStep` takes an optional `signal`: once it aborts, it returns null with nothing recorded, told or acknowledged, so the success still warns the next run. Its new `acknowledge` argument (default true) set false leaves the acknowledgement to the caller, after it has shown the success. It completes a step from its own reservation's saved settlement after a later reservation replaced it. `useReviewedRun` acknowledges a run's last success only once its done has rendered, and never after the run was replaced, reset, dismissed or unmounted; the next run waits for that acknowledgement. A held-write view delivers its write's own settlement instead of reading a later reservation's release as its own.
+
 ## 6.1.0
 
 ### Minor Changes
