@@ -872,6 +872,7 @@ export async function resumeReviewed(
     // This sequence's own step: told, recorded, and only then acknowledged,
     // so it is never offered again. Its notice not delivered yet, it stays
     // held at its receipt, acknowledged by none, for a completion to tell.
+    let kept: string | null = expected;
     const ended = await endStep(
       action,
       handle,
@@ -879,7 +880,10 @@ export async function resumeReviewed(
       step,
       settled,
       receipt,
-      () => recordSending(saved, settled, storage, expected),
+      async () => {
+        kept = await recordSending(saved, settled, storage, expected);
+        return saved.completed;
+      },
     );
     if (!ended)
       throw new ReviewedReceiptUnverifiedError(
@@ -888,12 +892,11 @@ export async function resumeReviewed(
         undefined,
         { call, reservation, hashes: [...saved.completed] },
       );
-    const kept = ended.recorded;
     if (settled?.result === "success") await handle.acknowledge(settled);
     if (kept === null) {
       const total = saved.calls.length;
       tell(deps.onProgress, { step: total - 1, total, phase: "done" });
-      return { status: "done", hashes: saved.completed, receipts: [] };
+      return { status: "done", hashes: ended, receipts: [] };
     }
     expected = kept;
   }
@@ -998,24 +1001,29 @@ async function tellConfirmed(
  * or resume tells it before any step after it is sent, and the steps
  * recorded before it are exactly its prior hashes. Null while undelivered.
  */
-async function endStep<T>(
+async function endStep(
   action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
   handle: Pick<
     WriteHoldHandle,
-    "claimConfirmed" | "settleConfirmed" | "confirmation"
+    "claimConfirmed" | "settleConfirmed" | "confirmation" | "keepHashes"
   >,
   call: ReviewedCall,
   step: number,
   settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
-  record: () => Promise<T>,
-): Promise<{ recorded: T } | null> {
+  record: () => Promise<readonly Hex[]>,
+): Promise<Hex[] | null> {
   if (
     (await tellConfirmed(action, handle, call, step, settled, receipt)) !==
     "delivered"
   )
     return null;
-  return { recorded: await record() };
+  const hashes = [...(await record())];
+  // Kept on its hold's success, which outlives the journal until it is
+  // acknowledged: every done reads the action's hashes from there.
+  if (settled?.result === "success")
+    await handle.keepHashes(settled, hashes).catch(() => undefined);
+  return hashes;
 }
 
 /**
@@ -1155,8 +1163,12 @@ export async function completeReviewedStep(
     step,
     settled,
     confirmed,
-    async (): Promise<Hex[]> => {
-      const own = settled.result === "success" ? [settled.hash] : [];
+    async () => {
+      // Its hold's, kept when its journal recorded it, else its own.
+      const own =
+        settled.result === "success"
+          ? (handle.hashesOf(settled) ?? [settled.hash])
+          : [];
       if (action.scope === undefined) return own;
       const storage = deps.storage ?? createHeldWriteStorage();
       const { raw, record } = readReviewedSequence(
@@ -1170,15 +1182,14 @@ export async function completeReviewedStep(
       )
         return own;
       await recordSending(record, settled, storage, raw);
-      // The journal's, the one source of a sequence's hashes.
-      return [...record.completed];
+      return record.completed;
     },
   );
   if (!ended)
     return { settled, receipt: confirmed, undelivered: true, hashes: [] };
   if (acknowledge && settled.result === "success")
     await handle.acknowledge(settled);
-  return { settled, receipt: confirmed, hashes: ended.recorded };
+  return { settled, receipt: confirmed, hashes: ended };
 }
 
 /**
@@ -1586,6 +1597,8 @@ async function send(
   };
 
   const hashes: Hex[] = [];
+  /** The action's hashes through the last step ended, as its hold keeps them. */
+  let done: Hex[] = [];
   const receipts: TransactionReceipt[] = [];
   const total = offset + calls.length;
   for (const [step, call] of calls.entries()) {
@@ -1935,18 +1948,20 @@ async function send(
       settled,
       receipt,
       async () => {
-        if (!journal) return;
+        if (!journal) return hashes;
         delete journal.sending;
         journal.completed.push(mined);
         await keep();
+        return journal.completed;
       },
     );
     if (!ended) throw unverified();
+    done = ended;
   }
   onProgress({ step: total - 1, total, phase: "done" });
   return {
     status: "done",
-    hashes: journal ? [...journal.completed] : hashes,
+    hashes: done,
     receipts,
     ...signed,
   };

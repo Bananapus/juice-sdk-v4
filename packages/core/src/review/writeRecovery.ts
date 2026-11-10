@@ -1447,6 +1447,61 @@ export function createBrowserWriteRecovery(
       }
     },
     /**
+     * Keeps the action's hashes through the step `settled` ended (its
+     * sequence's, in order) on that settlement, wherever it is saved, so a
+     * later completion of it is done with all of them after its sequence's
+     * journal is gone.
+     */
+    keepHashesSettled(
+      settled: Pick<ReviewedWriteSettlement, "hash">,
+      hashes: readonly Hex[],
+    ): void {
+      requireLock();
+      const hash = settled.hash.toLowerCase();
+      const kept = hashes.map((each) => each.toLowerCase());
+      try {
+        const store = storage();
+        const saved = savedSettlement(store, settled);
+        if (saved)
+          store.setItem(settledKey, JSON.stringify({ ...saved, hashes: kept }));
+        const by = (JSON.parse(store.getItem(settledByKey) ?? "null") ??
+          {}) as Record<string, { hash?: unknown }>;
+        let changed = false;
+        for (const entry of Object.values(by))
+          if (entry?.hash === hash) {
+            Object.assign(entry, { hashes: kept });
+            changed = true;
+          }
+        if (changed) store.setItem(settledByKey, JSON.stringify(by));
+      } catch {
+        /* Unsaved: a later completion is done with what its journal has. */
+      }
+    },
+    /** The action's hashes {@link keepHashesSettled} kept on `settled`, if any. */
+    hashesOfSettled(
+      settled: Pick<ReviewedWriteSettlement, "hash">,
+    ): Hex[] | undefined {
+      const hash = settled.hash.toLowerCase();
+      const valid = (hashes: unknown) =>
+        Array.isArray(hashes) && hashes.every(isBytes32)
+          ? (hashes as Hex[])
+          : undefined;
+      try {
+        const store = storage();
+        const saved = savedSettlement(store, settled);
+        const found = valid(saved?.hashes);
+        if (found) return found;
+        const by = (JSON.parse(store.getItem(settledByKey) ?? "null") ??
+          {}) as Record<string, { hash?: unknown; hashes?: unknown }>;
+        for (const entry of Object.values(by))
+          if (entry?.hash === hash && valid(entry.hashes))
+            return valid(entry.hashes);
+      } catch {
+        /* Unreadable: none kept. */
+      }
+      return undefined;
+    },
+    /**
      * Whether the settlement's `onConfirmed` notice was delivered, is
      * pending under a live claim, or neither (undefined: unclaimed, given
      * back, or a stale claim).

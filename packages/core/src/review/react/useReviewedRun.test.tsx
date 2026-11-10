@@ -26,7 +26,7 @@ import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import { createWriteHold, openStepHold, safeBatchCall } from "../writeHold.js";
 import { browserLocks, createHeldWriteStorage } from "../writeRecovery.js";
 import { lapsingLocksForTests } from "../../testing.js";
-import type { LockHandle } from "../locks.js";
+import { LockLostError, type LockHandle } from "../locks.js";
 import { selfReviewingAdapter, viemWalletAdapter } from "../wallet.js";
 import {
   createWalletClient,
@@ -2268,6 +2268,112 @@ describe("useReviewedRun", () => {
     }
   }, 30_000);
 
+  test("a site awaiting ended() inside its lapsed lock's scope gets an end: lost, then onConfirmed told once the scope ends, done, one send", async () => {
+    const lapsing = lapsingLocksForTests();
+    vi.stubGlobal("navigator", { locks: lapsing.locks });
+    try {
+      reviewUi();
+      const { deps, wallet } = setup();
+      const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+      wallet.adapter.sendTransaction.mockImplementationOnce(async (...args) => {
+        // The lease lapses while the wallet is open.
+        lapsing.lapse();
+        return send(...args);
+      });
+      const { seen, run } = harness({ ...deps, account: ACCOUNT });
+      const confirmed: number[] = [];
+      const ended = await browserLocks().request("pay", async (lock) => {
+        const result = await run({
+          ...HANDED_BACK,
+          calls: [payCall()],
+          locks: [lock!],
+          onConfirmed: async (_call, step) => {
+            await lock!.assertHeld();
+            confirmed.push(step);
+          },
+        });
+        expect(result).toMatchObject({ status: "receipt" });
+        // Awaited inside the scope, as a site may.
+        return Promise.race([
+          (result as ReviewedRunReceipt).ended(),
+          new Promise((resolve) => setTimeout(() => resolve("stuck"), 6_000)),
+        ]);
+      });
+      expect(ended).toMatchObject({
+        status: "failed",
+        failure: expect.any(LockLostError),
+      });
+      await vi.waitFor(() => expect(confirmed).toEqual([0]), {
+        timeout: 12_000,
+      });
+      // Its follow, retried at the receipt's pace, shows it done.
+      await vi.waitFor(
+        async () => {
+          await act(async () => {});
+          expect(seen.current!.status).toBe("done");
+        },
+        { timeout: 12_000 },
+      );
+      const handle = openStepHold(deps.hold, ACCOUNT, false, payCall());
+      await rendered(() =>
+        expect(handle.unacknowledgedSuccess()).toBeUndefined(),
+      );
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, 30_000);
+
+  test("a sequence whose payment completed in the background after its wait was dismissed closes a reopen as done with every step's hash", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    let lagging = false;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (lagging) throw new Error("lagging node");
+      return read(args);
+    });
+    const onConfirmed = vi.fn((_call: unknown, step: number) => {
+      // The node lags once the approval is confirmed.
+      if (step === 0) lagging = true;
+    });
+    const action = {
+      ...HANDED_BACK,
+      calls: [approveCall(), payCall()],
+      scope: "pay:sequence",
+      onConfirmed,
+    };
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await expect(run(action)).resolves.toMatchObject({
+      status: "receipt",
+      step: 1,
+    });
+    // Only its wait dismissed: its completion goes on in the background.
+    act(() => void seen.current!.dismiss());
+    lagging = false;
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledTimes(2), {
+      timeout: 12_000,
+    });
+    await rendered(() =>
+      expect(
+        findReviewedSequence("pay:sequence", ACCOUNT, {
+          storage: deps.storage,
+        }),
+      ).toBeNull(),
+    );
+    const sent = await Promise.all(
+      wallet.adapter.sendTransaction.mock.results.map(({ value }) => value),
+    );
+    expect(sent).toHaveLength(2);
+    act(() => void seen.current!.dismiss());
+    await expect(run(action)).resolves.toMatchObject({
+      status: "done",
+      hashes: sent,
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  }, 20_000);
+
   test("an approval whose onConfirmed was dropped is told before the payment is sent: a retry delivers it, then sends the payment once", async () => {
     const lapsing = lapsingLocksForTests();
     vi.stubGlobal("navigator", { locks: lapsing.locks });
@@ -2393,6 +2499,10 @@ describe("useReviewedRun", () => {
       acknowledgedElsewhere: random() < 0.5,
       /** Only its wait dismissed: its completion goes on in the background. */
       dismissOnce: random() < 0.5,
+      /** A receipt's `ended()` awaited inside the site's lock scope. */
+      endedInScope: random() < 0.5,
+      /** Unreadable only once the first step confirmed (a sequence's last). */
+      lagLast: random() < 0.5,
     }));
     // A sequence lapsing at each step, on each backend, refreshed or not.
     const sequences = (["lease", "native"] as const).flatMap((backend) =>
@@ -2414,6 +2524,8 @@ describe("useReviewedRun", () => {
           dismissInClose: random() < 0.6,
           acknowledgedElsewhere: random() < 0.5,
           dismissOnce: random() < 0.5,
+          endedInScope: random() < 0.5,
+          lagLast: random() < 0.5,
         })),
       ),
     );
@@ -2436,16 +2548,58 @@ describe("useReviewedRun", () => {
         dismissInClose: true,
         acknowledgedElsewhere: true,
         dismissOnce: true,
+        endedInScope: false,
       })),
     );
-    return [...random$, ...sequences, ...reopens].map((c, index) => ({
+    // A lease lapsing in the wallet while the site awaits `ended()` inside
+    // its scope: a payment and a sequence, each lapsing at its last step.
+    const inScope = (["payment", "sequence"] as const).map((shape) => ({
+      ...random$[0],
+      backend: "lease" as const,
+      shape,
+      lapse: true,
+      lapseAt: 1 as const,
+      refresh: "none" as const,
+      unreadable: false,
+      recoverInReplay: false,
+      dismiss: false,
+      reopen: false,
+      dismissOnce: false,
+      endedInScope: true,
+    }));
+    // A sequence whose wait alone is dismissed, completed in the
+    // background (its journal gone), then reopened: each backend.
+    const background = (["lease", "native"] as const).map((backend) => ({
+      ...random$[0],
+      backend,
+      shape: "sequence" as const,
+      lapse: false,
+      lapseAt: 1 as const,
+      refresh: "none" as const,
+      unreadable: true,
+      recoverInReplay: false,
+      dismiss: true,
+      reopen: true,
+      dismissInClose: false,
+      acknowledgedElsewhere: false,
+      dismissOnce: true,
+      endedInScope: false,
+      lagLast: true,
+    }));
+    return [
+      ...random$,
+      ...sequences,
+      ...reopens,
+      ...inScope,
+      ...background,
+    ].map((c, index) => ({
       ...c,
       index,
     }));
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce): each step told in order, confirmed once before its acknowledgement, one send each across dismiss and reopen, done with every hash in order",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast): each step told in order, confirmed once before its acknowledgement, one send each across dismiss and reopen, done with every hash in order, every awaited end reached",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -2528,9 +2682,18 @@ describe("useReviewedRun", () => {
           act(() => void globalThis.dispatchEvent(new Event("focus")));
         };
         if (!safe && c.unreadable)
-          chain.client.getTransactionReceipt.mockImplementation(async () => {
-            throw new Error("lagging node");
-          });
+          chain.client.getTransactionReceipt.mockImplementation(
+            async (args) => {
+              // A sequence's node may lag only once its approval confirmed.
+              if (
+                c.lagLast &&
+                c.shape === "sequence" &&
+                !told.includes("confirmed:0")
+              )
+                return read(args);
+              throw new Error("lagging node");
+            },
+          );
         const { seen, run } = harness({
           ...deps,
           ...(safe ? { adapter: { ...wallet.adapter, sendCalls } } : {}),
@@ -2558,16 +2721,25 @@ describe("useReviewedRun", () => {
           },
         });
         const runOnce = () =>
-          browserLocks().request("pay", (lock) =>
-            run({
+          browserLocks().request("pay", async (lock) => {
+            const result = await run({
               ...HANDED_BACK,
               calls,
               ...(safe ? { batch: true } : {}),
               ...(scope ? { scope } : {}),
               locks: [lock!],
               ...site(lock!),
-            }),
-          );
+            });
+            if (!c.endedInScope || result?.status !== "receipt")
+              return result as unknown;
+            // Awaited inside the scope, its node reading again: it ends,
+            // with no dismiss.
+            recover();
+            return Promise.race([
+              result.ended(),
+              sleep(8_000).then(() => "stuck" as const),
+            ]);
+          });
         /** A reopen in the same tab, by a site that takes no lock. */
         const reopened: Promise<unknown>[] = [];
         const reopen = () =>
@@ -2583,10 +2755,10 @@ describe("useReviewedRun", () => {
                 }),
               ),
           );
-        const first = await runOnce();
+        const first = (await runOnce()) as { safeTxHash?: string } | null;
         /** Every run's end: a done one has each step's hash, in order. */
         const results: unknown[] = [first];
-        if (safe && first && "safeTxHash" in first)
+        if (safe && first?.safeTxHash)
           execution = await executeProposal(
             context,
             first.safeTxHash as ViemHex,
@@ -2596,13 +2768,17 @@ describe("useReviewedRun", () => {
         if (c.refresh === "after")
           refreshes.push(other().request("pay", async () => undefined));
         await Promise.all(refreshes);
-        recover();
+        // Only its wait dismissed, then its completion goes on in the
+        // background as the node reads again; else dismissed after.
+        if (!c.dismissOnce) recover();
         /** Dismissed before its done showed: a reopen is the same action. */
+        await act(async () => {});
         const unshown = seen.current!.status !== "done";
         if (c.dismiss) {
           act(() => void seen.current!.dismiss());
           if (!c.dismissOnce) act(() => void seen.current!.dismiss());
         }
+        recover();
         const handle = openStepHold(deps.hold, ACCOUNT, safe, held);
         const settle = async () => {
           for (let round = 0; round < 6; round += 1)
@@ -2692,6 +2868,8 @@ describe("useReviewedRun", () => {
             ? sendCalls.mock.calls.length
             : wallet.adapter.sendTransaction.mock.calls.length,
         ).toBe(safe ? 1 : calls.length);
+        // Every end awaited inside a scope was reached.
+        expect(results).not.toContain("stuck");
         // A direct send's done ends with every step's hash, in order.
         if (!safe)
           for (const result of results)

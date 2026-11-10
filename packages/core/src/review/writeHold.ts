@@ -1778,6 +1778,24 @@ export function createWriteHold(
         );
       },
       /**
+       * Keeps the action's hashes through the step `settled` ended on that
+       * settlement, under the call's lock: a later completion of it is done
+       * with all of them, whatever became of its sequence's journal.
+       */
+      async keepHashes(
+        settled: { hash: Hex },
+        hashes: readonly Hex[],
+      ): Promise<void> {
+        await locked(
+          async () => recovery.keepHashesSettled(settled, hashes),
+          true,
+        );
+      },
+      /** The action's hashes kept on `settled` ({@link keepHashes}), if any. */
+      hashesOf(settled: { hash: Hex }): Hex[] | undefined {
+        return recovery.hashesOfSettled(settled);
+      },
+      /**
        * Whether the settlement's `onConfirmed` notice was delivered or is
        * pending under a live claim; undefined otherwise. Only a delivered
        * one lets its success be acknowledged.
@@ -2390,6 +2408,18 @@ export function createWriteHold(
         return (legacySaving(settled.hash)?.handle ?? own).confirmation(
           settled,
         );
+      },
+      keepHashes(
+        settled: { hash: Hex },
+        hashes: readonly Hex[],
+      ): Promise<void> {
+        return (legacySaving(settled.hash)?.handle ?? own).keepHashes(
+          settled,
+          hashes,
+        );
+      },
+      hashesOf(settled: { hash: Hex }): Hex[] | undefined {
+        return (legacySaving(settled.hash)?.handle ?? own).hashesOf(settled);
       },
       async send<T>(
         client: WriteHoldClient,

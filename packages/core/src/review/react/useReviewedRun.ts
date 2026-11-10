@@ -279,6 +279,13 @@ type OwnSuccess = {
   reservation: string;
 };
 
+/** A completed step, as `completeReviewedStep` ended it. */
+type Completed = {
+  settled: WriteHoldSettled;
+  receipt: TransactionReceipt | null;
+  hashes: Hex[];
+};
+
 class OwnSucceeded extends Error {
   constructor(readonly found: OwnSuccess) {
     super("succeeded");
@@ -803,10 +810,7 @@ export function useReviewedRun(
       const completing = (
         target: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
         total: number,
-        end?: (outcome: {
-          settled: WriteHoldSettled;
-          receipt: TransactionReceipt | null;
-        }) => void,
+        end?: (outcome: Completed | "lost") => void,
       ) => {
         let completed: Promise<
           Awaited<ReturnType<ReviewedEngine["completeReviewedStep"]>>
@@ -859,6 +863,16 @@ export function useReviewedRun(
                     account: deps!.account!,
                     reservations: [target.held.reservation],
                   };
+                // Kept for a lock its run lost: delivered only once the
+                // site's work under it ends (or by a later run), so the
+                // run ends now, lost, and is never awaited from inside it.
+                void Promise.all(
+                  (action.locks ?? []).map((lock) =>
+                    lock.held().catch(() => false),
+                  ),
+                ).then((held) => {
+                  if (held.includes(false)) end?.("lost");
+                });
               }
               if (mounted.current)
                 setTimeout(() => finish(seen, receipt), RECEIPT_RETRY_MS);
@@ -1166,12 +1180,7 @@ export function useReviewedRun(
             failure: null,
             following: true,
           });
-          let end!: (
-            outcome: {
-              settled: WriteHoldSettled;
-              receipt: TransactionReceipt | null;
-            } | null,
-          ) => void;
+          let end!: (outcome: Completed | "lost" | null) => void;
           const cancelled = action.follow?.signal;
           const abandon = () => end(null);
           const outcome = new Promise<Parameters<typeof end>[0]>(
@@ -1198,7 +1207,6 @@ export function useReviewedRun(
           const finish = completing(error, action.calls.length, end);
           // Followed for a later settlement; one already there is read once it attaches.
           void follow(finish, () => end(null)).then(() => finish());
-          const before = error.held?.hashes ?? [];
           return {
             status: "receipt",
             step: error.step,
@@ -1209,6 +1217,13 @@ export function useReviewedRun(
             ended: () =>
               outcome.then(async (ran) => {
                 if (!ran) return null;
+                if (ran === "lost") {
+                  const failure = new LockLostError(
+                    action.locks?.[0]?.name ?? "site",
+                  );
+                  const line = errorLine(failure);
+                  return { status: "failed" as const, error: line, failure };
+                }
                 const { settled, receipt } = ran;
                 if (settled.result !== "success") {
                   const line = settledLine(settled);
@@ -1237,7 +1252,7 @@ export function useReviewedRun(
                 }
                 return {
                   status: "done" as const,
-                  hashes: [...before, settled.hash],
+                  hashes: ran.hashes,
                   receipts: receipt ? [receipt] : [],
                   ...(signatures ? { signatures } : {}),
                 };
