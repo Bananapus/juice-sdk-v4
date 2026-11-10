@@ -203,7 +203,9 @@ export type ReviewedAction = {
    * before every wallet call and every signature. A lost one throws
    * `LockLostError`, sends nothing and releases the step's hold, but
    * `onUnsent` is not called: the lock's new owner owns the site's journal,
-   * and a stale "unsent" write could clear its reservation. A record the
+   * and a stale "unsent" write could clear its reservation. The same holds
+   * for a lock lost while the wallet was open: before every `onUnsent`, the
+   * locks are read fresh, and a lost one skips it. A record the
    * site wrote in `beforeWallet` stays as it was; its recovery reads it like
    * any interrupted send (ask the user to check their wallet's activity).
    */
@@ -211,7 +213,8 @@ export type ReviewedAction = {
   /**
    * Awaited when nothing was sent for a step whose `beforeWallet` began: a
    * gate refused, `beforeWallet` threw, or the wallet rejected (4001). Never
-   * after an ambiguous failure, nor after a lost lock (`LockLostError`).
+   * after an ambiguous failure, nor once any of `locks` is lost (checked on a
+   * fresh read, whatever ended the attempt, a wallet's 4001 included).
    */
   onUnsent?: (call: ReviewedCall, step: number) => void | Promise<void>;
   /**
@@ -1069,9 +1072,25 @@ async function send(
   const blocks = calls.map((call) =>
     resuming ? undefined : call.simulationBlockNumber,
   );
-  /** A site's release callback never stops core's own release. */
-  const tellUnsent = (call: ReviewedCall, step: number) =>
-    tell(action.onUnsent, call, step);
+  /**
+   * Tell the site its steps from `from` were not sent, only while every one
+   * of its locks is still this tab's, on a fresh read: once one was lost, the
+   * lock's new owner owns the site's journal, whatever ended the attempt. A
+   * site's release callback never stops core's own release.
+   */
+  const tellUnsent = async (
+    steps: readonly ReviewedCall[],
+    from: number,
+    cause?: unknown,
+  ) => {
+    if (cause instanceof LockLostError) return;
+    const held = await Promise.all(
+      (action.locks ?? []).map((lock) => lock.held().catch(() => false)),
+    );
+    if (held.includes(false)) return;
+    for (const [index, call] of steps.entries())
+      await tell(action.onUnsent, call, from + index);
+  };
   const connected = adapter.account();
   if (!connected) throw new ReviewLineError("Connect a wallet first.");
   if (connected.toLowerCase() !== account.toLowerCase()) {
@@ -1126,12 +1145,8 @@ async function send(
       });
     } catch (error) {
       // Only the site's own refusal or an explicit rejection proves nothing was sent.
-      if (
-        (!submitting || isDefiniteWalletRejection(error)) &&
-        !(error instanceof LockLostError)
-      )
-        for (const [step, call] of calls.slice(0, began).entries())
-          await tellUnsent(call, step);
+      if (!submitting || isDefiniteWalletRejection(error))
+        await tellUnsent(calls.slice(0, began), 0, error);
       throw error;
     }
     // Every step is told; a site's failure to record it never changes what was sent.
@@ -1294,9 +1309,7 @@ async function send(
         }
         const released = async (cause?: unknown) => {
           gate.onRejected();
-          if (cause instanceof LockLostError) return;
-          for (const [step, call] of calls.slice(0, began).entries())
-            await tellUnsent(call, step);
+          await tellUnsent(calls.slice(0, began), 0, cause);
         };
         return submitReviewedContractWrite({
           request: batched,
@@ -1507,7 +1520,7 @@ async function send(
             delete journal.sending;
             await keep();
           }
-          if (!(cause instanceof LockLostError)) await tellUnsent(call, at);
+          await tellUnsent([call], at, cause);
         };
         return submitReviewedContractWrite({
           request: reviewed,

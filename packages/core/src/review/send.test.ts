@@ -996,6 +996,41 @@ describe("sendReviewed", () => {
     expect(events).toEqual([]);
   });
 
+  it("never lets a rejection after the site's lock lapsed clear the next owner's record", async () => {
+    const { wallet, deps, hold, holdOf } = setup();
+    reviewUi();
+    const call = payCall();
+    const order = siteOrder();
+    wallet.adapter.sendTransaction.mockImplementationOnce(async () => {
+      order.successor();
+      throw Object.assign(new Error("User rejected the request."), {
+        code: 4001,
+      });
+    });
+    await expect(
+      sendReviewed(action([call], order.hooks), deps),
+    ).rejects.toMatchObject({ code: 4001 });
+    expect(order.journal.get("order")).toBe("B");
+    // The SDK's own hold still lets go: nothing was sent.
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+  });
+
+  it("never lets a self-reviewing wallet's rejection after the site's lock lapsed clear the next owner's record", async () => {
+    const { deps } = setup();
+    const order = siteOrder();
+    const submit = vi.fn(async (): Promise<Hex> => {
+      order.successor();
+      throw Object.assign(new Error("no"), { code: 4001 });
+    });
+    await expect(
+      sendReviewed(action([payCall()], order.hooks), {
+        ...deps,
+        adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+      }),
+    ).rejects.toThrow();
+    expect(order.journal.get("order")).toBe("B");
+  });
+
   it("runs the site's beforeWallet under the hold, before the wallet, and tells it how the step ended", async () => {
     const { wallet, deps, hold, holdOf } = setup();
     reviewUi();
@@ -1497,6 +1532,33 @@ describe("sendReviewed", () => {
   });
 });
 
+/**
+ * A site's order journal under its own lock, the lease of which lapses
+ * while the wallet is open: the next owner then saves its own record.
+ */
+function siteOrder() {
+  const journal = new Map<string, string>();
+  let lost = false;
+  const lock = {
+    ...clientLock(true, "order"),
+    held: async () => !lost,
+  };
+  return {
+    journal,
+    hooks: {
+      locks: [lock],
+      beforeWallet: () => void journal.set("order", "A"),
+      // A's "nothing was sent" clears the order's record.
+      onUnsent: () => void journal.delete("order"),
+    },
+    /** A's lease lapses; B takes it and saves its own attempt. */
+    successor() {
+      lost = true;
+      journal.set("order", "B");
+    },
+  };
+}
+
 describe("a Safe app batch", () => {
   const PROPOSAL = `0x${"ab".repeat(32)}` as Hex;
   /** A Safe app connection that takes `wallet_sendCalls` as one proposal. */
@@ -1570,6 +1632,21 @@ describe("a Safe app batch", () => {
       ),
     ).rejects.toMatchObject({ code: 4001 });
     expect(onUnsent.mock.calls.map(([, step]) => step)).toEqual([0, 1]);
+    expect(hold.open(batchHold(calls)).peek().status).toBe("clear");
+  });
+
+  it("never lets a rejection after the site's lock lapsed clear the next owner's record", async () => {
+    reviewUi();
+    const order = siteOrder();
+    const { deps, hold } = safeApp(async () => {
+      order.successor();
+      throw Object.assign(new Error("User rejected"), { code: 4001 });
+    });
+    const calls = [approveCall(), payCall(5n)];
+    await expect(
+      sendReviewed(action(calls, { batch: true, ...order.hooks }), deps),
+    ).rejects.toMatchObject({ code: 4001 });
+    expect(order.journal.get("order")).toBe("B");
     expect(hold.open(batchHold(calls)).peek().status).toBe("clear");
   });
 

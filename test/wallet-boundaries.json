@@ -150,14 +150,14 @@
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1372,
+      "line": 1385,
       "api": "sendCalls",
       "boundary": "sendReviewed with batch, through a Safe app only, hands every reviewed call's exact bytes to the WalletAdapter's sendCalls as one Safe proposal, inside submitReviewedContractWrite under the batch's one MultiSend write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. Only a 4001 releases the hold; an answer that is not a safeTxHash keeps it held.",
       "test": "packages/core/src/review/send.test.ts"
     },
     {
       "file": "packages/core/src/review/send.ts",
-      "line": 1643,
+      "line": 1656,
       "api": "sendTransaction",
       "boundary": "sendReviewed hands one step's reviewed bytes, with the app's exact gas or else the simulated gas, to the WalletAdapter, inside submitReviewedContractWrite under the step's write hold and only after core's own confirmation for the model of the whole action. A reviewPlan plan core minted after its own confirmation stands for that confirmation only for calls identical to its unspent calls, each spent once. A Safe app whose Safe already queued that call (exact bytes, or the same target, value, operation and function with every arg equal but those its adoptIgnoringArgs lists) returns that proposal's hash instead and opens no wallet.",
       "test": "packages/core/src/review/send.test.ts"
@@ -185,7 +185,7 @@
     },
     {
       "file": "packages/core/src/review/relayrSend.ts",
-      "line": 741,
+      "line": 743,
       "api": "sendTransaction",
       "boundary": "Send a Relayr payment the person reviewed (or one within the reviewed fee cap, a reviewPlan round's reviewed fee bound included, or one a reviewPlan plan holds exactly) through the WalletAdapter, to the pinned payment contract and gas only (0 for a Safe app, whose proposal payRelayrReviewed alone allows, and which adopts its queued proposal of the exact payment instead of proposing again), under its write hold, after the runtime, simulation, expiry, account, chain and Safe-mode gates.",
       "test": "packages/core/src/review/relayrSend.test.ts"

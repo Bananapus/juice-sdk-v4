@@ -372,19 +372,26 @@ describe("payRelayrReviewed", () => {
   it("never opens the wallet once its lock was lost while the app saved, and releases the payment", async () => {
     const { deps, wallet, loseLock } = relayrSetup();
     reviewUi();
-    await expect(
-      payRelayrReviewed(
-        quoteFor(),
-        10,
-        {
-          account: ACCOUNT,
-          // The tab slept in the app's own save, and its lease lapsed.
-          onSending: async () => void loseLock(),
+    let sending = false;
+    const error = await payRelayrReviewed(
+      quoteFor(),
+      10,
+      {
+        account: ACCOUNT,
+        // The app saved "sending", the tab slept in that save, and its lease lapsed.
+        onSending: async () => {
+          sending = true;
+          loseLock();
         },
-        deps,
-      ),
-    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+      },
+      deps,
+    ).catch((caught: unknown) => caught);
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    // Not sent, so the app's saved "sending" restores instead of staying pending.
+    expect(error).toBeInstanceOf(RelayrPaymentNotSentError);
+    expect(relayrPaymentAttemptOutcome(error, { sending, paid: false })).toBe(
+      "unpaid",
+    );
     // Released: the same quote reviewed again pays.
     loseLock(false);
     await expect(

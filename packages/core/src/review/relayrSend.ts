@@ -684,6 +684,9 @@ async function sendPayment(
             // The site's own record before the wallet: never under a lost lock.
             await assertLocksHeld(hooks.locks);
             await hooks.onSending?.();
+            // Saved as sending: a refusal from here on says "not sent", so
+            // the app restores its record instead of leaving it pending.
+            saved = true;
             // The last await before the wallet: every lock is still this tab's.
             await Promise.all([
               gate.assertHeld(),
@@ -693,7 +696,6 @@ async function sendPayment(
             gate.onRejected();
             throw error;
           }
-          saved = true;
         },
         beforeSend: () => {
           try {
