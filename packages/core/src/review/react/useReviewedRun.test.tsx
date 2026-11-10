@@ -26,6 +26,7 @@ import { NETWORK_ERROR_LINE, ReviewLineError } from "../transaction-message.js";
 import { createWriteHold, openStepHold, safeBatchCall } from "../writeHold.js";
 import { browserLocks, createHeldWriteStorage } from "../writeRecovery.js";
 import { lapsingLocksForTests } from "../../testing.js";
+import type { LockHandle } from "../locks.js";
 import { selfReviewingAdapter, viemWalletAdapter } from "../wallet.js";
 import {
   createWalletClient,
@@ -2267,6 +2268,97 @@ describe("useReviewedRun", () => {
     }
   }, 30_000);
 
+  test("an approval whose onConfirmed was dropped is told before the payment is sent: a retry delivers it, then sends the payment once", async () => {
+    const lapsing = lapsingLocksForTests();
+    vi.stubGlobal("navigator", { locks: lapsing.locks });
+    try {
+      reviewUi();
+      const { deps, wallet } = setup();
+      const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+      wallet.adapter.sendTransaction.mockImplementationOnce(async (...args) => {
+        // In approval's wallet, the lease lapses and another tab refreshes.
+        lapsing.lapse();
+        await lapsing.otherTab().request("pay", async () => undefined);
+        return send(...args);
+      });
+      const { run } = harness({ ...deps, account: ACCOUNT });
+      const confirmed: number[] = [];
+      const runOnce = () =>
+        browserLocks().request("pay", (lock) =>
+          run({
+            calls: [approveCall(), payCall()],
+            scope: "pay:sequence",
+            locks: [lock!],
+            onConfirmed: async (_call, step) => {
+              await lock!.assertHeld();
+              confirmed.push(step);
+            },
+          }),
+        );
+      await expect(runOnce()).resolves.not.toMatchObject({ status: "done" });
+      expect(confirmed).toEqual([]);
+      await expect(runOnce()).resolves.toMatchObject({ status: "done" });
+      expect(confirmed).toEqual([0, 1]);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, 30_000);
+
+  test("a resumed payment whose notice waits for its lease taken back ends done with each step's hash once", async () => {
+    const lapsing = lapsingLocksForTests();
+    vi.stubGlobal("navigator", { locks: lapsing.locks });
+    try {
+      reviewUi();
+      const { chain, deps, wallet } = setup();
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      let lagging = false;
+      let lapseOnRead = false;
+      chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+        if (lagging) throw new Error("lagging node");
+        if (lapseOnRead) {
+          // The resumed receipt read outlasts the site's lease.
+          lapseOnRead = false;
+          lapsing.lapse();
+        }
+        return read(args);
+      });
+      const action = (lock: LockHandle) => ({
+        ...HANDED_BACK,
+        calls: [approveCall(), payCall()],
+        scope: "pay:sequence",
+        locks: [lock],
+        onConfirmed: async (_call: unknown, step: number) => {
+          await lock.assertHeld();
+          // The node lags once the approval is confirmed.
+          if (step === 0) lagging = true;
+        },
+      });
+      const first = harness({ ...deps, account: ACCOUNT });
+      await expect(
+        browserLocks().request("pay", (lock) => first.run(action(lock!))),
+      ).resolves.toMatchObject({ status: "receipt", step: 1 });
+      // Reloaded: the page resumes once the node reads again.
+      act(() => root!.unmount());
+      lagging = false;
+      lapseOnRead = true;
+      const { run } = harness({ ...deps, account: ACCOUNT });
+      const resumed = await browserLocks().request("pay", (lock) =>
+        run(action(lock!)),
+      );
+      expect(resumed).toMatchObject({ status: "receipt", step: 1 });
+      const sent = await Promise.all(
+        wallet.adapter.sendTransaction.mock.results.map(({ value }) => value),
+      );
+      await expect(
+        (resumed as ReviewedRunReceipt).ended(),
+      ).resolves.toMatchObject({ status: "done", hashes: sent });
+      expect(sent).toHaveLength(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }, 30_000);
+
   /** Seeded (mulberry32): the same interleavings every run. */
   const PROPERTY_CASES = (() => {
     let seed = 0x5eed;
@@ -2278,12 +2370,14 @@ describe("useReviewedRun", () => {
     };
     const pick = <T,>(options: readonly T[]) =>
       options[Math.floor(random() * options.length)];
-    return Array.from({ length: 24 }, (_, index) => ({
+    const random$ = Array.from({ length: 24 }, (_, index) => ({
       index,
       backend: pick(["lease", "native"] as const),
-      /** One submission (a payment) or two (a Safe batch's). */
-      entries: pick([1, 2] as const),
+      /** One payment; a Safe batch's two submissions; or a two-step sequence. */
+      shape: pick(["payment", "safe", "sequence"] as const),
       lapse: random() < 0.6,
+      /** The step whose wallet the lease lapses in (a sequence's). */
+      lapseAt: pick([0, 1] as const),
       refresh: pick(["none", "wallet", "after"] as const),
       unreadable: random() < 0.6,
       recoverInReplay: random() < 0.5,
@@ -2291,10 +2385,29 @@ describe("useReviewedRun", () => {
       confirmMs: Math.floor(random() * 40),
       dismiss: random() < 0.4,
     }));
+    // A sequence lapsing at each step, on each backend, refreshed or not.
+    const sequences = (["lease", "native"] as const).flatMap((backend) =>
+      ([0, 1] as const).flatMap((lapseAt) =>
+        (["wallet", "none"] as const).map((refresh) => ({
+          ...random$[0],
+          backend,
+          shape: "sequence" as const,
+          lapse: true,
+          lapseAt,
+          refresh,
+          unreadable: random() < 0.5,
+          recoverInReplay: random() < 0.5,
+          submitMs: Math.floor(random() * 40),
+          confirmMs: Math.floor(random() * 40),
+          dismiss: random() < 0.4,
+        })),
+      ),
+    );
+    return [...random$, ...sequences].map((c, index) => ({ ...c, index }));
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $entries submission(s), lapse $lapse, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss): told in order, confirmed once before its acknowledgement, one send",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss): each step told in order, confirmed once before its acknowledgement, one send each",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -2309,25 +2422,44 @@ describe("useReviewedRun", () => {
         const { chain, deps, wallet, memory } = context;
         const told: string[] = [];
         const violations: string[] = [];
-        let acknowledged = false;
-        // Every acknowledgement is checked as it is saved.
+        const safe = c.shape === "safe";
+        const calls =
+          c.shape === "payment" ? [payCall()] : [approveCall(), payCall()];
+        const last = calls.length - 1;
+        const scope = c.shape === "payment" ? undefined : `pay:${c.shape}`;
+        const held = safe ? safeBatchCall(ACCOUNT, calls) : calls[last];
+        /** The steps whose onConfirmed is told: a Safe batch's last only. */
+        const confirming = safe ? [last] : calls.map((_, step) => step);
+        /** Each wallet send's hash, by step. */
+        const sent: string[] = [];
+        const acknowledged = new Set<number>();
+        // Every acknowledgement is checked as it is saved: its step's
+        // notice told first, and every step's before the last one's.
         const save = memory.set.bind(memory);
         memory.set = (key: string, value: string) => {
           if (key.endsWith(":settled")) {
-            const saved = JSON.parse(value) as { acknowledged?: boolean };
-            if (saved?.acknowledged === true && !acknowledged) {
-              acknowledged = true;
-              if (!told.includes("confirmed"))
-                violations.push(`acknowledged before delivery: ${told}`);
+            const saved = JSON.parse(value) as {
+              acknowledged?: boolean;
+              hash?: string;
+            };
+            const step = safe ? last : sent.indexOf(saved?.hash ?? "");
+            if (saved?.acknowledged === true && !acknowledged.has(step)) {
+              acknowledged.add(step);
+              const needed = step === last ? confirming : [step];
+              for (const at of needed)
+                if (!told.includes(`confirmed:${at}`))
+                  violations.push(
+                    `step ${step} acknowledged before step ${at}'s delivery: ${told}`,
+                  );
             }
           }
           return save(key, value);
         };
-        const safe = c.entries === 2;
-        const calls = safe ? [approveCall(), payCall()] : [payCall()];
-        const held = safe ? safeBatchCall(ACCOUNT, calls) : calls[0];
         const refreshes: Promise<unknown>[] = [];
+        let wallets = 0;
         const inWallet = async () => {
+          const at = wallets++;
+          if (at !== (c.shape === "sequence" ? c.lapseAt : 0)) return;
           if (c.lapse) lapsing.lapse();
           if (c.refresh === "wallet")
             refreshes.push(other().request("pay", async () => undefined));
@@ -2342,7 +2474,9 @@ describe("useReviewedRun", () => {
         const send = wallet.adapter.sendTransaction.getMockImplementation()!;
         wallet.adapter.sendTransaction.mockImplementation(async (...args) => {
           await inWallet();
-          return send(...args);
+          const hash = await send(...args);
+          sent.push(hash.toLowerCase());
+          return hash;
         });
         const read =
           chain.client.getTransactionReceipt.getMockImplementation()!;
@@ -2378,11 +2512,11 @@ describe("useReviewedRun", () => {
             await lock.assertHeld();
             told.push(`submitted:${step}`);
           },
-          onConfirmed: async () => {
+          onConfirmed: async (_call: unknown, step: number) => {
             await lock.assertHeld();
             await sleep(c.confirmMs);
             await lock.assertHeld();
-            told.push("confirmed");
+            told.push(`confirmed:${step}`);
           },
         });
         const runOnce = () =>
@@ -2390,7 +2524,8 @@ describe("useReviewedRun", () => {
             run({
               ...HANDED_BACK,
               calls,
-              ...(safe ? { batch: true, scope: "pay:safe" } : {}),
+              ...(safe ? { batch: true } : {}),
+              ...(scope ? { scope } : {}),
               locks: [lock!],
               ...site(lock!),
             }),
@@ -2420,12 +2555,14 @@ describe("useReviewedRun", () => {
             });
         };
         await settle();
-        // Retried, under a fresh lock, only while its success is unacknowledged.
-        for (
-          let retry = 0;
-          retry < 3 && handle.unacknowledgedSuccess();
-          retry += 1
-        ) {
+        // Retried, under a fresh lock, only while its sequence is saved
+        // unfinished or its last success is unacknowledged.
+        const unfinished = () =>
+          !!handle.unacknowledgedSuccess() ||
+          (scope !== undefined &&
+            findReviewedSequence(scope, ACCOUNT, { storage: deps.storage }) !==
+              null);
+        for (let retry = 0; retry < 4 && unfinished(); retry += 1) {
           await runOnce();
           await settle();
         }
@@ -2434,19 +2571,27 @@ describe("useReviewedRun", () => {
         await rendered(() =>
           expect(handle.unacknowledgedSuccess()).toBeUndefined(),
         );
+        expect(unfinished()).toBe(false);
         expect(violations).toEqual([]);
-        expect(acknowledged).toBe(true);
-        expect(told.filter((name) => name === "confirmed")).toHaveLength(1);
-        const submitted = told.filter((name) => name !== "confirmed");
-        expect(submitted).toEqual([...submitted].sort());
-        expect(told.indexOf("confirmed")).toBeGreaterThan(
-          Math.max(-1, ...submitted.map((name) => told.indexOf(name))),
+        expect(acknowledged.has(last)).toBe(true);
+        // Each step's notice told once, in step order.
+        expect(told.filter((name) => name.startsWith("confirmed:"))).toEqual(
+          confirming.map((step) => `confirmed:${step}`),
         );
+        const submitted = told.filter((name) => name.startsWith("submitted:"));
+        expect(submitted).toEqual([...submitted].sort());
+        // A step's submission, when told, comes before its confirmation.
+        for (const name of submitted) {
+          const confirmed = told.indexOf(
+            `confirmed:${safe ? last : name.split(":")[1]}`,
+          );
+          expect(told.indexOf(name)).toBeLessThan(confirmed);
+        }
         expect(
           safe
             ? sendCalls.mock.calls.length
             : wallet.adapter.sendTransaction.mock.calls.length,
-        ).toBe(1);
+        ).toBe(safe ? 1 : calls.length);
       } finally {
         vi.unstubAllGlobals();
       }

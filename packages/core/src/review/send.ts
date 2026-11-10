@@ -869,21 +869,26 @@ export async function resumeReviewed(
       settled,
       deps.clientFor(call.chainId),
     );
-    // This sequence's own step: it is recorded, told, and only then
-    // acknowledged, so it is never offered again.
-    const kept = await recordSending(saved, settled, storage, expected);
-    // Its notice not delivered yet: held at its receipt, acknowledged by
-    // none, for its completion to tell.
-    if (
-      (await tellConfirmed(action, handle, call, step, settled, receipt)) !==
-      "delivered"
-    )
+    // This sequence's own step: told, recorded, and only then acknowledged,
+    // so it is never offered again. Its notice not delivered yet, it stays
+    // held at its receipt, acknowledged by none, for a completion to tell.
+    const ended = await endStep(
+      action,
+      handle,
+      call,
+      step,
+      settled,
+      receipt,
+      () => recordSending(saved, settled, storage, expected),
+    );
+    if (!ended)
       throw new ReviewedReceiptUnverifiedError(
         step,
         (settled as { hash: Hex }).hash,
         undefined,
         { call, reservation, hashes: [...saved.completed] },
       );
+    const kept = ended.recorded;
     if (settled?.result === "success") await handle.acknowledge(settled);
     if (kept === null) {
       const total = saved.calls.length;
@@ -983,6 +988,34 @@ async function tellConfirmed(
   if (!told) return delivery;
   await handle.settleConfirmed(settled, true);
   return "delivered";
+}
+
+/**
+ * Ends a settled step, the one way every completion does (a run, a resume,
+ * `completeReviewedStep`): its `onConfirmed` told, and only once delivered
+ * is it recorded done (`record`, its reservation leaving the sequence's
+ * journal). Until then the step stays held there, so a later completion
+ * or resume tells it before any step after it is sent, and the steps
+ * recorded before it are exactly its prior hashes. Null while undelivered.
+ */
+async function endStep<T>(
+  action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
+  handle: Pick<
+    WriteHoldHandle,
+    "claimConfirmed" | "settleConfirmed" | "confirmation"
+  >,
+  call: ReviewedCall,
+  step: number,
+  settled: WriteHoldSettled | undefined,
+  receipt: TransactionReceipt | null,
+  record: () => Promise<T>,
+): Promise<{ recorded: T } | null> {
+  if (
+    (await tellConfirmed(action, handle, call, step, settled, receipt)) !==
+    "delivered"
+  )
+    return null;
+  return { recorded: await record() };
 }
 
 /**
@@ -1113,24 +1146,29 @@ export async function completeReviewedStep(
   if (!settled) return null;
   const confirmed = await confirmedReceipt(settled, client, receipt);
   if (signal?.aborted) return null;
-  if (action.scope !== undefined) {
-    const storage = deps.storage ?? createHeldWriteStorage();
-    const { raw, record } = readReviewedSequence(
-      action.scope,
-      action.account,
-      storage,
-    );
-    if (
-      record?.sending?.step === step &&
-      record.sending.reservation === reservation
-    )
-      await recordSending(record, settled, storage, raw);
-  }
-  if (
-    (await tellConfirmed(action, handle, call, step, settled, confirmed)) !==
-    "delivered"
-  )
-    return { settled, receipt: confirmed, undelivered: true };
+  const ended = await endStep(
+    action,
+    handle,
+    call,
+    step,
+    settled,
+    confirmed,
+    async () => {
+      if (action.scope === undefined) return;
+      const storage = deps.storage ?? createHeldWriteStorage();
+      const { raw, record } = readReviewedSequence(
+        action.scope,
+        action.account,
+        storage,
+      );
+      if (
+        record?.sending?.step === step &&
+        record.sending.reservation === reservation
+      )
+        await recordSending(record, settled, storage, raw);
+    },
+  );
+  if (!ended) return { settled, receipt: confirmed, undelivered: true };
   if (acknowledge && settled.result === "success")
     await handle.acknowledge(settled);
   return { settled, receipt: confirmed };
@@ -1804,7 +1842,7 @@ async function send(
     // From here the step was sent: it ends done, failed as its hold
     // verified, or unverified with what resumes it, never any other way.
     /** `completed`: this step's hash already recorded as completed. */
-    const unverified = (cause?: unknown, completed = false) =>
+    const unverified = (cause?: unknown) =>
       new ReviewedReceiptUnverifiedError(
         at,
         hash,
@@ -1815,10 +1853,7 @@ async function send(
           call,
           reservation: reserved,
           // This run's sends, its own last: only the steps before it completed.
-          hashes:
-            journal && !completed
-              ? [...journal.completed]
-              : (journal?.completed ?? hashes).slice(0, -1),
+          hashes: journal ? [...journal.completed] : hashes.slice(0, -1),
           ...signed,
         },
         cause === undefined ? {} : { cause },
@@ -1884,23 +1919,22 @@ async function send(
       throw new ReviewedCallRevertedError(at, mined, receipt);
     }
     receipts.push(receipt);
-    if (journal) {
-      delete journal.sending;
-      journal.completed.push(mined);
-      await keep();
-    }
     // Its notice not delivered yet: held at its receipt for its completion.
-    if (
-      (await tellConfirmed(
-        action,
-        handles[step],
-        call,
-        at,
-        settled,
-        receipt,
-      )) !== "delivered"
-    )
-      throw unverified(undefined, true);
+    const ended = await endStep(
+      action,
+      handles[step],
+      call,
+      at,
+      settled,
+      receipt,
+      async () => {
+        if (!journal) return;
+        delete journal.sending;
+        journal.completed.push(mined);
+        await keep();
+      },
+    );
+    if (!ended) throw unverified();
   }
   onProgress({ step: total - 1, total, phase: "done" });
   return {
