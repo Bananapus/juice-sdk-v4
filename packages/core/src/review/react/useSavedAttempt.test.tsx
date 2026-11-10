@@ -779,6 +779,54 @@ describe("useSavedAttempt", () => {
     expect(recovery.recover).toHaveBeenCalledTimes(1);
   });
 
+  test("a recovery started before onDone's settled retirement never overwrites it, nor tells onDone again", async () => {
+    const { recovery, answer } = fakeRecovery();
+    let recorded!: () => void;
+    const recording = new Promise<void>((resolve) => (recorded = resolve));
+    const onDone = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await recording;
+        return true;
+      })
+      .mockResolvedValue(false);
+    const { seen, start } = harness({
+      recovery,
+      attempt: attemptOf(),
+      client,
+      onDone,
+    });
+    await start();
+    await answer({
+      status: "done",
+      result: "success",
+      authenticated: true,
+      hash: "0xab",
+      value: "launch:42",
+    } as SavedAttemptOutcome<string>);
+    expect(onDone).toHaveBeenCalledOnce();
+    let rechecking!: Promise<unknown>;
+    await act(async () => {
+      rechecking = seen.current!.recover();
+    });
+    expect(recovery.recover).toHaveBeenCalledTimes(2);
+    await act(async () => recorded());
+    expect(seen.current!.outcome).toEqual({
+      status: "none",
+      retired: "settled",
+    });
+    await answer(check);
+    await act(async () => {
+      await rechecking;
+    });
+    expect(seen.current!.outcome).toEqual({
+      status: "none",
+      retired: "settled",
+    });
+    expect(seen.current!.clear).toBe(true);
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
   test("never recovers an attempt onDone retired, even before the attempt it cleared has rendered", async () => {
     const { recovery, answer } = fakeRecovery();
     const attempt = attemptOf();

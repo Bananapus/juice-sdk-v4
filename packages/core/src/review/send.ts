@@ -985,8 +985,11 @@ async function followSent(
  * nothing advanced: call it again. Call it once per settlement:
  * `onConfirmed` is told each time. Its reservation's own saved settlement
  * completes it after a later reservation of the call replaced it. Once
- * `signal` aborts (the run that showed it is gone) it returns null and
- * acknowledges nothing, so the success still warns the next run.
+ * `signal` aborts (the run that showed it is gone) it returns null, leaving
+ * the journal and `onConfirmed` to the run that resumes it. With
+ * `acknowledge` false it acknowledges nothing: the caller acknowledges the
+ * success once it has shown it (`handle.acknowledge`), so a success it
+ * never showed still warns the next run.
  */
 export async function completeReviewedStep(
   unverified: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
@@ -994,6 +997,7 @@ export async function completeReviewedStep(
   deps: ReviewedSendDeps,
   receipt?: TransactionReceipt | null,
   signal?: AbortSignal,
+  acknowledge = true,
 ): Promise<{
   settled: WriteHoldSettled;
   receipt: TransactionReceipt | null;
@@ -1026,8 +1030,9 @@ export async function completeReviewedStep(
       await recordSending(record, settled, storage, raw);
   }
   await tellConfirmed(action, handle, call, step, settled, confirmed);
-  if (settled.result === "success") await handle.acknowledge(settled, signal);
-  return signal?.aborted ? null : { settled, receipt: confirmed };
+  if (acknowledge && settled.result === "success")
+    await handle.acknowledge(settled);
+  return { settled, receipt: confirmed };
 }
 
 /**

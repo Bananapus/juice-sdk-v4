@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { IDBFactory } from "fake-indexeddb";
+import { setImmediate } from "node:timers";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
@@ -1188,7 +1190,7 @@ describe("useReviewedRun", () => {
 
   test("a done it shows lets the next run through; one nothing showed is offered as Send it again", async () => {
     const prompts = reviewUi();
-    const { wallet, deps } = setup();
+    const { wallet, deps, hold } = setup();
     const call = payCall();
     const { run } = harness({ ...deps, account: ACCOUNT });
     await expect(run({ calls: [call] })).resolves.toMatchObject({
@@ -1199,6 +1201,12 @@ describe("useReviewedRun", () => {
       status: "done",
     });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    // Acknowledged once its done rendered, before another page runs it.
+    await vi.waitFor(() =>
+      expect(
+        openStepHold(hold, ACCOUNT, false, call).unacknowledgedSuccess(),
+      ).toBeUndefined(),
+    );
 
     // A run whose page unmounted before it ended showed nothing.
     unregister.pop()!();
@@ -1756,37 +1764,62 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
   });
 
-  test("a reset that lands while the completion waits for the hold's lock to acknowledge acknowledges nothing: never sent twice", async () => {
+  test("a followed payment is acknowledged only once its done is shown: a reset as the IndexedDB lock lets go never hides it", async () => {
     reviewUi();
-    const { chain, wallet, deps, hold } = setup();
-    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
-    chain.client.getTransactionReceipt.mockRejectedValue(
-      new Error("lagging node"),
-    );
-    const { seen, run } = harness({ ...deps, account: ACCOUNT });
-    // The app navigates once its refresh is done: a task, as the lock's grant is.
-    const onConfirmed = vi.fn(() => {
-      setTimeout(() => seen.current!.reset(), 0);
+    const { chain, deps, storage } = setup();
+    vi.stubGlobal("indexedDB", new IDBFactory());
+    const had = Object.getOwnPropertyDescriptor(navigator, "locks");
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: undefined,
     });
-    const first = (await run({
-      ...HANDED_BACK,
-      calls: [payCall()],
-      onConfirmed,
-    })) as ReviewedRunReceipt;
-    expect(first).toMatchObject({ status: "receipt" });
-    chain.client.getTransactionReceipt.mockImplementation(read);
-    act(() => void globalThis.dispatchEvent(new Event("focus")));
-    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    });
-    expect(seen.current!.status).toBe("idle");
-    await expect(first.ended()).resolves.toBeNull();
-    expect(
-      openStepHold(hold, ACCOUNT, false, payCall()).unacknowledgedSuccess(),
-    ).toBeDefined();
-    await run({ calls: [payCall()] });
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    try {
+      let seen!: () => UseReviewedRunResult;
+      let shownAtAck: string | undefined;
+      let reset!: Promise<void>;
+      const hold = createWriteHold({
+        storage: {
+          ...storage,
+          setItem: (key, raw) => {
+            storage.setItem(key, raw);
+            if (shownAtAck || !raw.includes('"acknowledged":true')) return;
+            shownAtAck = seen().status;
+            // The user navigates as the fallback lock cleans up its lease.
+            reset = new Promise((resolve) =>
+              setImmediate(() => {
+                act(() => seen().reset());
+                resolve();
+              }),
+            );
+          },
+        },
+      });
+      const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+      chain.client.getTransactionReceipt.mockRejectedValue(
+        new Error("lagging node"),
+      );
+      const hook = harness({ ...deps, hold, account: ACCOUNT });
+      seen = () => hook.seen.current!;
+      const first = (await hook.run({
+        ...HANDED_BACK,
+        calls: [payCall()],
+        onConfirmed: () => {},
+      })) as ReviewedRunReceipt;
+      expect(first).toMatchObject({ status: "receipt" });
+      chain.client.getTransactionReceipt.mockImplementation(read);
+      act(() => void globalThis.dispatchEvent(new Event("focus")));
+      // The real IndexedDB lock's lease takes several tasks.
+      await vi.waitFor(() => expect(shownAtAck).toBeDefined(), {
+        timeout: 5_000,
+      });
+      await act(() => reset);
+      expect(shownAtAck).toBe("done");
+      await expect(first.ended()).resolves.toMatchObject({ status: "done" });
+    } finally {
+      if (had) Object.defineProperty(navigator, "locks", had);
+      else delete (navigator as { locks?: unknown }).locks;
+      vi.unstubAllGlobals();
+    }
   });
 
   test("a payment another tab acknowledged and reserved again still completes its own run: its end is done", async () => {

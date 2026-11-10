@@ -185,7 +185,9 @@ export function useSavedAttempt<T>(
       if (!current(lifecycle)) return retired;
       if (retired.retired && reason.by === "settled") {
         // Settled is final, whether or not the app's clearing of it has
-        // rendered yet: shown so, never recovered again.
+        // rendered yet: shown so, never recovered again. A recovery begun
+        // before it is outdated: its answer never shows.
+        lifecycle.request += 1;
         setShown({
           of: lifecycle,
           outcome: { status: "none", retired: "settled" },

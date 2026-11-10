@@ -213,6 +213,8 @@ type RunState = Omit<
   cancelled: boolean;
   /** The last run ended stopped. */
   stopped: boolean;
+  /** Acknowledges the success shown, once it rendered. */
+  acknowledge: (() => Promise<void>) | null;
 };
 
 const IDLE: RunState = {
@@ -229,6 +231,7 @@ const IDLE: RunState = {
   safeTxHash: null,
   receipt: null,
   settled: null,
+  acknowledge: null,
 };
 
 /** The bytes a call sends, for comparing two actions. */
@@ -262,6 +265,13 @@ export function useReviewedRun(
   useEffect(() => {
     if (cancelling) void tell(cancelling.told);
   }, [cancelling]);
+  /** The last shown success's acknowledgement: the next run waits for it. */
+  const acknowledged = useRef(Promise.resolve());
+  // A success is acknowledged only once its done rendered: a reset after
+  // that hides nothing, and one before it leaves the success warning.
+  useEffect(() => {
+    if (state.acknowledge) acknowledged.current = state.acknowledge();
+  }, [state.acknowledge]);
   /** The hold followed after a run, and its chain's client: its view is `held`. */
   const [watched, setWatched] = useState<{
     handle: WriteHoldHandle;
@@ -329,6 +339,7 @@ export function useReviewedRun(
     total: number,
     settled: WriteHoldSettled,
     receipt: TransactionReceipt | null,
+    acknowledge: (() => Promise<void>) | null,
   ) => {
     if (latest.current !== run) return;
     const finished = step === total - 1;
@@ -350,6 +361,7 @@ export function useReviewedRun(
               error: null,
               failure: null,
               settled: { step, finished },
+              acknowledge,
             }
           : {
               ...IDLE,
@@ -419,7 +431,12 @@ export function useReviewedRun(
     shown.phase === "settled"
       ? null
       : shown;
-  const { cancelled: _cancelled, stopped: _stopped, ...shownState } = state;
+  const {
+    cancelled: _cancelled,
+    stopped: _stopped,
+    acknowledge: _acknowledge,
+    ...shownState
+  } = state;
   const status = reviewedRunStatus({ ...state, held });
   const reset = () => {
     replaced();
@@ -504,11 +521,22 @@ export function useReviewedRun(
         update({ lastSubmittedStep: step });
       };
       setWatched(null);
+      /** Acknowledges a success this run showed, unless the run is gone. */
+      const acknowledging =
+        (
+          handle: WriteHoldHandle,
+          settled: Parameters<WriteHoldHandle["acknowledge"]>[0],
+        ) =>
+        async () => {
+          if (!alive.aborted)
+            await handle.acknowledge(settled).catch(() => undefined);
+        };
       /**
        * Completes a sent step once its hold settled it, as the run would
        * have (`completeReviewedStep`: the journal, `onConfirmed` once with
-       * the receipt its hold verified, the acknowledgement), then shows how
-       * it ended, once. Until it can (the receipt unread, or the hold not yet
+       * the receipt its hold verified), then shows how it ended, once. A
+       * last step's success is acknowledged once that rendered; an earlier
+       * step's at once, its sequence's journal keeping it from sending again. Until it can (the receipt unread, or the hold not yet
        * settled for this send), it is tried again, never shown.
        */
       const completing = (
@@ -538,8 +566,6 @@ export function useReviewedRun(
             (prior) =>
               prior ??
               (loaded ? Promise.resolve(loaded) : load(deps!.engine))
-                // A run gone since acknowledges nothing: its success stays
-                // unacknowledged, warning the next run.
                 .then((engine) =>
                   engine.completeReviewedStep(
                     target,
@@ -547,6 +573,7 @@ export function useReviewedRun(
                     deps!,
                     receipt,
                     alive,
+                    target.step < total - 1,
                   ),
                 )
                 .catch(() => {
@@ -566,7 +593,24 @@ export function useReviewedRun(
             if (!ended) return;
             shown = true;
             // Shown with the receipt completion checked, a failure's too.
-            showSettled(id, target.step, total, ended.settled, ended.receipt);
+            showSettled(
+              id,
+              target.step,
+              total,
+              ended.settled,
+              ended.receipt,
+              ended.settled.result === "success" && target.step === total - 1
+                ? acknowledging(
+                    openStepHold(
+                      deps!.hold,
+                      deps!.account!,
+                      false,
+                      target.held!.call,
+                    ),
+                    ended.settled,
+                  )
+                : null,
+            );
             setWatched(null);
             end?.(ended);
           });
@@ -707,6 +751,8 @@ export function useReviewedRun(
           }),
         ]).finally(() => signal?.removeEventListener("abort", withdraw));
         const { resumeReviewed, sendReviewed } = loaded;
+        // A success already shown is acknowledged before this run checks it.
+        await acknowledged.current;
         const { account, guard } = deps;
         const tracked: ReviewedSendDeps = {
           ...deps,
@@ -789,30 +835,26 @@ export function useReviewedRun(
             );
         // A wallet that reviews on its own page reports no progress: the
         // result is the run's last word.
-        update({ phase: result.status });
-        // Every step of a done run has its hash, a resumed one's too.
-        submit(
+        const calls = saved?.calls ?? action.calls;
+        const last =
           result.status === "done"
-            ? (saved?.calls ?? action.calls).length - 1
-            : result.step,
-        );
-        if (result.status === "proposed") void follow();
-        else if (mounted.current && latest.current === id) {
-          // Shown: its success blocks no later run.
-          const calls = saved?.calls ?? action.calls;
-          const handle = openStepHold(
-            deps.hold,
-            account,
-            false,
-            calls[calls.length - 1],
-          );
-          const success = handle.unacknowledgedSuccess();
-          if (
+            ? openStepHold(deps.hold, account, false, calls[calls.length - 1])
+            : null;
+        const success = last?.unacknowledgedSuccess();
+        update({
+          phase: result.status,
+          // Shown, its success blocks no later run.
+          acknowledge:
+            last &&
             success &&
+            result.status === "done" &&
             result.hashes.some((h) => h.toLowerCase() === success.hash)
-          )
-            await handle.acknowledge(success).catch(() => undefined);
-        }
+              ? acknowledging(last, success)
+              : null,
+        });
+        // Every step of a done run has its hash, a resumed one's too.
+        submit(result.status === "done" ? calls.length - 1 : result.step);
+        if (result.status === "proposed") void follow();
         return result;
       } catch (error) {
         if (error instanceof ReviewedReceiptUnverifiedError) {
