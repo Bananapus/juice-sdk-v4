@@ -117,6 +117,14 @@ const UNREACHABLE =
 const RUN_ENDED = "This action was closed. Nothing more was sent.";
 const MOVED = "This action moved to another window. Nothing was sent.";
 
+/** The connected account, as a request's own was read: a change refuses, unsent. */
+function sameAccount(account: Address, now: Address | undefined): void {
+  if (now?.toLowerCase() !== account.toLowerCase())
+    throw new WalletNotInvokedError(
+      "The connected account changed. Review again.",
+    );
+}
+
 /** Await a call's {@link WalletRequestOptions.fence}: a refusal is unsent. */
 async function fenced(fence?: () => Promise<void>): Promise<void> {
   try {
@@ -156,11 +164,7 @@ async function withConnection<T>(
   const safe = options.isSafe();
   const current = () => {
     if (signal?.aborted) throw new WalletNotInvokedError(RUN_ENDED);
-    if (options.account()?.toLowerCase() !== account.toLowerCase()) {
-      throw new WalletNotInvokedError(
-        "The connected account changed. Review again.",
-      );
-    }
+    sameAccount(account, options.account());
     if (options.chainId() !== chainId || options.isSafe() !== safe) {
       throw new WalletNotInvokedError(CONNECTION_CHANGED);
     }
@@ -378,6 +382,16 @@ export function selfReviewingAdapter(options: {
   };
   const reject = () => Promise.reject(unsupportedWalletRequest());
   const { signTypedData, signMessage } = options;
+  /**
+   * The account read as the call starts, its fence awaited, then the same
+   * account again, synchronously right before the wallet takes the request.
+   */
+  const fencedAs = async (fence?: () => Promise<void>) => {
+    const account = options.account();
+    if (!account) throw new WalletNotInvokedError("Connect a wallet first.");
+    await fenced(fence);
+    sameAccount(account, options.account());
+  };
   return {
     kind: "self-reviewing",
     account: options.account,
@@ -388,18 +402,19 @@ export function selfReviewingAdapter(options: {
     // Each hands the wallet its request right after the call's fence.
     signTypedData: signTypedData
       ? async (typedData, request) => {
-          await fenced(request?.fence);
+          await fencedAs(request?.fence);
           return signTypedData(typedData);
         }
       : reject,
     signMessage: signMessage
       ? async (message, request) => {
-          await fenced(request?.fence);
+          await fencedAs(request?.fence);
           return signMessage(message);
         }
       : reject,
     submitToReviewer: async (request, call) => {
       await fenced(call?.fence);
+      sameAccount(request.account, options.account());
       return options.submit(request);
     },
   };
