@@ -346,7 +346,7 @@ const budgets = {
     // Lock fencing (the lease's owner-checked handle, LockLostError and the
     // holds' checks before a reservation or the wallet) and clients' locks
     // at the send, sign and Safe Relayr save boundaries add no files:
-    // 1,835,214 B packed, 24,607,081 B unpacked. Kept room for the minor's
+    // 1,835,473 B packed, 24,608,638 B unpacked. Kept room for the minor's
     // release-note entry.
     packed: 1_838_000,
     unpacked: 24_620_000,

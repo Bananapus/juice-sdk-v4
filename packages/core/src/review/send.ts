@@ -1,4 +1,4 @@
-import { assertLocksHeld, type LockHandle } from "./locks.js";
+import { assertLocksHeld, LockLostError, type LockHandle } from "./locks.js";
 import {
   ReviewedCallRevertedError,
   ReviewedReceiptUnverifiedError,
@@ -201,13 +201,17 @@ export type ReviewedAction = {
    * The site's own locks (`browserLocks`) the action runs under: each
    * is checked, on a fresh read, before `beforeWallet` and as the last await
    * before every wallet call and every signature. A lost one throws
-   * `LockLostError`, sends nothing and releases the step.
+   * `LockLostError`, sends nothing and releases the step's hold, but
+   * `onUnsent` is not called: the lock's new owner owns the site's journal,
+   * and a stale "unsent" write could clear its reservation. A record the
+   * site wrote in `beforeWallet` stays as it was; its recovery reads it like
+   * any interrupted send (ask the user to check their wallet's activity).
    */
   locks?: readonly LockHandle[];
   /**
    * Awaited when nothing was sent for a step whose `beforeWallet` began: a
    * gate refused, `beforeWallet` threw, or the wallet rejected (4001). Never
-   * after an ambiguous failure.
+   * after an ambiguous failure, nor after a lost lock (`LockLostError`).
    */
   onUnsent?: (call: ReviewedCall, step: number) => void | Promise<void>;
   /**
@@ -1122,7 +1126,10 @@ async function send(
       });
     } catch (error) {
       // Only the site's own refusal or an explicit rejection proves nothing was sent.
-      if (!submitting || isDefiniteWalletRejection(error))
+      if (
+        (!submitting || isDefiniteWalletRejection(error)) &&
+        !(error instanceof LockLostError)
+      )
         for (const [step, call] of calls.slice(0, began).entries())
           await tellUnsent(call, step);
       throw error;
@@ -1285,8 +1292,9 @@ async function send(
         if (generation(handles[0]) !== reviewedGenerations[0]) {
           throw new WriteHoldStaleReviewError();
         }
-        const released = async () => {
+        const released = async (cause?: unknown) => {
           gate.onRejected();
+          if (cause instanceof LockLostError) return;
           for (const [step, call] of calls.slice(0, began).entries())
             await tellUnsent(call, step);
         };
@@ -1331,7 +1339,7 @@ async function send(
                 assertLocksHeld(action.locks),
               ]);
             } catch (error) {
-              await released();
+              await released(error);
               throw error;
             }
           },
@@ -1493,13 +1501,13 @@ async function send(
           throw new WriteHoldStaleReviewError();
         }
         /** Nothing was sent: the hold lets go, and the step is no longer in flight. */
-        const released = async () => {
+        const released = async (cause?: unknown) => {
           gate.onRejected();
           if (journal) {
             delete journal.sending;
             await keep();
           }
-          await tellUnsent(call, at);
+          if (!(cause instanceof LockLostError)) await tellUnsent(call, at);
         };
         return submitReviewedContractWrite({
           request: reviewed,
@@ -1594,7 +1602,7 @@ async function send(
                 assertLocksHeld(action.locks),
               ]);
             } catch (error) {
-              await released();
+              await released(error);
               throw error;
             }
           },

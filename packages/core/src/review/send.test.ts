@@ -939,7 +939,7 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
-  it("checks the site's own locks last before the wallet and before a signature", async () => {
+  it("checks the site's own locks before its hook, last before the wallet and before a signature", async () => {
     const { wallet, deps, hold, holdOf } = setup();
     reviewUi();
     const call = payCall();
@@ -959,7 +959,8 @@ describe("sendReviewed", () => {
     expect(beforeWallet).not.toHaveBeenCalled();
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(hold.open(holdOf(call)).peek().status).toBe("clear");
-    expect(onUnsent).toHaveBeenCalledOnce();
+    // The lock's new owner owns the site's journal: never told unsent.
+    expect(onUnsent).not.toHaveBeenCalled();
     await expect(
       sendReviewed(
         action([payCall(2n)], {
@@ -976,7 +977,7 @@ describe("sendReviewed", () => {
     ).resolves.toBeDefined();
   });
 
-  it("never opens the wallet once the hold's lock was lost before it, and releases the step", async () => {
+  it("never opens the wallet once the hold's lock was lost before it, and releases its hold", async () => {
     const { wallet, deps, hold, holdOf, loseLock } = setup();
     reviewUi();
     const call = payCall();
@@ -991,7 +992,8 @@ describe("sendReviewed", () => {
     ).rejects.toMatchObject({ code: "LOCK_LOST" });
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(hold.open(holdOf(call)).peek().status).toBe("clear");
-    expect(events).toEqual(["released"]);
+    // The lock's new owner owns the site's journal: never told unsent.
+    expect(events).toEqual([]);
   });
 
   it("runs the site's beforeWallet under the hold, before the wallet, and tells it how the step ended", async () => {
