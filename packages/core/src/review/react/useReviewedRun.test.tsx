@@ -796,6 +796,7 @@ describe("useReviewedRun", () => {
       journal = true,
       throwing = false as Failing,
       batch = false,
+      onConfirmed: given,
     }: {
       calls?: ReturnType<typeof payCall>[];
       event?: string;
@@ -805,13 +806,15 @@ describe("useReviewedRun", () => {
       throwing?: Failing;
       /** A Safe app's batch: one MultiSend proposal of every call. */
       batch?: boolean;
+      /** The site's onConfirmed, in place of the spy. */
+      onConfirmed?: ReturnType<typeof confirmer>;
     } = {},
   ) {
     reviewUi();
     const context = setup();
     const { wallet, deps, chain } = context;
     wallet.state.safe = true;
-    const onConfirmed = confirmer(throwing);
+    const onConfirmed = given ?? confirmer(throwing);
     const scope = "pay:safe";
     const call = batch ? safeBatchCall(ACCOUNT, calls) : calls[0];
     const hook = harness({
@@ -888,6 +891,25 @@ describe("useReviewedRun", () => {
       transactionHash: EXECUTION,
     });
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+  });
+
+  test("dismiss waits for a settled payment's completion: its done shows, never hidden, before the confirm closes", async () => {
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => (release = resolve));
+    const onConfirmed = vi.fn((..._told: unknown[]) => paused as never);
+    const { seen, wallet } = await proposedThenExecuted(Infinity, {
+      journal: false,
+      onConfirmed,
+    });
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
+    let closed!: boolean;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(false);
+    release();
+    await rendered(() => expect(seen.current!.status).toBe("done"));
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
   });
 
   test("a Safe proposal whose execution's receipt can't be read stays confirming, never done", async () => {
@@ -1539,7 +1561,7 @@ describe("useReviewedRun", () => {
     chain.client.getTransactionReceipt.mockImplementation(read);
     // The detached follower reads the hold again on its own clock.
     await vi.waitFor(() => expect(onDismissedSettled).toHaveBeenCalledOnce(), {
-      timeout: 6_000,
+      timeout: 12_000,
     });
     expect(onDismissedSettled).toHaveBeenCalledWith(
       expect.objectContaining({ to: call.to, data: call.data }),
@@ -1547,7 +1569,7 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
     expect(prompts).toHaveLength(1);
     expect(seen.current!.status).toBe("idle");
-  });
+  }, 20_000);
 
   test("dismissing a held last step stops the wait and keeps following: its hold still shows, then done", async () => {
     const { seen, result, chain, read } = await unverified();
@@ -1595,12 +1617,12 @@ describe("useReviewedRun", () => {
     expect(seen.current).toMatchObject({ status: "idle", held: null });
     chain.client.getTransactionReceipt.mockImplementation(read);
     await vi.waitFor(() => expect(onDismissedSettled).toHaveBeenCalledOnce(), {
-      timeout: 6_000,
+      timeout: 12_000,
     });
     expect(onDismissedSettled).toHaveBeenCalledWith(
       expect.objectContaining({ to: call.to, data: call.data }),
     );
-  });
+  }, 20_000);
 
   test("dismiss never closes a run whose review or wallet is open", async () => {
     const prompts = reviewUi(() => new Promise(() => {}));

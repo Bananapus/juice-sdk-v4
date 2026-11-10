@@ -19,9 +19,8 @@ import type { ReviewedProgress } from "./send.js";
  * - `failed`: it failed, with the run's `error`;
  * - `cancelled`: the review or the wallet prompt was closed, or the action's
  *   `signal` withdrew it, with nothing sent and nothing held;
- * - `stopped`: closed the same way after an earlier step was sent (here, or
- *   in the saved sequence it resumed), nothing held: that step stands, the
- *   rest was not sent, and running the action again sends the rest.
+ * - `stopped`: closed so after an earlier step was sent, nothing held:
+ *   running the action again sends the rest.
  */
 export type ReviewedRunStatus =
   | "idle"

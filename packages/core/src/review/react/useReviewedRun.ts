@@ -253,7 +253,7 @@ export function useReviewedRun(
   deps: UseReviewedRunDeps | null,
 ): UseReviewedRunResult {
   const [state, setState] = useState<RunState>(IDLE);
-  /** A cancel or stop to tell once the run that ended so has rendered. */
+  /** A cancel or stop to tell once rendered. */
   const [cancelling, setCancelling] = useState<{ told: () => void } | null>(
     null,
   );
@@ -266,7 +266,7 @@ export function useReviewedRun(
     client: WriteHoldClient;
     /** The run that followed it: a reset or a later run ignores its end. */
     run: number;
-    /** The followed step's call, its index in the action, and the action's step count. */
+    /** The followed step's call and index, and the action's step count. */
     call: ReviewedCall;
     step: number;
     total: number;
@@ -288,6 +288,7 @@ export function useReviewedRun(
   } | null>(null);
   /** How many runs are open: a discard waits for none. */
   const open = useRef(0);
+  const settling = useRef(0);
   const mounted = useRef(false);
   /** This render's `run`: a run's end that continues the action runs it. */
   const runLatest = useRef<UseReviewedRunResult["run"]>(async () => null);
@@ -431,7 +432,7 @@ export function useReviewedRun(
     reset,
     dismiss: () => {
       const waiting = awaiting.current;
-      if (open.current && !waiting) return false;
+      if ((open.current && !waiting) || settling.current) return false;
       if (waiting?.last) {
         awaiting.current = null;
         waiting.end();
@@ -513,6 +514,7 @@ export function useReviewedRun(
           receipt: TransactionReceipt | null = null,
         ) => {
           let unread = false;
+          settling.current += 1;
           completed = completed.then(
             (prior) =>
               prior ??
@@ -526,6 +528,7 @@ export function useReviewedRun(
                 }),
           );
           void completed.then((ended) => {
+            settling.current -= 1;
             if (shown || latest.current !== id) return;
             // Nothing advanced (its receipt unread, or its hold not settled
             // for this send yet): it is tried again.
@@ -644,7 +647,6 @@ export function useReviewedRun(
             call,
           };
         } catch {
-          /* A call the hold can't open holds nothing to follow. */
           return null;
         }
       };
