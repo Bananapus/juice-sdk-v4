@@ -681,6 +681,8 @@ async function sendPayment(
             : gate.beforeSend());
           reserved = handle.peek().reservation;
           try {
+            // The site's own record before the wallet: never under a lost lock.
+            await assertLocksHeld(hooks.locks);
             await hooks.onSending?.();
             // The last await before the wallet: every lock is still this tab's.
             await Promise.all([
@@ -929,7 +931,7 @@ export async function payRelayrReviewed(
     context?: readonly ReviewContextRow[];
     onSending?: () => Promise<void>;
     onSent?: (hash: Hex) => Promise<void>;
-    /** The site's own locks, checked as the last await before the wallet; a lost one sends nothing. */
+    /** The site's own locks, checked before `onSending` and as the last await before the wallet; a lost one sends nothing. */
     locks?: readonly LockHandle[];
     /** A plan already reviewed with exactly this payment (`reviewPlan`): nothing is asked. */
     plan?: ReviewedPlan;

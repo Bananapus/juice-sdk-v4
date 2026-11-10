@@ -434,14 +434,17 @@ describe("payRelayrReviewed", () => {
   it("checks the site's own locks last before the wallet, and releases the payment", async () => {
     const { deps, wallet } = relayrSetup();
     reviewUi();
+    const onSending = vi.fn(async () => {});
     await expect(
       payRelayrReviewed(
         quoteFor(),
         10,
-        { account: ACCOUNT, locks: [clientLock(false)] },
+        { account: ACCOUNT, locks: [clientLock(false)], onSending },
         deps,
       ),
     ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    // The site's own pre-wallet record is never written under a lost lock.
+    expect(onSending).not.toHaveBeenCalled();
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     await expect(
       payRelayrReviewed(

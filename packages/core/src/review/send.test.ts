@@ -944,12 +944,19 @@ describe("sendReviewed", () => {
     reviewUi();
     const call = payCall();
     const onUnsent = vi.fn();
+    // The site's own pre-wallet record is never written under a lost lock.
+    const beforeWallet = vi.fn();
     await expect(
       sendReviewed(
-        action([call], { locks: [clientLock(), clientLock(false)], onUnsent }),
+        action([call], {
+          locks: [clientLock(), clientLock(false)],
+          onUnsent,
+          beforeWallet,
+        }),
         deps,
       ),
     ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(beforeWallet).not.toHaveBeenCalled();
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(hold.open(holdOf(call)).peek().status).toBe("clear");
     expect(onUnsent).toHaveBeenCalledOnce();

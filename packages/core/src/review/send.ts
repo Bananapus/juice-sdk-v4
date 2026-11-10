@@ -199,9 +199,9 @@ export type ReviewedAction = {
   beforeWallet?: (call: ReviewedCall, step: number) => void | Promise<void>;
   /**
    * The site's own locks (`browserLocks`) the action runs under: each
-   * is checked, on a fresh read, as the last await before every wallet call
-   * and every signature. A lost one throws `LockLostError`, sends nothing
-   * and releases the step.
+   * is checked, on a fresh read, before `beforeWallet` and as the last await
+   * before every wallet call and every signature. A lost one throws
+   * `LockLostError`, sends nothing and releases the step.
    */
   locks?: readonly LockHandle[];
   /**
@@ -1105,6 +1105,8 @@ async function send(
     try {
       for (const [step, call] of calls.entries()) {
         began += 1;
+        // The site's own record before the wallet: never under a lost lock.
+        await assertLocksHeld(action.locks);
         await action.beforeWallet?.(call, step);
       }
       await assertLocksHeld(action.locks);
@@ -1319,6 +1321,8 @@ async function send(
             try {
               for (const [step, call] of calls.entries()) {
                 began = step + 1;
+                // The site's own record before the wallet: never under a lost lock.
+                await assertLocksHeld(action.locks);
                 await action.beforeWallet?.(call, step);
               }
               // The last await before the wallet: every lock is still this tab's.
@@ -1581,6 +1585,8 @@ async function send(
                 throw error;
               }
             try {
+              // The site's own record before the wallet: never under a lost lock.
+              await assertLocksHeld(action.locks);
               await action.beforeWallet?.(call, at);
               // The last await before the wallet: every lock is still this tab's.
               await Promise.all([
