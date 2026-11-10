@@ -519,8 +519,17 @@ export function useReviewedRun(
             (prior) =>
               prior ??
               (loaded ? Promise.resolve(loaded) : load(deps!.engine))
+                // A run reset or replaced since acknowledges nothing: its
+                // success stays unacknowledged, warning the next run.
                 .then((engine) =>
-                  engine.completeReviewedStep(target, action$, deps!, receipt),
+                  latest.current === id
+                    ? engine.completeReviewedStep(
+                        target,
+                        action$,
+                        deps!,
+                        receipt,
+                      )
+                    : null,
                 )
                 .catch(() => {
                   unread = true;

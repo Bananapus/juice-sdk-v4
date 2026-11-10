@@ -912,6 +912,32 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
   });
 
+  test("a dismissed run's completion retry acknowledges nothing: the same payment is refused, never sent twice", async () => {
+    const { seen, run, wallet, onConfirmed, hold, recover } =
+      await proposedThenExecuted(2, { journal: false });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(onConfirmed).not.toHaveBeenCalled();
+    const handle = openStepHold(hold, ACCOUNT, true, payCall());
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    // Between completion's failed receipt read and its retry.
+    let closed = false;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(true);
+    expect(seen.current!.status).toBe("idle");
+    recover();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 4_500));
+    });
+    expect(seen.current!.status).toBe("idle");
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    await run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  }, 15_000);
+
   test("a Safe proposal whose execution's receipt can't be read stays confirming, never done", async () => {
     const { seen, onConfirmed, scope, storage } = await proposedThenExecuted(2);
     await act(async () => {
