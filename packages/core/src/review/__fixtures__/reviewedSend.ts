@@ -30,6 +30,8 @@ import { createWriteHold } from "../writeHold.js";
 import {
   createHeldWriteStorage,
   type ReviewedWriteRecoveryInput,
+  LockLostError,
+  type LockHandle,
 } from "../writeRecovery.js";
 
 /** A one-chain fake wallet, chain and write hold for the reviewed-send tests. */
@@ -384,6 +386,8 @@ export function setup() {
     durable: () => undefined,
     memory,
   });
+  /** `loseLock()`: this tab's locks read as lost, as a lapsed IndexedDB lease; `loseLock(false)` holds again. */
+  let lost = false;
   const hold = createWriteHold({
     storage,
     // Web Locks that are always free: these tests send one step at a time.
@@ -395,7 +399,15 @@ export function setup() {
         work: (lock: Lock) => unknown,
       ) => {
         await new Promise((resolve) => setTimeout(resolve, 0));
-        return work({ name, mode: "exclusive" });
+        return work({
+          name,
+          mode: "exclusive",
+          signal: new AbortController().signal,
+          held: async () => !lost,
+          assertHeld: async () => {
+            if (lost) throw new LockLostError(name);
+          },
+        } as Lock);
       }) as LockManager["request"],
     },
     settle: { intervalMs: 1_000, attempts: 1 },
@@ -421,7 +433,18 @@ export function setup() {
     safe: false,
     call: { to: call.to, data: call.data, value: call.value ?? 0n },
   });
-  return { chain, wallet, hold, deps, progress, holdOf, storage, memory };
+  const loseLock = (value = true) => (lost = value);
+  return {
+    chain,
+    wallet,
+    hold,
+    deps,
+    progress,
+    holdOf,
+    storage,
+    memory,
+    loseLock,
+  };
 }
 
 /** Each registered review UI's unregister, latest last. */
@@ -475,6 +498,19 @@ export function watchGuard() {
       const errors = logged.mock.calls.map(([, error]) => error);
       logged.mockRestore();
       return { errors, unhandled };
+    },
+  };
+}
+
+/** A client's own lock, held or already lost (a lapsed IndexedDB lease). */
+export function clientLock(held = true, name = "client"): LockHandle {
+  return {
+    name,
+    mode: "exclusive",
+    signal: new AbortController().signal,
+    held: async () => held,
+    assertHeld: async () => {
+      if (!held) throw new LockLostError(name);
     },
   };
 }

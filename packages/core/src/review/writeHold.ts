@@ -290,6 +290,12 @@ export type WriteHoldGate = {
    * a reused Safe proposal's exact call.
    */
   beforeSend(actualCall?: ReviewedWriteRecoveryInput["call"]): Promise<void>;
+  /**
+   * Throws `LockLostError` unless every lock the send reserved under is still
+   * this tab's, on a fresh read: the last await of `beforeWrite`, right before
+   * the wallet opens. Only after `beforeSend`.
+   */
+  assertHeld(): Promise<void>;
   /** The wallet returned this hash (a Safe proposal's safeTxHash): `onWriteSubmitted`. */
   afterSubmit(hash: Hex, proposal?: SafeQueuedTransaction): void;
   /** Nothing reached the wallet, or it refused: `onWriteRejected` and `onBeforeWriteAborted`. */
@@ -581,7 +587,14 @@ export function createWriteHold(
         unreserve: () => void,
         until: Promise<void>,
         reviewed: string,
-      ) => Promise<{ released: Promise<void>; unsent: () => void }>;
+        /** Throws `LockLostError` unless `ownLock` is still this tab's. */
+        ownHeld: () => Promise<void>,
+      ) => Promise<{
+        released: Promise<void>;
+        unsent: () => void;
+        /** Throws `LockLostError` unless every lock it reserved under is still this tab's. */
+        held: () => Promise<void>;
+      }>;
       /** Every involved key's generation, read when the review opens. */
       generations?: () => string;
     } = {},
@@ -1317,6 +1330,8 @@ export function createWriteHold(
         let released: Promise<void> | undefined;
         /** Under an intent: removes the reservation's mirrors, never sent. */
         let unsent: (() => void) | undefined;
+        /** Under an intent: whether every lock it reserved under is still this tab's. */
+        let acrossHeld: (() => Promise<void>) | undefined;
         let reviewed = "";
         const gate: WriteHoldGate = {
           async beforeSend(actualCall) {
@@ -1337,7 +1352,11 @@ export function createWriteHold(
             };
             try {
               if (hooks.across)
-                ({ released, unsent } = await hooks.across(
+                ({
+                  released,
+                  unsent,
+                  held: acrossHeld,
+                } = await hooks.across(
                   (work) => recovery.withLock(work),
                   reserve,
                   () => {
@@ -1346,8 +1365,13 @@ export function createWriteHold(
                   },
                   until,
                   reviewed,
+                  () => recovery.assertHeld(),
                 ));
-              else reserve();
+              else {
+                // The tab may have slept through the nonce read: its lock first.
+                await recovery.assertHeld();
+                reserve();
+              }
             } catch (error) {
               if (
                 error instanceof WriteHeldError ||
@@ -1368,6 +1392,9 @@ export function createWriteHold(
               throw error;
             }
             shown(peek());
+          },
+          async assertHeld() {
+            await (acrossHeld ?? recovery.assertHeld)();
           },
           afterSubmit(hash, proposal) {
             if (!attempt)
@@ -1602,6 +1629,7 @@ export function createWriteHold(
               recovery.rejected,
               Promise.resolve(),
               hooks.generations!(),
+              () => recovery.assertHeld(),
             );
             await released;
           } catch (error) {
@@ -1620,6 +1648,7 @@ export function createWriteHold(
           const verdict =
             hash === undefined ? "yes" : await adoptable(hash, client);
           if (verdict !== "yes") return { ...peek(), declined: verdict };
+          await recovery.assertHeld();
           reserve();
           return hash && client ? inspect(client) : peek();
         }, true);
@@ -2073,12 +2102,18 @@ export function createWriteHold(
       unreserve: () => void,
       until: Promise<void>,
       reviewed: string,
-    ): Promise<{ released: Promise<void>; unsent: () => void }> {
+      ownHeld: () => Promise<void>,
+    ): Promise<{
+      released: Promise<void>;
+      unsent: () => void;
+      held: () => Promise<void>;
+    }> {
       const locks = [
-        { scope: scopeOf(call), take: ownLock },
+        { scope: scopeOf(call), take: ownLock, held: ownHeld },
         ...journals.map((journal) => ({
           scope: journal.scopeKey,
           take: <T>(work: () => Promise<T>) => journal.withLock(work),
+          held: () => journal.assertHeld(),
         })),
       ].sort((a, b) => Number(a.scope > b.scope) - Number(a.scope < b.scope));
       const deadline = Date.now() + RESERVE_RETRY_MS;
@@ -2088,6 +2123,9 @@ export function createWriteHold(
        * send never reached the wallet.
        */
       let unsent!: () => void;
+      const stillHeld = async () => {
+        await Promise.all(locks.map((lock) => lock.held()));
+      };
       for (;;) {
         let entered = 0;
         let reserved!: () => void;
@@ -2098,6 +2136,9 @@ export function createWriteHold(
               entered += 1;
               return acquire(index + 1);
             });
+          // Every lock is still this tab's, right before the checks and the
+          // reservation, which nothing then separates.
+          await stillHeld();
           const refuse = (held: ReviewedWriteRecoveryRecord) =>
             new WriteHeldError(
               noticed({
@@ -2158,7 +2199,12 @@ export function createWriteHold(
             (error: unknown) => ({ error }),
           ),
         ]);
-        if (!failed) return { released: holding.catch(() => {}), unsent };
+        if (!failed)
+          return {
+            released: holding.catch(() => {}),
+            unsent,
+            held: stillHeld,
+          };
         // Not reserved: every lock, its own included, is let go before any
         // retry; the checks run again each time.
         const { error } = failed;

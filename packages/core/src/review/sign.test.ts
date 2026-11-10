@@ -26,6 +26,7 @@ import {
   reviewUi,
   setup,
   TERMINAL,
+  clientLock,
 } from "./__fixtures__/reviewedSend.js";
 import { unixTime } from "./decode.js";
 import {
@@ -155,6 +156,19 @@ describe("signReviewed", () => {
       { adapter },
     );
     expect(adapter.signTypedData).toHaveBeenCalledTimes(1);
+  });
+
+  it("signs nothing once the site's lock is lost", async () => {
+    const { adapter } = wallet();
+    reviewUi();
+    await expect(
+      signReviewed(
+        [{ kind: "safe-tx", chainId: 10, safe: SAFE, tx: safeTx() }],
+        { ...signed, locks: [clientLock(false)] },
+        { adapter },
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(adapter.signTypedData).not.toHaveBeenCalled();
   });
 
   it("signs a SafeTx whose hash equals safeTransactionHash", async () => {
@@ -339,7 +353,9 @@ describe("signReviewed", () => {
     expect(model.kind).toBe("message");
     expect(model.message).toBe(text);
     expect(model.signatures[0].message).toBe(text);
-    expect(adapter.signMessage).toHaveBeenCalledWith(text);
+    expect(adapter.signMessage).toHaveBeenCalledWith(text, {
+      fence: expect.any(Function),
+    });
     expect(signature).toBe(await signer.signMessage({ message: text }));
 
     await signReviewed(
@@ -377,7 +393,9 @@ describe("signReviewed", () => {
     });
     await signReviewed([message(1n)], signed, { adapter });
     expect(prompts[1].model.id).not.toBe(prompts[0].model.id);
-    expect(adapter.signMessage).toHaveBeenCalledWith("List it");
+    expect(adapter.signMessage).toHaveBeenCalledWith("List it", {
+      fence: expect.any(Function),
+    });
   });
 
   it("refuses a message whose calls it cannot show", async () => {

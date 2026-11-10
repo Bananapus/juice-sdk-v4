@@ -86,7 +86,11 @@ import {
   type WalletAdapter,
 } from "./wallet.js";
 import { openStepHold, WriteHeldError } from "./writeHold.js";
-import { browserLocks } from "./writeRecovery.js";
+import {
+  assertLocksHeld,
+  browserLocks,
+  type LockHandle,
+} from "./writeRecovery.js";
 import { pause, timeout } from "../pause.js";
 import { FOLLOW_MS, RECEIPT_RETRY_MS } from "./heldWrite.js";
 
@@ -581,6 +585,8 @@ async function sendPayment(
     recheck?: () => Promise<void>;
     /** Runs after the hold reserves, right before the wallet opens. */
     onSending?: () => Promise<void>;
+    /** The site's own locks, checked with the hold's as the last await before the wallet. */
+    locks?: readonly LockHandle[];
     /** Every hash the payment is known by: the wallet's, then the mined one. */
     onSent?: (hash: Hex) => Promise<void>;
     /**
@@ -602,7 +608,10 @@ async function sendPayment(
     ...(hooks.intent ? { intent: hooks.intent.key } : {}),
   };
   const handle = openStepHold(deps.hold, account, safe, call);
-  /** The attempt is saved (`onSending`), and the wallet not yet asked. */
+  /**
+   * The app's `onSending` began, so its saved "sending" record may stand:
+   * any refusal before the wallet then says "not sent", so the app restores it.
+   */
   let saved = false;
   let invoked = false;
   /** The reservation this payment's send took. */
@@ -612,8 +621,10 @@ async function sendPayment(
   const attempt = () => {
     const held = handle.peek();
     if (held.status !== "clear") throw new WriteHeldError(held);
-    return handle.send<Hex>(client, (gate) =>
-      submitReviewedContractWrite({
+    return handle.send<Hex>(client, (gate) => {
+      /** Every lock is still this tab's: the hold's and the app's. */
+      const fence = () => assertLocksHeld([gate, ...(hooks.locks ?? [])]);
+      return submitReviewedContractWrite({
         request: call,
         expectedAccount: account,
         review: () => Promise.resolve(),
@@ -660,20 +671,32 @@ async function sendPayment(
             ? browserLocks().request(
                 `nana-sdk:relayr-payment:${account.toLowerCase()}:${intent.key}`,
                 { mode: "exclusive" },
-                async () => {
+                async (lock) => {
                   requireIntentClear(deps, account, intent);
                   await gate.beforeSend();
+                  try {
+                    // A tab asleep through the reservation's reads gave this up.
+                    await lock!.assertHeld();
+                  } catch (error) {
+                    gate.onRejected();
+                    throw error;
+                  }
                 },
               )
             : gate.beforeSend());
           reserved = handle.peek().reservation;
           try {
+            // The site's own record before the wallet: never under a lost lock.
+            await assertLocksHeld(hooks.locks);
+            saved = true;
             await hooks.onSending?.();
+            // Core's own check before the adapter, which fences again as the
+            // last await before the wallet.
+            await fence();
           } catch (error) {
             gate.onRejected();
             throw error;
           }
-          saved = true;
         },
         beforeSend: () => {
           try {
@@ -724,14 +747,15 @@ async function sendPayment(
               data: calldata,
               value: amount,
               gas: safe ? 0n : RELAYR_PAYMENT_GAS,
+              fence,
             });
           } catch (error) {
             // Only the wallet's own 4001 says it declined.
             throw relayrWalletPaymentError(error);
           }
         },
-      }),
-    );
+      });
+    });
   };
   let hash: Hex;
   try {
@@ -854,6 +878,8 @@ export async function signReviewedForwardRequests(
     account: Address;
     context?: readonly ReviewContextRow[];
     title?: string;
+    /** The site's own locks, checked as the last await before each signature. */
+    locks?: readonly LockHandle[];
   },
   deps: {
     adapter: WalletAdapter;
@@ -877,7 +903,14 @@ export async function signReviewedForwardRequests(
     Promise.resolve({ status: "passed" }),
     Promise.resolve(model),
   );
-  const signatures = await signPrepared(prepared, account, deps.adapter);
+  const signatures = await signPrepared(
+    prepared,
+    account,
+    deps.adapter,
+    undefined,
+    () => assertLocksHeld(action.locks),
+    () => assertLocksHeld(action.locks),
+  );
   return requests.map(({ chainId, request }, index) =>
     entryOf(chainId, request, signatures[index]),
   );
@@ -903,6 +936,8 @@ export async function payRelayrReviewed(
     context?: readonly ReviewContextRow[];
     onSending?: () => Promise<void>;
     onSent?: (hash: Hex) => Promise<void>;
+    /** The site's own locks, checked before `onSending` and as the last await before the wallet; a lost one sends nothing. */
+    locks?: readonly LockHandle[];
     /** A plan already reviewed with exactly this payment (`reviewPlan`): nothing is asked. */
     plan?: ReviewedPlan;
     /** The plan's Relayr round this quote runs: the payment spends its fee bound instead. */
@@ -958,6 +993,7 @@ export async function payRelayrReviewed(
     recheck: () => requireRelayrBundleUnpaid(details.bundleUuid),
     ...(action.onSending ? { onSending: action.onSending } : {}),
     ...(action.onSent ? { onSent: action.onSent } : {}),
+    ...(action.locks ? { locks: action.locks } : {}),
     safe,
   });
   return safe ? { safeTxHash: hash } : { hash };

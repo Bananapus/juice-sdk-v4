@@ -26,9 +26,21 @@ import {
   readAuthorityIdentity,
 } from "../safe.js";
 import { TAB } from "./tabState.js";
-import { browserLocks, type BrowserLocks } from "./locks.js";
+import {
+  browserLocks,
+  fencedLocks,
+  type BrowserLocks,
+  type LockHandle,
+} from "./locks.js";
 
-export { browserLocks, type BrowserLocks } from "./locks.js";
+export {
+  assertLocksHeld,
+  browserLocks,
+  LockLostError,
+  type BrowserLocks,
+  type LockHandle,
+  type LockWork,
+} from "./locks.js";
 import { isBytes32, isHexBytes, uint256 } from "../untrusted.js";
 import {
   atCanonicalFinalizedBlock,
@@ -139,7 +151,7 @@ export type ReviewedWriteNonceEvidence = {
 };
 
 type RecoveryStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-type RecoveryLocks = BrowserLocks;
+type RecoveryLocks = Pick<LockManager, "request"> | BrowserLocks;
 const TAB_MEMORY = TAB.memory;
 const TAB_SEEN = TAB.seen;
 // A returned hash must survive a component remount even when its durable update
@@ -780,6 +792,8 @@ export function createBrowserWriteRecovery(
     reviewed.namespace === undefined ? legacyScope(reviewed) : undefined;
   let owned: ReviewedWriteRecoveryRecord | undefined;
   let locked = false;
+  /** The lock withLock holds, while it does. */
+  let lock: LockHandle | undefined;
   let lastStorage: RecoveryStorage | undefined;
 
   /** An adopted call (a reused Safe proposal) is kept under its reviewed call's key. */
@@ -935,7 +949,16 @@ export function createBrowserWriteRecovery(
     // A rejection callback from another attempt must never release this one.
     if (!owned || owned.hash) return;
     const current = read();
-    if (current?.id === owned.id && current.hash) return;
+    // Only its own unsent record is released: once another tab exited it and
+    // reserved (a lost lock), its markers and settlement stay the successor's.
+    if (current?.id !== owned.id || current.hash) {
+      if (current && current.id !== owned.id)
+        throw new ReviewLineError(
+          "Write recovery changed. Keep the current action pending.",
+        );
+      owned = undefined;
+      return;
+    }
     try {
       storage().setItem(exitedKey(locate(storage()).at, owned.id), "1");
     } catch {
@@ -1744,23 +1767,33 @@ export function createBrowserWriteRecovery(
       if (owned?.id === durable.id) owned = undefined;
     },
     async withLock<T>(work: () => Promise<T>, wait = false): Promise<T> {
-      const locks = options.locks ?? browserLocks();
+      const locks = fencedLocks(options.locks ?? browserLocks());
       return locks.request(
         key,
         { mode: "exclusive", ...(!wait && { ifAvailable: true }) },
-        async (lock) => {
-          if (!lock)
+        async (taken) => {
+          if (!taken)
             throw new ReviewLineError(
               "This wallet action is already open in another tab.",
             );
           locked = true;
+          lock = taken;
           try {
             return await work();
           } finally {
             locked = false;
+            lock = undefined;
           }
         },
-      );
+      ) as Promise<T>;
+    },
+    /**
+     * Throws {@link LockLostError} unless withLock's lock is still this
+     * tab's, on a fresh read: right before a reservation or a wallet opens.
+     */
+    async assertHeld(): Promise<void> {
+      requireLock();
+      await lock!.assertHeld();
     },
   };
 }

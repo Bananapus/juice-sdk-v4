@@ -3,6 +3,8 @@ import {
   REVIEWED_SIMULATION_UNEXPLAINED_LINE,
 } from "./messages.js";
 import {
+  createWalletClient,
+  custom,
   encodeAbiParameters,
   encodeFunctionData,
   numberToHex,
@@ -12,6 +14,7 @@ import {
   type WalletClient,
 } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { LockLostError } from "./locks.js";
 import {
   ACCOUNT,
   CHANGED,
@@ -21,6 +24,7 @@ import {
   TERMINAL,
   action,
   approveCall,
+  clientLock,
   fakeChain,
   liquidityCall,
   payCall,
@@ -121,6 +125,7 @@ describe("sendReviewed", () => {
       data: call.data,
       value: 7n,
       gas: 42_000n,
+      fence: expect.any(Function),
     });
     expect(result).toEqual({
       status: "done",
@@ -180,6 +185,7 @@ describe("sendReviewed", () => {
       data: call.data,
       value: 7n,
       gas: 300_000n,
+      fence: expect.any(Function),
     });
     // Both simulations, at review and before the wallet, ran at exactly that gas.
     const simulated = chain.client.request.mock.calls.filter(
@@ -938,6 +944,129 @@ describe("sendReviewed", () => {
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
   });
 
+  it("checks the site's own locks before its hook, last before the wallet and before a signature", async () => {
+    const { wallet, deps, hold, holdOf } = setup();
+    reviewUi();
+    const call = payCall();
+    const onUnsent = vi.fn();
+    // The site's own pre-wallet record is never written under a lost lock.
+    const beforeWallet = vi.fn();
+    await expect(
+      sendReviewed(
+        action([call], {
+          locks: [clientLock(), clientLock(false)],
+          onUnsent,
+          beforeWallet,
+        }),
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(beforeWallet).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+    // The lock's new owner owns the site's journal: never told unsent.
+    expect(onUnsent).not.toHaveBeenCalled();
+    await expect(
+      sendReviewed(
+        action([payCall(2n)], {
+          signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+          locks: [clientLock(false)],
+        }),
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.signMessage).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    await expect(
+      sendReviewed(action([payCall(3n)], { locks: [clientLock()] }), deps),
+    ).resolves.toBeDefined();
+  });
+
+  it("never opens the wallet once the hold's lock was lost before it, and releases its hold", async () => {
+    const { wallet, deps, hold, holdOf, loseLock } = setup();
+    reviewUi();
+    const call = payCall();
+    const events: string[] = [];
+    const hooks = {
+      // The tab slept here, in the site's own await, and its lease lapsed.
+      beforeWallet: vi.fn(async () => void loseLock()),
+      onUnsent: vi.fn(() => void events.push("released")),
+    };
+    await expect(
+      sendReviewed(action([call], hooks), deps),
+    ).rejects.toMatchObject({ code: "LOCK_LOST" });
+    expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+    // Only the SDK's hold was lost: the site, with no locks of its own,
+    // restores its record.
+    expect(events).toEqual(["released"]);
+  });
+
+  it("never lets a rejection after the site's lock lapsed clear the next owner's record", async () => {
+    const { wallet, deps, hold, holdOf } = setup();
+    reviewUi();
+    const call = payCall();
+    const order = siteOrder();
+    wallet.adapter.sendTransaction.mockImplementationOnce(async () => {
+      order.successor();
+      throw Object.assign(new Error("User rejected the request."), {
+        code: 4001,
+      });
+    });
+    await expect(
+      sendReviewed(action([call], order.hooks), deps),
+    ).rejects.toMatchObject({ code: 4001 });
+    expect(order.journal.get("order")).toBe("B");
+    // The SDK's own hold still lets go: nothing was sent.
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+  });
+
+  it("checks the site's locks again before each step's unsent callback", async () => {
+    const { deps } = setup();
+    const journal = new Map<number, string>();
+    let lost = false;
+    const submit = vi.fn(async (): Promise<Hex> => {
+      throw Object.assign(new Error("no"), { code: 4001 });
+    });
+    await expect(
+      sendReviewed(
+        action([approveCall(), payCall()], {
+          locks: [{ ...clientLock(true, "order"), held: async () => !lost }],
+          beforeWallet: (_, step) => void journal.set(step, "A"),
+          onUnsent: async (_, step) => {
+            journal.delete(step);
+            // Asleep in step 0's save: A's lease lapses, and B saves both steps.
+            if (step === 0) {
+              lost = true;
+              journal.set(0, "B").set(1, "B");
+            }
+          },
+        }),
+        {
+          ...deps,
+          adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+        },
+      ),
+    ).rejects.toThrow();
+    expect(journal.get(1)).toBe("B");
+  });
+
+  it("never lets a self-reviewing wallet's rejection after the site's lock lapsed clear the next owner's record", async () => {
+    const { deps } = setup();
+    const order = siteOrder();
+    const submit = vi.fn(async (): Promise<Hex> => {
+      order.successor();
+      throw Object.assign(new Error("no"), { code: 4001 });
+    });
+    await expect(
+      sendReviewed(action([payCall()], order.hooks), {
+        ...deps,
+        adapter: selfReviewingAdapter({ account: () => ACCOUNT, submit }),
+      }),
+    ).rejects.toThrow();
+    expect(order.journal.get("order")).toBe("B");
+  });
+
   it("runs the site's beforeWallet under the hold, before the wallet, and tells it how the step ended", async () => {
     const { wallet, deps, hold, holdOf } = setup();
     reviewUi();
@@ -1439,6 +1568,33 @@ describe("sendReviewed", () => {
   });
 });
 
+/**
+ * A site's order journal under its own lock, the lease of which lapses
+ * while the wallet is open: the next owner then saves its own record.
+ */
+function siteOrder() {
+  const journal = new Map<string, string>();
+  let lost = false;
+  const lock = {
+    ...clientLock(true, "order"),
+    held: async () => !lost,
+  };
+  return {
+    journal,
+    hooks: {
+      locks: [lock],
+      beforeWallet: () => void journal.set("order", "A"),
+      // A's "nothing was sent" clears the order's record.
+      onUnsent: () => void journal.delete("order"),
+    },
+    /** A's lease lapses; B takes it and saves its own attempt. */
+    successor() {
+      lost = true;
+      journal.set("order", "B");
+    },
+  };
+}
+
 describe("a Safe app batch", () => {
   const PROPOSAL = `0x${"ab".repeat(32)}` as Hex;
   /** A Safe app connection that takes `wallet_sendCalls` as one proposal. */
@@ -1480,6 +1636,7 @@ describe("a Safe app batch", () => {
     expect(sendCalls).toHaveBeenCalledWith(
       10,
       calls.map(({ to, data, value }) => ({ to, data, value: value ?? 0n })),
+      { fence: expect.any(Function) },
     );
     expect(wallet.adapter.sendTransaction).not.toHaveBeenCalled();
     expect(result).toEqual({
@@ -1512,6 +1669,21 @@ describe("a Safe app batch", () => {
       ),
     ).rejects.toMatchObject({ code: 4001 });
     expect(onUnsent.mock.calls.map(([, step]) => step)).toEqual([0, 1]);
+    expect(hold.open(batchHold(calls)).peek().status).toBe("clear");
+  });
+
+  it("never lets a rejection after the site's lock lapsed clear the next owner's record", async () => {
+    reviewUi();
+    const order = siteOrder();
+    const { deps, hold } = safeApp(async () => {
+      order.successor();
+      throw Object.assign(new Error("User rejected"), { code: 4001 });
+    });
+    const calls = [approveCall(), payCall(5n)];
+    await expect(
+      sendReviewed(action(calls, { batch: true, ...order.hooks }), deps),
+    ).rejects.toMatchObject({ code: 4001 });
+    expect(order.journal.get("order")).toBe("B");
     expect(hold.open(batchHold(calls)).peek().status).toBe("clear");
   });
 
@@ -1634,6 +1806,86 @@ describe("sendReviewed and its hold's evidence", () => {
       status: "done",
     });
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * A viem adapter over a provider that records what reached the wallet;
+   * `loading` runs while the adapter loads its client, after every check
+   * before the adapter.
+   */
+  function walletLoading(loading: () => void) {
+    const reached: string[] = [];
+    const provider = vi.fn(async ({ method }: { method: string }) => {
+      reached.push(method);
+      if (method === "eth_chainId") return "0xa";
+      if (method === "personal_sign") return `0x${"5e".repeat(65)}`;
+      return `0x${"ab".repeat(32)}`;
+    });
+    const adapter = viemWalletAdapter({
+      walletClient: async () => {
+        loading();
+        return createWalletClient({
+          account: ACCOUNT,
+          chain: { id: 10 } as never,
+          transport: custom({ request: provider }, { retryCount: 0 }),
+        });
+      },
+      account: () => ACCOUNT,
+      chainId: () => 10,
+      isSafe: () => false,
+      switchChain: async () => undefined,
+    });
+    return { adapter, reached };
+  }
+
+  it("never sends once the hold's lock lapsed while the wallet client loaded", async () => {
+    const { deps, hold, holdOf, loseLock } = setup();
+    reviewUi();
+    const { adapter, reached } = walletLoading(() => void loseLock());
+    const call = payCall();
+    const onUnsent = vi.fn();
+    await expect(
+      sendReviewed(action([call], { onUnsent }), { ...deps, adapter }),
+    ).rejects.toThrow();
+    expect(reached).not.toContain("eth_sendTransaction");
+    // Not sent: released, and the site (no locks of its own) told so.
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+    expect(onUnsent).toHaveBeenCalledTimes(1);
+  });
+
+  it("never sends or signs once the site's lock lapsed while the wallet client loaded", async () => {
+    const { deps } = setup();
+    reviewUi();
+    let lost = false;
+    const locks = [
+      {
+        ...clientLock(true, "order"),
+        held: async () => !lost,
+        assertHeld: async () => {
+          if (lost) throw new LockLostError("order");
+        },
+      },
+    ];
+    const sending = walletLoading(() => void (lost = true));
+    await expect(
+      sendReviewed(action([payCall()], { locks }), {
+        ...deps,
+        adapter: sending.adapter,
+      }),
+    ).rejects.toThrow();
+    expect(sending.reached).not.toContain("eth_sendTransaction");
+    lost = false;
+    const signing = walletLoading(() => void (lost = true));
+    await expect(
+      sendReviewed(
+        action([payCall(2n)], {
+          locks,
+          signatures: [{ kind: "message", chainId: 10, message: "List it" }],
+        }),
+        { ...deps, adapter: signing.adapter },
+      ),
+    ).rejects.toThrow();
+    expect(signing.reached).not.toContain("personal_sign");
   });
 
   it("a refusal before the wallet is called releases the held step and keeps its message", async () => {

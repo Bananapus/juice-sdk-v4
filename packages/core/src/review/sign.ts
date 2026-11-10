@@ -1,3 +1,4 @@
+import { assertLocksHeld, type LockHandle } from "./locks.js";
 import { ReviewLineError } from "./lineError.js";
 import {
   encodeFunctionData,
@@ -402,6 +403,8 @@ export async function signPrepared(
   beforeSign?: () => void,
   /** The caller's async recheck before each signature, ahead of `beforeSign`. */
   reverify?: () => Promise<void>,
+  /** The caller's ownership check, the adapter's last await before the wallet. */
+  fence?: () => Promise<void>,
 ): Promise<Hex[]> {
   const signatures: Hex[] = [];
   const chained = adapter.kind !== "self-reviewing";
@@ -437,8 +440,8 @@ export async function signPrepared(
         write: async () => {
           try {
             return await (typedData
-              ? adapter.signTypedData(typedData)
-              : adapter.signMessage(message!));
+              ? adapter.signTypedData(typedData, { fence })
+              : adapter.signMessage(message!, { fence }));
           } catch (error) {
             if (isDefiniteWalletRejection(error)) {
               throw new TransactionReviewCancelledError(REJECTED);
@@ -520,6 +523,8 @@ export async function signReviewed(
     reverify?: () => Promise<void>;
     /** Withdraws the review while it is open, as `sendReviewed`'s does. */
     signal?: AbortSignal;
+    /** The site's own locks, checked as the last await before each signature; a lost one signs nothing. */
+    locks?: readonly LockHandle[];
     /**
      * A plan the person already reviewed (`reviewPlan`): nothing is asked,
      * and every call the signatures let someone run is spent from it, or
@@ -565,5 +570,15 @@ export async function signReviewed(
         action.signal,
       );
   }
-  return signPrepared(prepared, account, adapter, undefined, action.reverify);
+  return signPrepared(
+    prepared,
+    account,
+    adapter,
+    undefined,
+    async () => {
+      await action.reverify?.();
+      await assertLocksHeld(action.locks);
+    },
+    () => assertLocksHeld(action.locks),
+  );
 }
