@@ -1131,6 +1131,8 @@ export async function completeReviewedStep(
   settled: WriteHoldSettled;
   receipt: TransactionReceipt | null;
   undelivered?: true;
+  /** Every completed step's hash, the sequence's under `scope` included. */
+  hashes: Hex[];
 } | null> {
   const { step, held } = unverified;
   if (!held || signal?.aborted) return null;
@@ -1153,8 +1155,9 @@ export async function completeReviewedStep(
     step,
     settled,
     confirmed,
-    async () => {
-      if (action.scope === undefined) return;
+    async (): Promise<Hex[]> => {
+      const own = settled.result === "success" ? [settled.hash] : [];
+      if (action.scope === undefined) return own;
       const storage = deps.storage ?? createHeldWriteStorage();
       const { raw, record } = readReviewedSequence(
         action.scope,
@@ -1162,16 +1165,20 @@ export async function completeReviewedStep(
         storage,
       );
       if (
-        record?.sending?.step === step &&
-        record.sending.reservation === reservation
+        record?.sending?.step !== step ||
+        record.sending.reservation !== reservation
       )
-        await recordSending(record, settled, storage, raw);
+        return own;
+      await recordSending(record, settled, storage, raw);
+      // The journal's, the one source of a sequence's hashes.
+      return [...record.completed];
     },
   );
-  if (!ended) return { settled, receipt: confirmed, undelivered: true };
+  if (!ended)
+    return { settled, receipt: confirmed, undelivered: true, hashes: [] };
   if (acknowledge && settled.result === "success")
     await handle.acknowledge(settled);
-  return { settled, receipt: confirmed };
+  return { settled, receipt: confirmed, hashes: ended.recorded };
 }
 
 /**

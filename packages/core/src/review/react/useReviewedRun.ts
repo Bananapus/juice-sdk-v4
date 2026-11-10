@@ -649,62 +649,69 @@ export function useReviewedRun(
       /** This form's unshown write of these calls succeeded: the form closes on it. */
       const close = async (found: OwnSuccess) => {
         const { settled, handle } = found;
-        const kept = own.current;
-        own.current = null;
-        // Completed as its run would have, under this run's locks: told to
-        // onConfirmed once (unless another completion did), and done only
-        // once delivered.
-        let failure: unknown;
-        const told = await load(deps!.engine)
-          .then((engine) =>
-            engine.completeReviewedStep(
-              {
-                step: found.step,
-                held: { call: found.call, reservation: found.reservation },
-              },
-              {
-                account: deps!.account!,
-                scope: action.scope,
-                onConfirmed: action.onConfirmed,
-                locks: action.locks,
-                attemptScoped: action.attemptScoped,
-              },
-              deps!,
-              null,
-              alive,
-              false,
-            ),
-          )
-          .catch((error: unknown) => {
-            failure = error;
-            return null;
-          });
-        if (!told || told.undelivered) {
-          own.current = kept;
-          failure ??= new LockLostError(action.locks?.[0]?.name ?? "site");
-          const error = errorLine(failure);
-          update({ ...IDLE, error, failure });
-          return { status: "failed" as const, error, failure };
-        }
-        const step = action.calls.length - 1;
-        update({
-          ...IDLE,
-          // Shown now: acknowledged once rendered, so it blocks no new send.
-          acknowledge: async () => {
-            if (!alive.aborted)
+        // Every exit holds the run open, and this form's ownership stays
+        // until its success is shown and acknowledged: until then a dismiss
+        // is refused and a later run closes on the same success again.
+        open.current += 1;
+        try {
+          // Completed as its run would have, under this run's locks: told to
+          // onConfirmed once (unless another completion did), and done only
+          // once delivered.
+          let failure: unknown;
+          const told = await load(deps!.engine)
+            .then((engine) =>
+              engine.completeReviewedStep(
+                {
+                  step: found.step,
+                  held: { call: found.call, reservation: found.reservation },
+                },
+                {
+                  account: deps!.account!,
+                  scope: action.scope,
+                  onConfirmed: action.onConfirmed,
+                  locks: action.locks,
+                  attemptScoped: action.attemptScoped,
+                },
+                deps!,
+                null,
+                alive,
+                false,
+              ),
+            )
+            .catch((error: unknown) => {
+              failure = error;
+              return null;
+            });
+          if (!told || told.undelivered) {
+            failure ??= new LockLostError(action.locks?.[0]?.name ?? "site");
+            const error = errorLine(failure);
+            update({ ...IDLE, error, failure });
+            return { status: "failed" as const, error, failure };
+          }
+          const kept = own.current;
+          const step = action.calls.length - 1;
+          update({
+            ...IDLE,
+            // Shown now: acknowledged once rendered, so it blocks no new send.
+            acknowledge: async () => {
+              if (alive.aborted) return;
               await handle.acknowledge(settled).catch(() => undefined);
-          },
-          phase: "done",
-          step,
-          total: action.calls.length,
-          hash: settled.hash,
-          settled: { step, finished: true },
-        });
-        return {
-          status: "done" as const,
-          hashes: [settled.hash],
-          receipts: [],
-        };
+              if (own.current === kept) own.current = null;
+            },
+            phase: "done",
+            step,
+            total: action.calls.length,
+            hash: settled.hash,
+            settled: { step, finished: true },
+          });
+          return {
+            status: "done" as const,
+            hashes: told.hashes,
+            receipts: [],
+          };
+        } finally {
+          open.current -= 1;
+        }
       };
       // This form's own write is still followed: a retry of it is refused
       // with the hold's line, and the run following it goes on.
@@ -748,6 +755,7 @@ export function useReviewedRun(
       const succeeded = ownSuccess(action);
       if (succeeded) {
         setWatched(null);
+        // close holds the run open itself, from here until it ends.
         open.current -= 1;
         return close(succeeded);
       }

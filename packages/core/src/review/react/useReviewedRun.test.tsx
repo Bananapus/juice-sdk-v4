@@ -2384,6 +2384,15 @@ describe("useReviewedRun", () => {
       submitMs: Math.floor(random() * 40),
       confirmMs: Math.floor(random() * 40),
       dismiss: random() < 0.4,
+      /** Dismissed unfinished: reopened, its receipt reread slowly. */
+      reopen: random() < 0.6,
+      reopenMs: Math.floor(random() * 40),
+      /** Dismissed again during that reread, then reopened again. */
+      dismissInClose: random() < 0.6,
+      /** Its delivered success acknowledged by another reader first. */
+      acknowledgedElsewhere: random() < 0.5,
+      /** Only its wait dismissed: its completion goes on in the background. */
+      dismissOnce: random() < 0.5,
     }));
     // A sequence lapsing at each step, on each backend, refreshed or not.
     const sequences = (["lease", "native"] as const).flatMap((backend) =>
@@ -2400,14 +2409,43 @@ describe("useReviewedRun", () => {
           submitMs: Math.floor(random() * 40),
           confirmMs: Math.floor(random() * 40),
           dismiss: random() < 0.4,
+          reopen: random() < 0.6,
+          reopenMs: Math.floor(random() * 40),
+          dismissInClose: random() < 0.6,
+          acknowledgedElsewhere: random() < 0.5,
+          dismissOnce: random() < 0.5,
         })),
       ),
     );
-    return [...random$, ...sequences].map((c, index) => ({ ...c, index }));
+    // Dismissed unread, recovered and acknowledged elsewhere, then reopened
+    // and dismissed during the reopened run's reread: each backend, a
+    // payment and a sequence.
+    const reopens = (["lease", "native"] as const).flatMap((backend) =>
+      (["payment", "sequence"] as const).map((shape) => ({
+        ...random$[0],
+        backend,
+        shape,
+        lapse: random() < 0.5,
+        lapseAt: 1 as const,
+        refresh: "none" as const,
+        unreadable: true,
+        recoverInReplay: false,
+        dismiss: true,
+        reopen: true,
+        reopenMs: Math.floor(random() * 40),
+        dismissInClose: true,
+        acknowledgedElsewhere: true,
+        dismissOnce: true,
+      })),
+    );
+    return [...random$, ...sequences, ...reopens].map((c, index) => ({
+      ...c,
+      index,
+    }));
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss): each step told in order, confirmed once before its acknowledgement, one send each",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce): each step told in order, confirmed once before its acknowledgement, one send each across dismiss and reopen, done with every hash in order",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -2530,7 +2568,24 @@ describe("useReviewedRun", () => {
               ...site(lock!),
             }),
           );
+        /** A reopen in the same tab, by a site that takes no lock. */
+        const reopened: Promise<unknown>[] = [];
+        const reopen = () =>
+          act(
+            () =>
+              void reopened.push(
+                seen.current!.run({
+                  ...HANDED_BACK,
+                  calls,
+                  ...(safe ? { batch: true } : {}),
+                  ...(scope ? { scope } : {}),
+                  ...site({ assertHeld: async () => {} }),
+                }),
+              ),
+          );
         const first = await runOnce();
+        /** Every run's end: a done one has each step's hash, in order. */
+        const results: unknown[] = [first];
         if (safe && first && "safeTxHash" in first)
           execution = await executeProposal(
             context,
@@ -2542,9 +2597,11 @@ describe("useReviewedRun", () => {
           refreshes.push(other().request("pay", async () => undefined));
         await Promise.all(refreshes);
         recover();
+        /** Dismissed before its done showed: a reopen is the same action. */
+        const unshown = seen.current!.status !== "done";
         if (c.dismiss) {
           act(() => void seen.current!.dismiss());
-          act(() => void seen.current!.dismiss());
+          if (!c.dismissOnce) act(() => void seen.current!.dismiss());
         }
         const handle = openStepHold(deps.hold, ACCOUNT, safe, held);
         const settle = async () => {
@@ -2555,6 +2612,49 @@ describe("useReviewedRun", () => {
             });
         };
         await settle();
+        // Reopened while unfinished: its success's receipt reread slowly,
+        // dismissed meanwhile and reopened again if the dismiss closed it.
+        // Its reopen closes on its success, never sends it again: its next
+        // read held while it is dismissed and reopened again.
+        if (c.dismiss && c.reopen && unshown) {
+          const success = handle.unacknowledgedSuccess();
+          if (
+            c.acknowledgedElsewhere &&
+            success &&
+            told.includes(`confirmed:${last}`)
+          )
+            await act(async () => {
+              await handle.acknowledge(success);
+            });
+          let release!: () => void;
+          const slow = new Promise<void>((resolve) => (release = resolve));
+          const reading =
+            chain.client.getTransactionReceipt.getMockImplementation()!;
+          chain.client.getTransactionReceipt.mockImplementationOnce(
+            async (args) => {
+              await slow;
+              return reading(args);
+            },
+          );
+          reopen();
+          await act(async () => {
+            await sleep(c.reopenMs);
+          });
+          let dismissed = false;
+          if (c.dismissInClose)
+            act(() => {
+              dismissed = seen.current!.dismiss();
+            });
+          if (dismissed) {
+            reopen();
+            await settle();
+          }
+          release();
+          await act(async () => {
+            results.push(...(await Promise.all(reopened)));
+          });
+          await settle();
+        }
         // Retried, under a fresh lock, only while its sequence is saved
         // unfinished or its last success is unacknowledged.
         const unfinished = () =>
@@ -2563,7 +2663,7 @@ describe("useReviewedRun", () => {
             findReviewedSequence(scope, ACCOUNT, { storage: deps.storage }) !==
               null);
         for (let retry = 0; retry < 4 && unfinished(); retry += 1) {
-          await runOnce();
+          results.push(await runOnce());
           await settle();
         }
         if (!c.dismiss)
@@ -2592,6 +2692,15 @@ describe("useReviewedRun", () => {
             ? sendCalls.mock.calls.length
             : wallet.adapter.sendTransaction.mock.calls.length,
         ).toBe(safe ? 1 : calls.length);
+        // A direct send's done ends with every step's hash, in order.
+        if (!safe)
+          for (const result of results)
+            if ((result as { status?: string })?.status === "done")
+              expect(
+                (result as { hashes: string[] }).hashes.map((hash) =>
+                  hash.toLowerCase(),
+                ),
+              ).toEqual(sent);
       } finally {
         vi.unstubAllGlobals();
       }
@@ -2853,6 +2962,100 @@ describe("useReviewedRun", () => {
     expect(closed).toBe(false);
     expect(seen.current).toMatchObject({ status: "review", busy: true });
   });
+
+  test("a reopened run closing on its dismissed success holds the form while the receipt is reread: dismiss refused, a second reopen closes too, one send", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const onConfirmed = vi.fn();
+    const action = { ...HANDED_BACK, calls: [payCall()], onConfirmed };
+    await expect(run(action)).resolves.toMatchObject({ status: "receipt" });
+    act(() => void seen.current!.dismiss());
+    // Recovered in the background: told and acknowledged.
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce(), {
+      timeout: 12_000,
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    // The reopened run's receipt reread is slow.
+    let release!: () => void;
+    let entered = false;
+    const slow = new Promise<void>((resolve) => (release = resolve));
+    chain.client.getTransactionReceipt.mockImplementationOnce(async (args) => {
+      entered = true;
+      await slow;
+      return read(args);
+    });
+    let reopened!: Promise<unknown>;
+    act(() => void (reopened = seen.current!.run(action)));
+    await rendered(() => expect(entered).toBe(true));
+    let closed!: boolean;
+    act(() => {
+      closed = seen.current!.dismiss();
+    });
+    expect(closed).toBe(false);
+    let again!: Promise<unknown>;
+    act(() => void (again = seen.current!.run(action)));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+    release();
+    await act(async () => {
+      await Promise.all([reopened, again]);
+    });
+    await expect(again).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    expect(onConfirmed).toHaveBeenCalledOnce();
+  }, 20_000);
+
+  test("a dismissed sequence's last step, closed by a reopened run, ends done with every step's hash", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    let lagging = false;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (lagging) throw new Error("lagging node");
+      return read(args);
+    });
+    const action = {
+      ...HANDED_BACK,
+      calls: [approveCall(), payCall()],
+      scope: "pay:sequence",
+      // The node lags once the approval is confirmed.
+      onConfirmed: (_call: unknown, step: number) => {
+        if (step === 0) lagging = true;
+      },
+    };
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await expect(run(action)).resolves.toMatchObject({
+      status: "receipt",
+      step: 1,
+    });
+    act(() => void seen.current!.dismiss());
+    await rendered(() => expect(seen.current!.busy).toBe(false));
+    act(() => void seen.current!.dismiss());
+    lagging = false;
+    const handle = openStepHold(deps.hold, ACCOUNT, false, payCall());
+    await vi.waitFor(
+      () => expect(handle.unacknowledgedSuccess()).toBeDefined(),
+      { timeout: 12_000 },
+    );
+    const sent = await Promise.all(
+      wallet.adapter.sendTransaction.mock.results.map(({ value }) => value),
+    );
+    expect(sent).toHaveLength(2);
+    await expect(run(action)).resolves.toMatchObject({
+      status: "done",
+      hashes: sent,
+    });
+  }, 20_000);
 
   /** A payment left at its receipt whose completion waits in onConfirmed. */
   async function completing() {
