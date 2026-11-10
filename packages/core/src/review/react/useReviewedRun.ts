@@ -5,6 +5,7 @@ import {
   discardReviewedSequence,
   errorLine,
   findReviewedSequence,
+  followHeldWrite,
   isDefiniteWalletRejection,
   listReviewedWrites,
   openStepHold,
@@ -64,6 +65,14 @@ export type UseReviewedRunDeps = ReviewedSendDeps & {
    * again only after a load failed.
    */
   engine: () => Promise<ReviewedEngine>;
+  /** A held step `dismiss` closed later succeeded: refresh its reads. */
+  onDismissedSettled?: (call: ReviewedCall) => void;
+};
+
+type Detached = {
+  handle: WriteHoldHandle;
+  client: WriteHoldClient;
+  call: ReviewedCall;
 };
 
 /** A run that failed: `error` is the line to show, `failure` the value thrown. */
@@ -109,12 +118,14 @@ export type UseReviewedRunResult = {
    * `follow.timeoutMs` (2 minutes by default); only then does the run resolve
    * `receipt`, and the hook follows the hold until it settles.
    * `onCancelled` runs once when the run ends `cancelled`: nothing sent and
-   * nothing held.
+   * nothing held; `onStopped` once when it ends `stopped`, with the last step
+   * sent. Both are told once that state rendered.
    */
   run: (
     action: Omit<ReviewedAction, "account" | "guard"> & {
       account?: Address;
       onCancelled?: () => void;
+      onStopped?: (step: number) => void;
     },
   ) => Promise<ReviewedResult | ReviewedRunReceipt | ReviewedRunFailed | null>;
   /**
@@ -125,8 +136,10 @@ export type UseReviewedRunResult = {
   lastSubmittedStep: number | null;
   /** The run's status, from `reviewedRunStatus`: the one every app shows. */
   status: ReviewedRunStatus;
-  /** Reviewing, simulating, signing or confirming a receipt: the action waits. */
+  /** Reviewing, simulating, signing or confirming in place (not `following`). */
   busy: boolean;
+  /** The run only follows a sent step's hold: the confirm can close. */
+  following: boolean;
   phase: ReviewedProgress["phase"] | "idle";
   step: number;
   total: number;
@@ -159,6 +172,14 @@ export type UseReviewedRunResult = {
   held: HeldWriteView | null;
   reset: () => void;
   /**
+   * Closes the confirm; false while the review or wallet is open. A held
+   * earlier step ends the run (nothing more reviewed; its hold followed
+   * detached, `onDismissedSettled`). A held last step only ends the wait
+   * (`ended()` null) and stays shown. Otherwise it resets, following any hold
+   * it showed detached. Never evidence a step can be resent.
+   */
+  dismiss: () => boolean;
+  /**
    * Loads the send engine now (on hover, focus or pointerdown of the action),
    * so the review opens without a wait. Safe to call any number of times: it
    * loads once, and again only after a load failed.
@@ -178,6 +199,7 @@ type RunState = Omit<
   UseReviewedRunResult,
   | "run"
   | "reset"
+  | "dismiss"
   | "held"
   | "preload"
   | "discard"
@@ -187,10 +209,14 @@ type RunState = Omit<
 > & {
   /** The last run ended cancelled. */
   cancelled: boolean;
+  /** The last run ended stopped. */
+  stopped: boolean;
 };
 
 const IDLE: RunState = {
   cancelled: false,
+  stopped: false,
+  following: false,
   lastSubmittedStep: null,
   phase: "idle",
   step: 0,
@@ -227,12 +253,12 @@ export function useReviewedRun(
   deps: UseReviewedRunDeps | null,
 ): UseReviewedRunResult {
   const [state, setState] = useState<RunState>(IDLE);
-  /** A cancel to tell once the cancelled run has rendered. */
-  const [cancelling, setCancelling] = useState<{
-    onCancelled: () => void;
-  } | null>(null);
+  /** A cancel or stop to tell once the run that ended so has rendered. */
+  const [cancelling, setCancelling] = useState<{ told: () => void } | null>(
+    null,
+  );
   useEffect(() => {
-    if (cancelling) void tell(cancelling.onCancelled);
+    if (cancelling) void tell(cancelling.told);
   }, [cancelling]);
   /** The hold followed after a run, and its chain's client: its view is `held`. */
   const [watched, setWatched] = useState<{
@@ -240,7 +266,8 @@ export function useReviewedRun(
     client: WriteHoldClient;
     /** The run that followed it: a reset or a later run ignores its end. */
     run: number;
-    /** The followed step's index in the action, and the action's step count. */
+    /** The followed step's call, its index in the action, and the action's step count. */
+    call: ReviewedCall;
     step: number;
     total: number;
     /** Its settlement completes the step, checked, before it shows. */
@@ -253,6 +280,12 @@ export function useReviewedRun(
   } | null>(null);
   /** The latest run: an earlier one's late answers change nothing. */
   const latest = useRef(0);
+  /** The sent step whose hold the latest run's `ended()` awaits. */
+  const awaiting = useRef<{
+    last: boolean;
+    detached: Detached | null;
+    end: () => void;
+  } | null>(null);
   /** How many runs are open: a discard waits for none. */
   const open = useRef(0);
   const mounted = useRef(false);
@@ -266,6 +299,7 @@ export function useReviewedRun(
   const leave = useRef(() => {});
   const replaced = () => {
     latest.current += 1;
+    awaiting.current = null;
     const left = leave.current;
     leave.current = () => {};
     left();
@@ -299,6 +333,7 @@ export function useReviewedRun(
         : finished
           ? {
               ...now,
+              following: false,
               phase: "done",
               hash: settled.hash,
               receipt,
@@ -367,16 +402,52 @@ export function useReviewedRun(
     shown.phase === "settled"
       ? null
       : shown;
-  const { cancelled: _cancelled, ...shownState } = state;
+  const { cancelled: _cancelled, stopped: _stopped, ...shownState } = state;
+  const status = reviewedRunStatus({ ...state, held });
+  const reset = () => {
+    replaced();
+    setState(IDLE);
+    setWatched(null);
+  };
+  const detach = (target: Detached | null) => {
+    // ponytail: unbounded; it ends once the hold is clear.
+    if (target)
+      void followHeldWrite(target.handle, target.client, {
+        signal: new AbortController().signal,
+      }).then(
+        (end) =>
+          end?.status === "clear" &&
+          end.settled?.result === "success" &&
+          tell(deps?.onDismissedSettled, target.call),
+        () => undefined,
+      );
+  };
   const api: UseReviewedRunResult = {
     ...shownState,
-    ...reviewedRunStatus({ ...state, held }),
+    ...status,
+    busy: status.busy && !state.following,
     held,
     ...actionsOf(shown, held ? view : undefined),
-    reset: () => {
-      replaced();
-      setState(IDLE);
-      setWatched(null);
+    reset,
+    dismiss: () => {
+      const waiting = awaiting.current;
+      if (open.current && !waiting) return false;
+      if (waiting?.last) {
+        awaiting.current = null;
+        waiting.end();
+        return true;
+      }
+      detach(
+        waiting
+          ? waiting.detached
+          : watched && {
+              handle: watched.handle,
+              client: watched.client,
+              call: watched.call,
+            },
+      );
+      reset();
+      return true;
     },
     preload,
     discard: async (scope, account = deps?.account) => {
@@ -391,7 +462,7 @@ export function useReviewedRun(
       setState(IDLE);
       setWatched(null);
     },
-    run: async ({ onCancelled, ...action }) => {
+    run: async ({ onCancelled, onStopped, ...action }) => {
       replaced();
       const id = latest.current;
       // A step still confirming is followed in place, in the same review,
@@ -534,6 +605,7 @@ export function useReviewedRun(
                   handle: found.handle,
                   client: deps.clientFor(found.call.chainId),
                   run: id,
+                  call: found.call as ReviewedCall,
                   step: found.step,
                   total,
                   finish:
@@ -553,6 +625,27 @@ export function useReviewedRun(
         } catch {
           /* A call the hold can't open holds nothing to show. */
           return false;
+        }
+      };
+      const heldStep = (
+        target: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
+      ): Detached | null => {
+        const call = target.held?.call ?? action.calls[target.step];
+        if (!deps?.account || !call) return null;
+        try {
+          return {
+            handle: openStepHold(
+              deps.hold,
+              deps.account,
+              deps.adapter.isSafe(),
+              call,
+            ),
+            client: deps.clientFor(call.chainId),
+            call,
+          };
+        } catch {
+          /* A call the hold can't open holds nothing to follow. */
+          return null;
         }
       };
       try {
@@ -698,6 +791,7 @@ export function useReviewedRun(
             hash: error.hash,
             error: null,
             failure: null,
+            following: true,
           });
           let end!: (
             outcome: {
@@ -711,6 +805,7 @@ export function useReviewedRun(
             (resolve) =>
               (end = (ran) => {
                 cancelled?.removeEventListener("abort", abandon);
+                if (awaiting.current?.end === abandon) awaiting.current = null;
                 resolve(ran);
               }),
           );
@@ -721,6 +816,11 @@ export function useReviewedRun(
           else {
             leave.current = abandon;
             cancelled?.addEventListener("abort", abandon, { once: true });
+            awaiting.current = {
+              last: error.step === action.calls.length - 1,
+              detached: heldStep(error),
+              end: abandon,
+            };
           }
           const finish = completing(error, action.calls.length, end);
           // Followed for a later settlement; one already there is read once it attaches.
@@ -750,6 +850,7 @@ export function useReviewedRun(
                   const started = await runLatest.current({
                     ...action,
                     ...(onCancelled ? { onCancelled } : {}),
+                    ...(onStopped ? { onStopped } : {}),
                   });
                   const next =
                     started?.status === "receipt"
@@ -804,9 +905,13 @@ export function useReviewedRun(
           void follow().then((found) => {
             if (latest.current !== id || !mounted.current) return;
             if (found === null) setTimeout(settle, RECEIPT_RETRY_MS);
-            else if (cancelled && !sentAny && !found) {
-              update({ cancelled: true });
-              setCancelling(onCancelled ? { onCancelled } : null);
+            else if (cancelled && !found) {
+              const step = submitted ?? 0;
+              update(sentAny ? { stopped: true } : { cancelled: true });
+              const told = sentAny
+                ? onStopped && (() => onStopped(step))
+                : onCancelled;
+              setCancelling(told ? { told } : null);
             }
           });
         settle();

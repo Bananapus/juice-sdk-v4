@@ -18,7 +18,10 @@ import type { ReviewedProgress } from "./send.js";
  * - `done`: every step settled;
  * - `failed`: it failed, with the run's `error`;
  * - `cancelled`: the review or the wallet prompt was closed, or the action's
- *   `signal` withdrew it, with nothing sent and nothing held.
+ *   `signal` withdrew it, with nothing sent and nothing held;
+ * - `stopped`: closed the same way after an earlier step was sent (here, or
+ *   in the saved sequence it resumed), nothing held: that step stands, the
+ *   rest was not sent, and running the action again sends the rest.
  */
 export type ReviewedRunStatus =
   | "idle"
@@ -31,7 +34,8 @@ export type ReviewedRunStatus =
   | "settled"
   | "done"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "stopped";
 
 /** What `reviewedRunStatus` reads: `useReviewedRun`'s fields of the same names. */
 export type ReviewedRunStatusInput = {
@@ -41,6 +45,8 @@ export type ReviewedRunStatusInput = {
   held: { phase: HeldWritePhase; line?: string | null } | null;
   /** The last run ended cancelled. */
   cancelled?: boolean;
+  /** The last run ended stopped. */
+  stopped?: boolean;
 };
 
 /** A held step's status, or null when its hold holds nothing to show. */
@@ -88,7 +94,9 @@ export function reviewedRunStatus(run: ReviewedRunStatusInput): {
                 ? "settled"
                 : run.cancelled
                   ? "cancelled"
-                  : "idle"));
+                  : run.stopped
+                    ? "stopped"
+                    : "idle"));
   return {
     status,
     busy:
