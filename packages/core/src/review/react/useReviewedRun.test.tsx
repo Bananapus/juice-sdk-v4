@@ -1370,121 +1370,131 @@ describe("useReviewedRun", () => {
     expect(refund.current!.held).toBeNull();
   });
 
-  test("two forms queued on one hold: the refused one never follows or acknowledges the other's lost-reply write, and a retry closes on the original's success whoever acknowledged it", async () => {
-    const answers: Array<() => void> = [];
-    const prompts = reviewUi(
-      (prompt) =>
-        new Promise((resolve) =>
-          answers.push(() => resolve(prompt.confirmation)),
-        ),
-    );
-    const { chain, deps, wallet } = setup();
-    const lost = `0x${"7a".repeat(32)}` as ViemHex;
-    // The transfer form's wallet is slow to say it is ready again: nothing
-    // in it follows the lost write before its retry starts.
-    let slow = false;
-    const waiting: Array<() => void> = [];
-    Object.assign(wallet.adapter, {
-      ready: () =>
-        slow
-          ? new Promise<void>((resolve) => waiting.push(resolve))
-          : undefined,
-    });
-    const ready = () => {
-      slow = false;
-      waiting.splice(0).forEach((resolve) => resolve());
-    };
-    wallet.adapter.sendTransaction.mockImplementationOnce(async (tx) => {
-      chain.mine(lost, tx);
-      slow = true;
-      throw new Error("The request took too long to respond.");
-    });
-    const given = {
-      engine: () => import("../send.js"),
-      ...deps,
-      account: ACCOUNT,
-    };
-    const transfer: { current?: UseReviewedRunResult } = {};
-    const refund: { current?: UseReviewedRunResult } = {};
-    /** Whether the refused form ever followed or showed a write. */
-    let adopted = false;
-    function Forms() {
-      transfer.current = useReviewedRun(given);
-      refund.current = useReviewedRun(given);
-      adopted ||= refund.current.following || !!refund.current.held;
-      return null;
-    }
-    root = createRoot(document.createElement("div"));
-    act(() => root!.render(<Forms />));
-    const transferCall = { ...payCall(), intent: "token:1" };
-    const action = { calls: [transferCall] };
-    // 1. Both forms queue their reviews before either reserves.
-    let first!: Promise<Awaited<ReturnType<UseReviewedRunResult["run"]>>>;
-    let queued!: Promise<Awaited<ReturnType<UseReviewedRunResult["run"]>>>;
-    act(() => {
-      first = transfer.current!.run(action);
-      queued = refund.current!.run({
-        calls: [{ ...payCall(9n), intent: "token:1" }],
-      });
-    });
-    await rendered(() => expect(prompts).toHaveLength(2));
-    // 2. The transfer broadcasts; its reply is lost.
-    await act(async () => {
-      answers[0]();
-      await expect(first).resolves.toMatchObject({ status: "failed" });
-    });
-    // 3. The queued review is refused by the hold.
-    let refused!: Awaited<typeof queued>;
-    await act(async () => {
-      slow = false;
-      answers[1]();
-      refused = await queued;
-    });
-    expect(refused).toMatchObject({ status: "failed" });
-    const handle = openStepHold(deps.hold, ACCOUNT, false, transferCall);
-    const reservation = handle.peek().reservation!;
-    expect(reservation).toBeTruthy();
-    let retry!: Promise<Awaited<ReturnType<UseReviewedRunResult["run"]>>>;
-    slow = true;
-    act(() => {
-      retry = transfer.current!.run(action);
-    });
-    // 4. The hash is recovered; another reader acknowledges the success.
-    await act(async () => {
-      await handle.attachHash(deps.clientFor(), lost);
-    });
-    await vi.waitFor(() =>
-      expect(handle.settlementOf(reservation)).toMatchObject({
-        result: "success",
-      }),
-    );
-    await act(async () => {
-      await handle.acknowledge(
-        handle.settlementOf(reservation) as {
-          result: "success";
-          hash: ViemHex;
-        },
+  test.each([
+    ["the same calls", false],
+    ["calls refreshed under the same intent (a new deadline)", true],
+  ])(
+    "two forms queued on one hold: the refused one never follows or acknowledges the other's lost-reply write, and a retry with %s closes on the original's success whoever acknowledged it",
+    async (_, refreshed) => {
+      const answers: Array<() => void> = [];
+      const prompts = reviewUi(
+        (prompt) =>
+          new Promise((resolve) =>
+            answers.push(() => resolve(prompt.confirmation)),
+          ),
       );
-    });
-    // 5. The wallet is ready; the retry confirms its review: the
-    // original's success closes it.
-    act(() => ready());
-    await rendered(() => expect(prompts).toHaveLength(3));
-    await act(async () => {
-      answers[2]();
-      await expect(retry).resolves.toMatchObject({
-        status: "done",
-        hashes: [lost],
+      const { chain, deps, wallet } = setup();
+      const lost = `0x${"7a".repeat(32)}` as ViemHex;
+      // The transfer form's wallet is slow to say it is ready again: nothing
+      // in it follows the lost write before its retry starts.
+      let slow = false;
+      const waiting: Array<() => void> = [];
+      Object.assign(wallet.adapter, {
+        ready: () =>
+          slow
+            ? new Promise<void>((resolve) => waiting.push(resolve))
+            : undefined,
       });
-    });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
-    expect(transfer.current).toMatchObject({ phase: "done", hash: lost });
-    expect(refund.current!.phase).not.toBe("done");
-    expect(adopted).toBe(false);
-  });
+      const ready = () => {
+        slow = false;
+        waiting.splice(0).forEach((resolve) => resolve());
+      };
+      wallet.adapter.sendTransaction.mockImplementationOnce(async (tx) => {
+        chain.mine(lost, tx);
+        slow = true;
+        throw new Error("The request took too long to respond.");
+      });
+      const given = {
+        engine: () => import("../send.js"),
+        ...deps,
+        account: ACCOUNT,
+      };
+      const transfer: { current?: UseReviewedRunResult } = {};
+      const refund: { current?: UseReviewedRunResult } = {};
+      /** Whether the refused form ever followed or showed a write. */
+      let adopted = false;
+      function Forms() {
+        transfer.current = useReviewedRun(given);
+        refund.current = useReviewedRun(given);
+        adopted ||= refund.current.following || !!refund.current.held;
+        return null;
+      }
+      root = createRoot(document.createElement("div"));
+      act(() => root!.render(<Forms />));
+      const transferCall = { ...payCall(), intent: "token:1" };
+      const action = { calls: [transferCall] };
+      // 1. Both forms queue their reviews before either reserves.
+      let first!: Promise<Awaited<ReturnType<UseReviewedRunResult["run"]>>>;
+      let queued!: Promise<Awaited<ReturnType<UseReviewedRunResult["run"]>>>;
+      act(() => {
+        first = transfer.current!.run(action);
+        queued = refund.current!.run({
+          calls: [{ ...payCall(9n), intent: "token:1" }],
+        });
+      });
+      await rendered(() => expect(prompts).toHaveLength(2));
+      // 2. The transfer broadcasts; its reply is lost.
+      await act(async () => {
+        answers[0]();
+        await expect(first).resolves.toMatchObject({ status: "failed" });
+      });
+      // 3. The queued review is refused by the hold.
+      let refused!: Awaited<typeof queued>;
+      await act(async () => {
+        slow = false;
+        answers[1]();
+        refused = await queued;
+      });
+      expect(refused).toMatchObject({ status: "failed" });
+      const handle = openStepHold(deps.hold, ACCOUNT, false, transferCall);
+      const reservation = handle.peek().reservation!;
+      expect(reservation).toBeTruthy();
+      let retry!: Promise<Awaited<ReturnType<UseReviewedRunResult["run"]>>>;
+      slow = true;
+      act(() => {
+        retry = transfer.current!.run(
+          refreshed
+            ? { calls: [{ ...payCall(6n), intent: "token:1" }] }
+            : action,
+        );
+      });
+      // 4. The hash is recovered; another reader acknowledges the success.
+      await act(async () => {
+        await handle.attachHash(deps.clientFor(), lost);
+      });
+      await vi.waitFor(() =>
+        expect(handle.settlementOf(reservation)).toMatchObject({
+          result: "success",
+        }),
+      );
+      await act(async () => {
+        await handle.acknowledge(
+          handle.settlementOf(reservation) as {
+            result: "success";
+            hash: ViemHex;
+          },
+        );
+      });
+      // 5. The wallet is ready; the retry confirms its review: the
+      // original's success closes it.
+      act(() => ready());
+      await rendered(() => expect(prompts).toHaveLength(3));
+      await act(async () => {
+        answers[2]();
+        await expect(retry).resolves.toMatchObject({
+          status: "done",
+          hashes: [lost],
+        });
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(1);
+      expect(transfer.current).toMatchObject({ phase: "done", hash: lost });
+      expect(refund.current!.phase).not.toBe("done");
+      expect(adopted).toBe(false);
+    },
+  );
 
   test("run resolves as verifying, not failed, while the hold verifies the receipt", async () => {
     const { seen, result } = await unverified();
@@ -1936,12 +1946,109 @@ describe("useReviewedRun", () => {
         expect(seen.current).toMatchObject({ phase: "done", hash });
       }
       expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+      // Nothing is left running: the form closes and discards as ever.
+      await rendered(() => expect(seen.current!.busy).toBe(false));
+      let closed!: boolean;
+      act(() => {
+        closed = seen.current!.dismiss();
+      });
+      expect(closed).toBe(true);
+      await act(async () => {
+        await seen.current!.discard("pay:none");
+      });
       // Asked again, it is a new send of the user's own choosing.
       await expect(run(action)).resolves.toMatchObject({ status: "done" });
       expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
     },
     20_000,
   );
+
+  test("a new action on another hold still sends while a dismissed success is kept for its own", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const action = {
+      ...HANDED_BACK,
+      calls: [{ ...payCall(), intent: "pay:1" }],
+    };
+    const { hash } = (await run(action)) as ReviewedRunReceipt;
+    act(() => void seen.current!.dismiss());
+    await rendered(() => expect(seen.current!.busy).toBe(false));
+    act(() => void seen.current!.dismiss());
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await vi.waitFor(
+      () =>
+        expect(
+          openStepHold(deps.hold, ACCOUNT, false, action.calls[0]).peek()
+            .status,
+        ).toBe("clear"),
+      { timeout: 12_000 },
+    );
+    await expect(
+      run({ calls: [{ ...payCall(8n), intent: "pay:2" }] }),
+    ).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    // Its own hold, though the calls were refreshed: closed on its success.
+    await expect(
+      run({ calls: [{ ...payCall(6n), intent: "pay:1" }] }),
+    ).resolves.toMatchObject({ status: "done", hashes: [hash] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  }, 20_000);
+
+  test("another account's dismissed success never closes this account's run of the same calls", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockImplementation(async () => {
+      throw new Error("lagging node");
+    });
+    // One deps object the app updates in place when the account changes.
+    const given = {
+      engine: () => import("../send.js"),
+      ...deps,
+      account: ACCOUNT as typeof OTHER,
+    };
+    const seen: { current?: UseReviewedRunResult } = {};
+    function Probe() {
+      seen.current = useReviewedRun(given);
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    act(() => root!.render(<Probe />));
+    const run = async (...args: Parameters<UseReviewedRunResult["run"]>) => {
+      let result!: Awaited<ReturnType<UseReviewedRunResult["run"]>>;
+      await act(async () => {
+        result = await seen.current!.run(...args);
+      });
+      return result;
+    };
+    const action = { ...HANDED_BACK, calls: [payCall()] };
+    await run(action);
+    act(() => void seen.current!.dismiss());
+    await rendered(() => expect(seen.current!.busy).toBe(false));
+    act(() => void seen.current!.dismiss());
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await vi.waitFor(
+      () =>
+        expect(
+          openStepHold(deps.hold, ACCOUNT, false, action.calls[0]).peek()
+            .status,
+        ).toBe("clear"),
+      { timeout: 12_000 },
+    );
+    // The wallet switched to another account, the hook still mounted.
+    wallet.state.account = OTHER;
+    given.account = OTHER;
+    act(() => root!.render(<Probe />));
+    await run({ ...action, account: OTHER });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  }, 20_000);
 
   test("a form's own held write, closed, is followed again by its next run under the same intent, though the calls changed (a fresh quote)", async () => {
     reviewUi();

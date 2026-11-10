@@ -57,8 +57,9 @@ type Keeper = {
   ended: boolean;
   kept: Set<Kept>;
   /**
-   * Hold again under the same owner: `untouched`, only while no other owner
-   * took it since; otherwise whenever it is free now. False if not.
+   * Hold again under the same owner: its own lease, live or lapsed, while no
+   * other owner took it since; unless `untouched`, otherwise whenever it is
+   * free now. False if not.
    */
   retake(untouched: boolean): Promise<boolean>;
   /** Let go of a retake. */
@@ -457,12 +458,12 @@ export function leaseLocks(
         const keeper: Keeper = {
           ended: false,
           kept: new Set(),
+          // Its own lease first, live or lapsed; a scoped outcome also
+          // lands on one another owner took and let go since.
           retake: async (untouched) =>
-            (retaken = await store.claim(
-              name,
-              owner,
-              untouched ? "retake" : "take",
-            )),
+            (retaken =
+              (await store.claim(name, owner, "retake")) ||
+              (!untouched && (await store.claim(name, owner, "take")))),
           drop: async () => {
             retaken = false;
             await store.drop(name, owner).catch(() => {});

@@ -10,14 +10,14 @@
     },
     {
       "file": "packages/core/src/review/locks.ts",
-      "line": 421,
+      "line": 422,
       "api": "request",
       "boundary": "Take this tab's own queue for a write action before claiming the cross-tab IndexedDB lease. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/writeRecovery.test.ts"
     },
     {
       "file": "packages/core/src/review/locks.ts",
-      "line": 210,
+      "line": 211,
       "api": "request",
       "boundary": "Delegate to a Web Locks manager (navigator.locks, the SDK's own fallback or an app's) and hand its work a LockHandle. Browser coordination only, never a wallet RPC.",
       "test": "packages/core/src/review/locks.test.ts"

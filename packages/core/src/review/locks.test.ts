@@ -303,4 +303,36 @@ describe("keepOutcome", () => {
       }),
     ).rejects.toMatchObject({ code: "LOCK_LOST" });
   });
+
+  it("applies a scoped outcome when the outer lease is still live and only the inner one lapsed", async () => {
+    const m = await tab();
+    let clock = 0;
+    const now = () => clock;
+    const leases = m.memoryLeases(now);
+    const locks = m.fencedLocks(
+      m.leaseLocks(async () => leases, m.tabLocksOn(new Map()), now),
+    );
+    const applied: string[] = [];
+    const kept = await locks.request("outer", (outer) => {
+      clock = 2_000;
+      return locks.request("inner", async (inner) => {
+        // The outer renews at 5 s; the tab sleeps before the inner does.
+        const { owner } = (await leases.read("outer"))!;
+        clock = 5_000;
+        await leases.claim("outer", owner, "renew");
+        // At 18 s: the outer holds until 20 s, the inner lapsed at 17 s.
+        clock = 18_000;
+        const write = async () => {
+          await m.assertLocksHeld([outer!, inner!]);
+          applied.push("now");
+        };
+        return m.keepOutcome([outer!, inner!], write, async () => {
+          await m.assertLocksHeld([outer!, inner!]);
+          applied.push("later");
+        });
+      });
+    });
+    expect(kept).toBe(false);
+    expect(applied).toEqual(["later"]);
+  });
 });

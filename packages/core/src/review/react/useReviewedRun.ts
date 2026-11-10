@@ -337,8 +337,6 @@ export function useReviewedRun(
    * hold keeps the sent step.
    */
   const leave = useRef(() => {});
-  /** The calls of the latest run: a retry of exactly them never replaces its follow. */
-  const followedKey = useRef("");
   /** Every reservation this runner's runs followed: its own, whatever its calls now. */
   const mine = useRef(new Set<string>());
   /**
@@ -362,28 +360,46 @@ export function useReviewedRun(
       }
     });
   /**
-   * The write this form's last run of `key`'s calls left unshown, or the
-   * last step `dismiss` closed while it was followed (`run`, whose later
-   * showing the user closed, never counts as seen): its success, whoever
-   * acknowledged it, closes a retry of them. Still pending, the hold
-   * refuses the retry, which follows it again.
+   * The reservations this form's last run left unshown, or the last step
+   * `dismiss` closed while it was followed (`run`, whose later showing the
+   * user closed, never counts as seen), and the account that sent them.
+   * Their success, whoever acknowledged it, closes a later run under the
+   * same hold (its intent's, though the calls were refreshed) from the same
+   * account. Still pending, the hold refuses that run, which follows it again.
    */
   const own = useRef<{
-    key: string;
-    holds: { handle: WriteHoldHandle; reservation: string }[];
+    account: Address;
+    reservations: string[];
     run?: number;
   } | null>(null);
-  const ownSuccess = (key: string) =>
-    own.current?.key !== key
-      ? undefined
-      : own.current.holds
-          .map(({ handle, reservation }) => ({
-            handle,
-            settled: handle.settlementOf(reservation),
-          }))
-          .find(
-            (found): found is OwnSuccess => found.settled?.result === "success",
-          );
+  const ownSuccess = (
+    calls: readonly Parameters<typeof openStepHold>[3][],
+    account: Address | undefined,
+  ): OwnSuccess | undefined => {
+    const kept = own.current;
+    if (
+      !kept ||
+      !deps?.account ||
+      kept.account.toLowerCase() !== deps.account.toLowerCase() ||
+      (account && account.toLowerCase() !== kept.account.toLowerCase())
+    )
+      return undefined;
+    for (const call of calls) {
+      try {
+        // A reservation is read only through its own hold: another hold
+        // (another intent, or another exact call) never answers for it.
+        const handle = openStepHold(deps.hold, deps.account, false, call);
+        for (const reservation of kept.reservations) {
+          const settled = handle.settlementOf(reservation);
+          if (settled?.result === "success")
+            return { settled: settled as Succeeded, handle };
+        }
+      } catch {
+        /* A call the hold can't open holds nothing of this form's. */
+      }
+    }
+    return undefined;
+  };
   const replaced = () => {
     latest.current += 1;
     life.current.abort();
@@ -543,10 +559,10 @@ export function useReviewedRun(
         ? waiting.last && waiting.detached
         : watched?.step === watched?.total! - 1 && watched;
       const closing =
-        last && last.reservation
+        last && last.reservation && deps?.account
           ? {
-              key: followedKey.current,
-              holds: [{ handle: last.handle, reservation: last.reservation }],
+              account: deps.account,
+              reservations: [last.reservation],
               run: latest.current,
             }
           : null;
@@ -584,7 +600,6 @@ export function useReviewedRun(
       setWatched(null);
     },
     run: async ({ onCancelled, onStopped, ...action }) => {
-      const key = keyOf(action.calls.map(sent));
       /** This form's unshown write of these calls succeeded: the form closes on it. */
       const close = ({ settled, handle }: OwnSuccess) => {
         own.current = null;
@@ -611,8 +626,12 @@ export function useReviewedRun(
       // This form's own write is still followed: a retry of it is refused
       // with the hold's line, and the run following it goes on.
       const now = watchedNow.current;
+      // Identity, never bytes: the followed reservation is one of these
+      // calls' holds'. A scoped sequence's journal answers for its own.
       const followed =
-        now?.reservation && deps?.account && followedKey.current === key
+        now?.reservation &&
+        deps?.account &&
+        (action.scope === undefined || action.calls.length === 1)
           ? now
           : null;
       const ownState = followed?.handle.peek();
@@ -632,7 +651,6 @@ export function useReviewedRun(
         return { status: "failed", error, failure };
       }
       replaced();
-      followedKey.current = key;
       const id = latest.current;
       const { signal: alive } = life.current;
       // A step still confirming is followed in place, in the same review,
@@ -644,15 +662,11 @@ export function useReviewedRun(
         if (latest.current === id) setState((now) => ({ ...now, ...next }));
       };
       setState({ ...IDLE, phase: "review", total: action.calls.length });
-      const succeeded = ownSuccess(key);
+      const succeeded = ownSuccess(action.calls, action.account);
       if (succeeded) {
         setWatched(null);
-        open.current += 1;
-        try {
-          return close(succeeded);
-        } finally {
-          open.current -= 1;
-        }
+        open.current -= 1;
+        return close(succeeded);
       }
       /**
        * Reservations the action's holds had before this run: another run's
@@ -938,7 +952,7 @@ export function useReviewedRun(
         // A success already shown is acknowledged before this run checks it.
         await acknowledged.current;
         const settledOwn = () => {
-          const settled = ownSuccess(key);
+          const settled = ownSuccess(action.calls, action.account);
           if (settled) throw new OwnSucceeded(settled);
         };
         settledOwn();
@@ -1170,8 +1184,11 @@ export function useReviewedRun(
         const left = holds().filter(
           ({ reservation }) => !before.has(reservation),
         );
-        if (action.calls.length === 1 && left.length)
-          own.current = { key, holds: left };
+        if (action.calls.length === 1 && left.length && deps?.account)
+          own.current = {
+            account: deps.account,
+            reservations: left.map(({ reservation }) => reservation),
+          };
         const cancelled =
           error instanceof TransactionReviewCancelledError ||
           isDefiniteWalletRejection(error);
