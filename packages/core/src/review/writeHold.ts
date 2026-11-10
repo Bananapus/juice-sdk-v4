@@ -1708,12 +1708,17 @@ export function createWriteHold(
        * acknowledged, keeping its result for every reader, so it blocks no
        * send. Under the call's lock; nothing is sent.
        */
-      async acknowledge(settled: {
-        result: "success" | "failed";
-        hash: Hex;
-      }): Promise<WriteHoldState> {
+      async acknowledge(
+        settled: {
+          result: "success" | "failed";
+          hash: Hex;
+        },
+        /** Once aborted, nothing is acknowledged: checked under the lock. */
+        signal?: AbortSignal,
+      ): Promise<WriteHoldState> {
         const result = await locked(async () => {
-          recovery.acknowledgeSettled(settled);
+          // ponytail: only the synchronous storage write follows this check.
+          if (!signal?.aborted) recovery.acknowledgeSettled(settled);
           return peek();
         }, true);
         return shown(result?.value ?? peek());
@@ -2266,11 +2271,12 @@ export function createWriteHold(
       /** A settlement is acknowledged where it was saved, found by its hash. */
       async acknowledge(
         settled: Parameters<typeof own.acknowledge>[0],
+        signal?: AbortSignal,
       ): Promise<WriteHoldState> {
         const legacy = legacySaving(settled.hash);
         return legacy
-          ? withLegacy(await legacy.handle.acknowledge(settled))
-          : own.acknowledge(settled);
+          ? withLegacy(await legacy.handle.acknowledge(settled, signal))
+          : own.acknowledge(settled, signal);
       },
       /** A settlement's notice is claimed where it was saved, found by its hash. */
       claimConfirmed(settled: { hash: Hex }): Promise<boolean> {

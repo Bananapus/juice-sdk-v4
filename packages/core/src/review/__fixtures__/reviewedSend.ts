@@ -387,12 +387,16 @@ export function setup() {
   const hold = createWriteHold({
     storage,
     // Web Locks that are always free: these tests send one step at a time.
+    // Granted a task later, as the browser's are even uncontended.
     locks: {
       request: (async (
         name: string,
         _options: unknown,
         work: (lock: Lock) => unknown,
-      ) => work({ name, mode: "exclusive" })) as LockManager["request"],
+      ) => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return work({ name, mode: "exclusive" });
+      }) as LockManager["request"],
     },
     settle: { intervalMs: 1_000, attempts: 1 },
     // Safe's service lists the connected Safe's queue; any other read is the test's own.

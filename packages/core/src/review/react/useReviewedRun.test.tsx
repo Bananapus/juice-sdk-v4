@@ -1756,6 +1756,39 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
   });
 
+  test("a reset that lands while the completion waits for the hold's lock to acknowledge acknowledges nothing: never sent twice", async () => {
+    reviewUi();
+    const { chain, wallet, deps, hold } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(
+      new Error("lagging node"),
+    );
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    // The app navigates once its refresh is done: a task, as the lock's grant is.
+    const onConfirmed = vi.fn(() => {
+      setTimeout(() => seen.current!.reset(), 0);
+    });
+    const first = (await run({
+      ...HANDED_BACK,
+      calls: [payCall()],
+      onConfirmed,
+    })) as ReviewedRunReceipt;
+    expect(first).toMatchObject({ status: "receipt" });
+    chain.client.getTransactionReceipt.mockImplementation(read);
+    act(() => void globalThis.dispatchEvent(new Event("focus")));
+    await vi.waitFor(() => expect(onConfirmed).toHaveBeenCalledOnce());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(seen.current!.status).toBe("idle");
+    await expect(first.ended()).resolves.toBeNull();
+    expect(
+      openStepHold(hold, ACCOUNT, false, payCall()).unacknowledgedSuccess(),
+    ).toBeDefined();
+    await run({ calls: [payCall()] });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+  });
+
   test("a payment another tab acknowledged and reserved again still completes its own run: its end is done", async () => {
     reviewUi();
     const { chain, deps, memory } = setup();

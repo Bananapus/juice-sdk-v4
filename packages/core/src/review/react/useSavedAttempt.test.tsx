@@ -726,17 +726,21 @@ describe("useSavedAttempt", () => {
     const { recovery, answer } = fakeRecovery();
     const attempt = attemptOf();
     let saved: Promise<void> | undefined;
+    let release!: () => void;
+    /** The cleared attempt has rendered. */
+    let cleared = false;
     function Clears() {
       const [current, setCurrent] = useState<SavedAttempt<string> | null>(
         attempt,
       );
+      cleared = current === null;
       useSavedAttempt({
         recovery,
         attempt: current,
         client,
         onDone: async () => {
           setCurrent(null);
-          await (saved = new Promise((resolve) => setTimeout(resolve, 0)));
+          await (saved = new Promise((resolve) => (release = resolve)));
           return true;
         },
       });
@@ -751,9 +755,15 @@ describe("useSavedAttempt", () => {
       hash: "0xab",
       reason: "r",
     });
+    // onDone's own work outlasts the render of the attempt it cleared: it
+    // returns only once that has rendered, whenever React gets to it.
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(cleared).toBe(true);
+    });
     await act(async () => {
+      release();
       await saved;
-      await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(recovery.retire).toHaveBeenCalledTimes(1);
     expect(recovery.retire).toHaveBeenCalledWith(attempt, {

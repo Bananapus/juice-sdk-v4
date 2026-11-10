@@ -1026,9 +1026,8 @@ export async function completeReviewedStep(
       await recordSending(record, settled, storage, raw);
   }
   await tellConfirmed(action, handle, call, step, settled, confirmed);
-  if (signal?.aborted) return null;
-  if (settled.result === "success") await handle.acknowledge(settled);
-  return { settled, receipt: confirmed };
+  if (settled.result === "success") await handle.acknowledge(settled, signal);
+  return signal?.aborted ? null : { settled, receipt: confirmed };
 }
 
 /**
