@@ -2,4 +2,4 @@
 "@bananapus/nana-sdk-core": patch
 ---
 
-useReviewedRun: a payment under an intent that went through while its form was away is never a dead end. A fresh runner of that exact call (matched against the reservation's saved outcome) shows it with "Send it again", which sends it once. Another form's different call under the same intent is never adopted: its refused run shows that success with "Send it again" (`held`, `sendAgainAction`), not followed or completed as its own, after which it sends its own call.
+useReviewedRun: a payment under an intent that went through while its form was away is never a dead end. A fresh runner refused by it shows it as `held` with `sendAgainAction`, whether it brings that exact call or another form's under the same intent, and after Send it again sends its own call once. That success is never adopted: it is not followed, completed or told as the form's own, so dismissing it never closes a changed payment as done.

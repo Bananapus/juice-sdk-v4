@@ -1399,6 +1399,35 @@ describe("useReviewedRun", () => {
     expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
   });
 
+  test("a payment under an intent shown as gone through while away, dismissed, never closes a changed payment as done: that one is refused and offered Send it again", async () => {
+    const call = { ...payCall(), intent: "pay:1" };
+    const { wallet, deps } = await paidWhileAway(call);
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await run({ calls: [call] });
+    await vi.waitFor(() =>
+      expect(seen.current!.sendAgainAction).not.toBeNull(),
+    );
+    act(() => void seen.current!.dismiss());
+    expect(seen.current!.held).toBeNull();
+    // The amount changed: the earlier payment never stands for it.
+    const changed = { calls: [{ ...payCall(9n), intent: "pay:1" }] };
+    await expect(run(changed)).resolves.toMatchObject({
+      status: "failed",
+      error: HELD_AWAY_SUCCESS_LINE,
+    });
+    await vi.waitFor(() =>
+      expect(seen.current!.sendAgainAction).not.toBeNull(),
+    );
+    await act(async () => {
+      await seen.current!.sendAgainAction!.run();
+    });
+    await expect(run(changed)).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(wallet.adapter.sendTransaction.mock.calls[1][0]).toMatchObject({
+      data: payCall(9n).data,
+    });
+  });
+
   test("another form's payment under the same intent that went through while away is never adopted by a fresh runner of a different call: shown with Send it again, after which that form sends its own call once", async () => {
     const { wallet, deps } = await paidWhileAway({
       ...payCall(),

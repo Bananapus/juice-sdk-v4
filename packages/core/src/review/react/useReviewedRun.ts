@@ -56,7 +56,6 @@ import {
   type HeldViewActions,
 } from "./heldView.js";
 import { mergeOwn, type OwnChange, type OwnEntry } from "./ownership.js";
-import { sentOtherCall } from "../sequence.js";
 import type { Address, Hex, TransactionReceipt } from "viem";
 
 /** The send engine: the review model, its decoder and the ABIs it reads. */
@@ -182,8 +181,8 @@ export type UseReviewedRunResult = {
    * After a run that did not finish: the hold of its step still in flight
    * (the saved sequence's, or the first of its calls held), followed as it
    * changes, here or in another window. Null once that hold is clear or
-   * released. Or, refused by another call's success under its intent that
-   * nothing showed, that success, never followed. Its exit and send-again
+   * released. Or, refused by a success under its intent that another runner
+   * left unshown, that success, never followed. Its exit and send-again
    * are `exitAction` and `sendAgainAction`.
    */
   held: HeldWriteView | null;
@@ -231,8 +230,8 @@ type RunState = Omit<
   /** Acknowledges the success shown, once it rendered. */
   acknowledge: (() => Promise<void>) | null;
   /**
-   * Another call's success under the action's intent, settled while away,
-   * that refuses this form's sends: shown with "Send it again", never
+   * A success under the action's intent another runner left settled while
+   * away, refusing this form's sends: shown with "Send it again", never
    * followed or completed as this form's.
    */
   away: { handle: WriteHoldHandle; hash: Hex } | null;
@@ -1073,11 +1072,11 @@ export function useReviewedRun(
                 !call.intent
               )
                 return true;
-              // A success settled while away: its own outcome says what it
-              // sent. Another call's is never adopted, only shown with
-              // "Send it again", so the refused form is never stuck.
+              // A success another runner left settled while away, of this
+              // call or another form's: only shown, with "Send it again", so
+              // the refused form is never stuck. Never followed, so no
+              // dismissal makes it this form's to close a changed call on.
               if (held.status === "clear") {
-                if (!sentOtherCall(handle, reservation, call)) return true;
                 away = { handle, hash: success!.hash };
                 return false;
               }

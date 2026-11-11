@@ -267,4 +267,6 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - [x] failing tests (two hook regressions, remount property phase)
 - [x] follow matches the clear-hold success by its outcome; another call's shown with Send it again
 - [x] changeset (patch core), `npm run check`, pack, Homerun test on tarball (fails on 6.3.0, passes on the pack)
-- [ ] draft PR, Codex until MERGE
+- [x] draft PR #300
+- [x] Codex pass 1 (FIX-FIRST, 1 Medium): an exact-match historic success put in `watched` became owned on dismiss and closed a changed payment as done with the old hash. Fixed with a failing-first test: every historic intent success is shown from run state, never followed; `sentOtherCall` removed.
+- [ ] Codex until MERGE
