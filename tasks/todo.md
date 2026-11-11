@@ -272,7 +272,9 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - [ ] Codex until MERGE
 
 ## Signa-only protocol evidence extraction (2026-11-11)
+
 ## Plan refinement
+
 - **Objective:** Remove Signa's inherited MCP dependency while preserving modeled Juicebox outcome verification through the existing core SDK; no SDK publication or app migration.
 - **System fit:** Center prepares protocol actions, Signa owns account authority and canonical execution evidence, and the SDK owns pure interpretation of that evidence. Host validation, signatures, secret tokens, databases and workers remain outside the SDK.
 - **Reuse and simplicity:** Extract only the existing modeled verifier into core/v6/operationEvidence, reuse core ABIs and deployment histories, and switch both Center and Signa callers to this one owner. No new package or dependencies.
@@ -283,6 +285,7 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - [x] Verify equivalence, run core checks, build and pack for service consumers.
 
 ### Review
+
 - Extracted the latest Center verifier superset to `@bananapus/nana-sdk-core/v6/operation-evidence` and `/v6`, with structural types and no new dependencies, server tokens, RPC or storage. Both service callers use this owner.
 - Current/retired deployment sets match both original service catalogs across 42 contract/chain/service combinations. Original Signa suite 71/71 and Center suite 90/90 pass with deep old/new result comparison against the actual packed SDK. Direct SDK regressions cover 21 positive, spoofed/mismatched and strict pool-key cases.
 - Core final suite: 123 files, 3,844 tests passed under Node 22.23.4 with loopback access. Core source and test type-check, ESM/CJS builds, React/connect builds, package/browser import budgets, protocol fixture verification, dead-code, formatting, wallet-boundary, review-react and generated-output gates pass. Initial sandbox suite was invalidated by loopback EPERM; final rerun is green. Initial import-time ABI parsing was corrected to static ABI literals and the module-load gate passes.
