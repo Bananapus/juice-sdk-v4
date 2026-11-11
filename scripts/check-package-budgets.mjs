@@ -361,9 +361,12 @@ const budgets = {
     // unpacked, 1,915 entries. With claimant-renewed confirmation claims
     // (review/confirming): 1,890,953 B packed, 24,867,801 B unpacked, 1,923
     // entries.
-    packed: 1_895_000,
-    unpacked: 24_880_000,
-    entries: 1_930,
+    // Shared V6 outcome interpretation replaces Center/Signa copies with one
+    // module/eight artifacts, with no dependencies: measured 1,920,350 B packed,
+    // 25,043,455 B unpacked, 1,931 entries. Existing browser-import limits stay.
+    packed: 1_925_000,
+    unpacked: 25_060_000,
+    entries: 1_931,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
