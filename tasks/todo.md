@@ -250,3 +250,21 @@ Red first: 6 new core regressions and the new React warned-exit case failed befo
 Red first: 3 core regressions and 1 React regression failed before the fixes. (1) `useSavedAttempt` keeps the lifecycle's identity but reads the latest rendered attempt, and so its newest `authenticate` and `confirmRetirable`, through a ref for both recover and retire. (2) The rejected-`none` path also needs strict reads across every namespace; any read that can't be resolved stays `check`. (3) The forced, warned exit no longer reads the hold. It refuses for a success proved in this tab (kept in the engine's tab set whatever storage does), awaits `confirmRetirable`, and commits the tab-only retirement. Recovery consults that retirement for the check it was made on. The engine's lock order now uses the hold's comparator.
 
 Rebased onto main `e021cad` (#232 squash-merged): the budgets conflict was resolved to measured sizes; wallet-boundary lines 1744 and 817 are unchanged. The full `npm run check` passes: 2,915 core, 177 React and 35 connect tests.
+
+# Away success never a dead end (6.3.1, 2026-11-10)
+
+Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. Found by Homerun `test/reviewed-action-gates.test.tsx` (mejango/homerun #77).
+
+## Plan refinement
+
+- **Objective:** A payment under an intent that confirmed while its form was away never leaves a fresh runner stuck on "This went through while you were away." The exact call shows it with Send it again (sent once after); another form's different call is never adopted, and is never stuck either.
+- **System fit:** Owner of the refusal is the send gate in `send.ts` (any unacknowledged success of the intent's hold); owner of what a refused form shows is `useReviewedRun`'s `follow`. The gate stays: letting a different call through re-sends a refreshed-calldata retry (the seeded property test's refreshed cases fail with it). `follow` matches a clear hold's success by the reservation's saved outcome (`outcomeOf`, pass 10); another call's success is shown with Send it again from run state, never followed or completed.
+- **Reuse and simplicity:** `decodeOutcome` and `handle.acknowledge` reused; one predicate `sentOtherCall` in `sequence.ts` beside the outcome codec. No new export from the package index.
+- **Evidence and unknowns:** origin/main 3a5e12f (6.3.0). Tried the gate change first: it broke property cases 32 and 48 (double send of a refreshed retry), so it was reverted.
+- **Verification:** Two hook regressions and a seeded remount phase in the property test (fresh runner after background success, same or other call; liveness: every refusal offers Send it again, its call sent once after), all failing on origin/main sources. Full `npm run check` on Node 22.23.4 with the CI-pinned artifacts; Homerun's test against the packed tarball.
+- **Resource budget:** One writer in `.worktrees/sdk-keep`; edits in `useReviewedRun.ts`, `sequence.ts`, tests, changeset. Replan if Codex finds the shown-not-adopted state reachable as a dead end.
+
+- [x] failing tests (two hook regressions, remount property phase)
+- [x] follow matches the clear-hold success by its outcome; another call's shown with Send it again
+- [x] changeset (patch core), `npm run check`, pack, Homerun test on tarball (fails on 6.3.0, passes on the pack)
+- [ ] draft PR, Codex until MERGE

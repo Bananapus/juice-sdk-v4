@@ -11,6 +11,8 @@ import {
   errorLine,
   findReviewedSequence,
   followHeldWrite,
+  HELD_AWAY_SUCCESS_LINE,
+  HELD_SEND_AGAIN_LABEL,
   isDefiniteWalletRejection,
   listReviewedWrites,
   openStepHold,
@@ -54,6 +56,7 @@ import {
   type HeldViewActions,
 } from "./heldView.js";
 import { mergeOwn, type OwnChange, type OwnEntry } from "./ownership.js";
+import { sentOtherCall } from "../sequence.js";
 import type { Address, Hex, TransactionReceipt } from "viem";
 
 /** The send engine: the review model, its decoder and the ABIs it reads. */
@@ -179,7 +182,9 @@ export type UseReviewedRunResult = {
    * After a run that did not finish: the hold of its step still in flight
    * (the saved sequence's, or the first of its calls held), followed as it
    * changes, here or in another window. Null once that hold is clear or
-   * released. Its exit and send-again are `exitAction` and `sendAgainAction`.
+   * released. Or, refused by another call's success under its intent that
+   * nothing showed, that success, never followed. Its exit and send-again
+   * are `exitAction` and `sendAgainAction`.
    */
   held: HeldWriteView | null;
   reset: () => void;
@@ -225,6 +230,12 @@ type RunState = Omit<
   stopped: boolean;
   /** Acknowledges the success shown, once it rendered. */
   acknowledge: (() => Promise<void>) | null;
+  /**
+   * Another call's success under the action's intent, settled while away,
+   * that refuses this form's sends: shown with "Send it again", never
+   * followed or completed as this form's.
+   */
+  away: { handle: WriteHoldHandle; hash: Hex } | null;
 };
 
 const IDLE: RunState = {
@@ -242,6 +253,7 @@ const IDLE: RunState = {
   receipt: null,
   settled: null,
   acknowledge: null,
+  away: null,
 };
 
 /** The bytes a call sends, for comparing two actions. */
@@ -631,9 +643,21 @@ export function useReviewedRun(
     cancelled: _cancelled,
     stopped: _stopped,
     acknowledge: _acknowledge,
+    away,
     ...shownState
   } = state;
-  const status = reviewedRunStatus({ ...state, held });
+  const awayShown: HeldWriteView | null =
+    away && !held
+      ? {
+          phase: "succeeded",
+          state: null,
+          line: HELD_AWAY_SUCCESS_LINE,
+          exit: false,
+          settled: { result: "success", hash: away.hash },
+          adopting: false,
+        }
+      : null;
+  const status = reviewedRunStatus({ ...state, held: held ?? awayShown });
   const reset = () => {
     replaced();
     setState(IDLE);
@@ -657,8 +681,20 @@ export function useReviewedRun(
     ...shownState,
     ...status,
     busy: status.busy && !state.following,
-    held,
+    held: held ?? awayShown,
     ...actionsOf(shown, held ? view : undefined),
+    ...(awayShown && {
+      sendAgainAction: {
+        label: HELD_SEND_AGAIN_LABEL,
+        run: async () => {
+          await away!.handle.acknowledge({
+            result: "success",
+            hash: away!.hash,
+          });
+          setState((now) => (now.away === away ? { ...now, away: null } : now));
+        },
+      },
+    }),
     reset,
     dismiss: () => {
       const waiting = awaiting.current;
@@ -1009,6 +1045,7 @@ export function useReviewedRun(
           const steps = heldSteps(account, safe, action, saved);
           // A held step, or the last step's success nothing showed, of this
           // run (or of the saved sequence it resumes), never another run's.
+          let away: RunState["away"] = null;
           const found = steps
             .map(({ call, step }) => ({
               call,
@@ -1036,7 +1073,14 @@ export function useReviewedRun(
                 !call.intent
               )
                 return true;
-              if (held.status === "clear") return false;
+              // A success settled while away: its own outcome says what it
+              // sent. Another call's is never adopted, only shown with
+              // "Send it again", so the refused form is never stuck.
+              if (held.status === "clear") {
+                if (!sentOtherCall(handle, reservation, call)) return true;
+                away = { handle, hash: success!.hash };
+                return false;
+              }
               const record = listReviewedWrites(
                 { chainId: call.chainId, account },
                 { storage },
@@ -1078,7 +1122,7 @@ export function useReviewedRun(
           );
           // Only its hold is followed now: the confirm can close.
           if (reservation) mine.current.add(reservation);
-          if (found) update({ following: true });
+          update(found ? { following: true, away: null } : { away });
           return !!found;
         } catch {
           /* A call the hold can't open holds nothing to show. */

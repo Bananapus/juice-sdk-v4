@@ -405,3 +405,23 @@ export function discardReviewedSequence(
     storage.removeItem(sequenceKey(record.scope, record.account));
   });
 }
+
+/**
+ * Whether reservation `id`'s outcome, as saved on `hold`, names a call
+ * other than `call` (its target, data or value): a success settled while
+ * away is then another form's under its intent, never adopted as `call`'s.
+ * None saved (an older version's) can't tell, so is `call`'s.
+ */
+export function sentOtherCall(
+  hold: { outcomeOf(id: string): string | undefined },
+  id: string,
+  call: Pick<ReviewedCall, "to" | "data" | "value">,
+): boolean {
+  const sent = decodeOutcome(hold.outcomeOf(id))?.call;
+  return (
+    !!sent &&
+    (sent.to.toLowerCase() !== call.to.toLowerCase() ||
+      sent.data.toLowerCase() !== call.data.toLowerCase() ||
+      (sent.value ?? 0n) !== (call.value ?? 0n))
+  );
+}
