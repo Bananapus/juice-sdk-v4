@@ -33,6 +33,8 @@ import {
   WRITE_HOLD_SAFE_UNPROVEN_LINE,
   WRITE_HOLD_STALE_REVIEW_LINE,
   writeHeldMessage,
+  HELD_HASH_MISMATCH_LINE,
+  HELD_HASH_UNVERIFIED_LINE,
 } from "./messages.js";
 import { launchIntent } from "./intents.js";
 import { createHeldWriteView, followHeldWrite } from "./heldWrite.js";
@@ -718,6 +720,52 @@ describe("a held write", () => {
     const late = vi.fn();
     hold.open(ordinary).subscribe(late);
     expect(late).toHaveBeenCalledWith({ status: "clear" });
+  });
+
+  it("tells a hash it could not read yet from one it read and found to be another call", async () => {
+    const { hold } = setup();
+    const { chain, client } = fakeChain();
+    const handle = hold.open(ordinary);
+    await expect(handle.send(client, lostReply().send)).rejects.toThrow();
+    // The node has not indexed it yet: retryable, never "not that transaction".
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "held-no-hash",
+      hashCheck: "unverified",
+    });
+    // Nor can it say which chain it is on.
+    client.getChainId.mockRejectedValueOnce(new Error("HTTP 429"));
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      hashCheck: "unverified",
+    });
+    // Read, and at a nonce this attempt rules out: another transaction.
+    chain.txs.push({ ...sent(OTHER), nonce: 6 });
+    await expect(handle.attachHash(client, OTHER)).resolves.toMatchObject({
+      status: "held-no-hash",
+      hashCheck: "mismatch",
+    });
+    chain.txs.push(sent(HASH));
+    // The app read it first; the hold's own read is rate limited.
+    await expect(client.getTransaction({ hash: HASH })).resolves.toBeTruthy();
+    client.getTransaction.mockRejectedValueOnce(
+      Object.assign(new Error("HTTP request failed. Status: 429"), {
+        status: 429,
+      }),
+    );
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "held-no-hash",
+      hashCheck: "unverified",
+    });
+    await expect(handle.attachHash(client, HASH)).resolves.toMatchObject({
+      status: "pending-known-hash",
+      hash: HASH,
+      hashCheck: "attached",
+    });
+    expect(HELD_HASH_UNVERIFIED_LINE).toBe(
+      "Couldn't verify this transaction yet. Try again shortly.",
+    );
+    expect(HELD_HASH_MISMATCH_LINE).toBe(
+      "This hash is not that transaction. Check it in your wallet.",
+    );
   });
 
   it("never attaches a hash the reservation's own evidence contradicts", async () => {
@@ -2307,7 +2355,9 @@ describe("a held write", () => {
     expect(hold.durable()).toBe(true);
     await hold.open(ordinary).send(client, wallet(async () => HASH).send);
     expect(
-      [...browser.values.keys()].filter((k) => !k.endsWith(":latest")),
+      [...browser.values.keys()].filter(
+        (k) => !k.endsWith(":latest") && !k.startsWith("nana-sdk:lock-holder:"),
+      ),
     ).toHaveLength(1);
     await expect(hold.open(ordinary).state(client)).resolves.toMatchObject({
       status: "pending-known-hash",
@@ -2432,6 +2482,7 @@ describe("a held write", () => {
       status: "clear",
     });
     await expect(handle.attachHash(client, HASH)).resolves.toEqual({
+      hashCheck: "unverified",
       status: "clear",
     });
     await expect(
@@ -2660,11 +2711,104 @@ describe("a write held under an intent", () => {
       status: "clear",
     });
     // Its one confirmed notice is claimed where the legacy hold saved it.
-    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(true);
+    await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+      true,
+    );
     await expect(
       old.hold.open(ordinary).claimConfirmed({ hash: HASH }),
     ).resolves.toBe(false);
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
+    // Pending until settled there, and only by its claimant; given back, it
+    // is claimed once again, and delivered, never again.
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBe("pending");
+    await handle.settleConfirmed({ hash: HASH }, true, "b");
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBe("pending");
+    await handle.settleConfirmed({ hash: HASH }, false, "a");
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBeUndefined();
+    // Given back, its old claimant never renews it into a claim again.
+    await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+      false,
+    );
+    await expect(handle.claimConfirmed({ hash: HASH }, "c")).resolves.toBe(
+      true,
+    );
+    await handle.settleConfirmed({ hash: HASH }, true, "c");
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBe(
+      "delivered",
+    );
+    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
+    // A legacy hold's reservation saved no outcome.
+    expect(handle.outcomeOf(legacy.record.id)).toBeUndefined();
+  });
+
+  it("keeps a renewed claim past the bound, and lets one whose tab is gone lapse, its old claimant ending nothing of the new one's", async () => {
+    const { handle, client, chain, receiptOf } = await delegated();
+    chain.txs.push(sent(HASH));
+    await handle.attachHash(client, HASH);
+    chain.txs[0].block = 101n;
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+        true,
+      );
+      // Renewed by its claimant every 4 minutes: pending past 5.
+      clock.mockReturnValue(now + 4 * 60_000);
+      await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+        true,
+      );
+      clock.mockReturnValue(now + 8 * 60_000);
+      await expect(handle.claimConfirmed({ hash: HASH }, "b")).resolves.toBe(
+        false,
+      );
+      // Its tab gone, never renewed: lapsed, and claimed by another.
+      clock.mockReturnValue(now + 14 * 60_000);
+      await expect(handle.claimConfirmed({ hash: HASH }, "b")).resolves.toBe(
+        true,
+      );
+      await handle.settleConfirmed({ hash: HASH }, false, "a");
+      await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+        false,
+      );
+      await expect(handle.confirmation({ hash: HASH })).resolves.toBe(
+        "pending",
+      );
+      await handle.settleConfirmed({ hash: HASH }, true, "b");
+      await expect(handle.confirmation({ hash: HASH })).resolves.toBe(
+        "delivered",
+      );
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("saves a send's outcome with its reservation, for its last 8 reservations, and reads none for another", async () => {
+    const { hold } = setup();
+    const { client } = fakeChain();
+    const handle = hold.open(ordinary);
+    const reservations: string[] = [];
+    for (let index = 0; index < 9; index += 1) {
+      await handle
+        .send(client, async (gate) => {
+          await gate.beforeSend(undefined, `outcome ${index}`);
+          reservations.push(handle.peek().reservation!);
+          gate.onRejected();
+        })
+        .catch(() => undefined);
+    }
+    expect(handle.outcomeOf(reservations[8])).toBe("outcome 8");
+    expect(handle.outcomeOf(reservations[1])).toBe("outcome 1");
+    // Only the last 8 are kept.
+    expect(handle.outcomeOf(reservations[0])).toBeUndefined();
+    expect(handle.outcomeOf("another")).toBeUndefined();
+    // One sent without an outcome saves none.
+    await handle.send(client, async (gate) => {
+      await gate.beforeSend();
+      reservations.push(handle.peek().reservation!);
+      gate.onRejected();
+    });
+    expect(handle.outcomeOf(reservations[9])).toBeUndefined();
   });
 
   it("rechecks the legacy keys right before reserving, and routes every method to the hold in charge", async () => {

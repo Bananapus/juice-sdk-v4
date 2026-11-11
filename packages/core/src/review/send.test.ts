@@ -13,8 +13,13 @@ import {
   type PublicClient,
   type WalletClient,
 } from "viem";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { LockLostError } from "./locks.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  browserLocks,
+  fencedLocks,
+  LockLostError,
+  type LockHandle,
+} from "./locks.js";
 import {
   ACCOUNT,
   CHANGED,
@@ -26,6 +31,7 @@ import {
   approveCall,
   clientLock,
   fakeChain,
+  leasedOrigin,
   liquidityCall,
   payCall,
   resetReviewUi,
@@ -35,9 +41,11 @@ import {
   speedUpNextSend,
   unreachable,
   unregister,
+  nativeLocks,
 } from "./__fixtures__/reviewedSend.js";
 import type { ReviewConfirmation } from "./confirm.js";
 import { TransactionReceiptUnavailableError } from "./receipt.js";
+import { lapsingLocksForTests } from "../testing.js";
 import {
   HELD_AWAY_SUCCESS_LINE,
   WRITE_HOLD_REVERTED_LINE,
@@ -1838,6 +1846,54 @@ describe("sendReviewed and its hold's evidence", () => {
     return { adapter, reached };
   }
 
+  it("with the testing entry's lapsing locks, ends a direct batch's rejected step and a refusal before the wallet under a fresh lock", async () => {
+    const lapsing = lapsingLocksForTests();
+    vi.stubGlobal("navigator", { locks: lapsing.locks });
+    try {
+      const { deps, wallet } = setup();
+      reviewUi();
+      /** A site's per-step record, each write fenced by its lock. */
+      const run = async (calls: ReviewedCall[], adapter = deps.adapter) => {
+        const steps = new Map<number, string>();
+        await browserLocks()
+          .request("batch", (lock) =>
+            sendReviewed(
+              action(calls, {
+                locks: [lock!],
+                beforeWallet: async (_call, step) => {
+                  await lock!.assertHeld();
+                  steps.set(step, "submitting");
+                },
+                onUnsent: async (_call, step) => {
+                  await lock!.assertHeld();
+                  steps.set(step, "ready");
+                },
+              }),
+              { ...deps, adapter },
+            ),
+          )
+          .catch(() => undefined);
+        return steps;
+      };
+      // A direct batch: the wallet rejects its first call after the lease lapsed.
+      wallet.adapter.sendTransaction.mockImplementationOnce(async () => {
+        lapsing.lapse();
+        throw Object.assign(new Error("User rejected"), { code: 4001 });
+      });
+      expect(await run([approveCall(), payCall()])).toEqual(
+        new Map([[0, "ready"]]),
+      );
+      // The lease lapses while the wallet client loads: refused before the wallet.
+      const loading = walletLoading(() => lapsing.lapse());
+      expect(await run([payCall(7n)], loading.adapter)).toEqual(
+        new Map([[0, "ready"]]),
+      );
+      expect(loading.reached).not.toContain("eth_sendTransaction");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("never sends once the hold's lock lapsed while the wallet client loaded", async () => {
     const { deps, hold, holdOf, loseLock } = setup();
     reviewUi();
@@ -2011,6 +2067,51 @@ describe("sendReviewed and its hold's evidence", () => {
     };
   }
 
+  it("an unscoped sequence's completion is done with every step's hash, read from what its run saved, whatever it is handed", async () => {
+    const { deps, onConfirmed, unverified, recover, payment } =
+      await leftAtReceipt({ scope: undefined });
+    const approval = `0x${"1".padStart(64, "0")}`;
+    expect(unverified.held?.hashes).toEqual([approval]);
+    recover();
+    await expect(
+      completeReviewedStep(unverified, { account: ACCOUNT, onConfirmed }, deps),
+    ).resolves.toMatchObject({ hashes: [approval, payment] });
+    // Handed only its call and reservation (after a reload), the same.
+    await expect(
+      completeReviewedStep(
+        {
+          step: unverified.step,
+          held: {
+            call: unverified.held!.call,
+            reservation: unverified.held!.reservation,
+          },
+        },
+        { account: ACCOUNT },
+        deps,
+      ),
+    ).resolves.toMatchObject({ hashes: [approval, payment] });
+  });
+
+  it("two concurrent completions of a sequence's last step are each done with every step's hash, told once", async () => {
+    const { deps, scope, onConfirmed, unverified, recover, payment, storage } =
+      await leftAtReceipt();
+    recover();
+    const approval = `0x${"1".padStart(64, "0")}`;
+    const action$ = { account: ACCOUNT, scope, onConfirmed };
+    const ended = await Promise.all([
+      completeReviewedStep(unverified, action$, deps),
+      completeReviewedStep(unverified, action$, deps),
+    ]);
+    for (const each of ended)
+      expect(each).toMatchObject({ hashes: [approval, payment] });
+    expect(onConfirmed).toHaveBeenCalledTimes(2);
+    expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+    // A later completion reads them from the hold, the journal gone.
+    await expect(
+      completeReviewedStep(unverified, action$, deps),
+    ).resolves.toMatchObject({ hashes: [approval, payment] });
+  });
+
   it("never completes a saved ordinary failure with no block whose transaction now reads a success, nor sends it again", async () => {
     const {
       deps,
@@ -2169,6 +2270,100 @@ describe("sendReviewed and its hold's evidence", () => {
     ).resolves.toMatchObject({ settled: { result: "success" } });
     expect(onConfirmed).toHaveBeenCalledTimes(2);
     expect(findReviewedSequence(scope, ACCOUNT, { storage })).toBeNull();
+  });
+
+  it("gives back a confirmation its site's lock can't take back: unacknowledged, a later completion tells it once", async () => {
+    const { deps, hold, calls, scope, unverified, recover } =
+      await leftAtReceipt();
+    recover();
+    // The site's lock, ended, can't be taken again.
+    let taken = false;
+    let lock!: LockHandle;
+    await fencedLocks({
+      request: (async (
+        name: string,
+        _options: unknown,
+        work: (lock: Lock) => unknown,
+      ) => {
+        if (taken) throw new Error("held elsewhere");
+        taken = true;
+        return work({ name, mode: "exclusive" });
+      }) as LockManager["request"],
+    }).request("site", async (held) => void (lock = held!));
+    const refused = vi.fn(async () => lock.assertHeld());
+    await expect(
+      completeReviewedStep(
+        unverified,
+        { account: ACCOUNT, scope, onConfirmed: refused, locks: [lock] },
+        deps,
+      ),
+    ).resolves.toMatchObject({ undelivered: true });
+    // Its lock ended: queued for it at once, never run, then dropped.
+    expect(refused).not.toHaveBeenCalled();
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    const told = vi.fn();
+    await completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: told },
+      deps,
+    );
+    await completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: told },
+      deps,
+    );
+    expect(told).toHaveBeenCalledOnce();
+    expect(handle.unacknowledgedSuccess()).toBeUndefined();
+  });
+
+  it("a completion meeting another's pending claim acknowledges nothing: undelivered until one tells it", async () => {
+    const { deps, hold, calls, scope, unverified, recover } =
+      await leftAtReceipt();
+    recover();
+    const site = fencedLocks(nativeLocks());
+    let lock!: LockHandle;
+    await site.request("site", async (held) => void (lock = held!));
+    // A routine refresh holds the site's lock.
+    let release!: () => void;
+    const refreshing = site.request(
+      "site",
+      () => new Promise<void>((resolve) => (release = resolve)),
+    );
+    const told = vi.fn(async () => lock.assertHeld());
+    const first = completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: told, locks: [lock] },
+      deps,
+    );
+    const handle = openStepHold(hold, ACCOUNT, false, calls[1]);
+    // Claimed, its notice queued behind the refresh.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Another completion of the same settlement, while the first one's
+    // notice waits behind the refresh.
+    const other = vi.fn();
+    await expect(
+      completeReviewedStep(
+        unverified,
+        { account: ACCOUNT, scope, onConfirmed: other },
+        deps,
+      ),
+    ).resolves.toMatchObject({ undelivered: true });
+    expect(other).not.toHaveBeenCalled();
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    release();
+    await refreshing;
+    // Taken since, the first one's notice is dropped and given back.
+    await expect(first).resolves.toMatchObject({ undelivered: true });
+    expect(told).not.toHaveBeenCalled();
+    expect(handle.unacknowledgedSuccess()).toBeDefined();
+    await completeReviewedStep(
+      unverified,
+      { account: ACCOUNT, scope, onConfirmed: other },
+      deps,
+    );
+    expect(other).toHaveBeenCalledOnce();
+    expect(handle.unacknowledgedSuccess()).toBeUndefined();
   });
 
   it("keeps a run's signatures on the step it left at its receipt", async () => {
@@ -2609,5 +2804,184 @@ describe("sendReviewed with follow", () => {
     await expect(
       sendReviewed(action([approveCall(), payCall()]), deps),
     ).rejects.toBeInstanceOf(ReviewedReceiptUnverifiedError);
+  });
+});
+
+describe("a wallet's answer after the site's lease lapsed", () => {
+  let origin: ReturnType<typeof leasedOrigin>;
+  beforeEach(() => void (origin = leasedOrigin()));
+  afterEach(() => origin.restore());
+  let lockCount = 0;
+
+  /**
+   * A site's order record under its own lock: saved before the wallet, the
+   * wallet's answer after. Each write checks the lock right before it.
+   */
+  function site(journal: Map<string, string>) {
+    const name = `order-${++lockCount}`;
+    const hooks = (lock: LockHandle) => ({
+      locks: [lock],
+      beforeWallet: async () => {
+        await lock.assertHeld();
+        journal.set("order", "A sending");
+      },
+      onUnsent: async () => {
+        await lock.assertHeld();
+        journal.delete("order");
+      },
+      onSubmitted: async (_call: ReviewedCall, _step: number, hash: Hex) => {
+        await lock.assertHeld();
+        journal.set("order", `A sent ${hash}`);
+      },
+    });
+    return {
+      name,
+      /** `call` sent under the site's lock. */
+      send: (call: ReviewedCall, deps: ReturnType<typeof setup>["deps"]) =>
+        browserLocks().request(name, (lock) =>
+          sendReviewed(action([call], hooks(lock!)), deps),
+        ),
+      /** Another tab takes the lock and saves its own attempt. */
+      async successor() {
+        const other = await origin.otherTab();
+        await other.browserLocks().request(name, async (lock) => {
+          await lock!.assertHeld();
+          journal.set("order", "B sending");
+        });
+      },
+    };
+  }
+
+  /** The wallet answers once with `answer`, after the lease lapsed while it was open. */
+  function walletLapses(
+    wallet: ReturnType<typeof setup>["wallet"],
+    answer: (send: () => Promise<Hex>) => Promise<Hex>,
+  ) {
+    const send = wallet.adapter.sendTransaction.getMockImplementation()!;
+    wallet.adapter.sendTransaction.mockImplementationOnce(async (tx) => {
+      origin.lapse();
+      return answer(() => send(tx));
+    });
+  }
+  const rejected = () =>
+    Object.assign(new Error("User rejected the request."), { code: 4001 });
+
+  it("saves the returned hash under a fresh lock", async () => {
+    const { deps, wallet } = setup();
+    reviewUi();
+    const journal = new Map<string, string>();
+    const order = site(journal);
+    walletLapses(wallet, (send) => send());
+    const result = (await order.send(payCall(), deps)) as { hashes: Hex[] };
+    expect(journal.get("order")).toBe(`A sent ${result.hashes[0]}`);
+  });
+
+  it("ends the attempt under a fresh lock when the wallet rejected", async () => {
+    const { deps, wallet, hold, holdOf } = setup();
+    reviewUi();
+    const journal = new Map<string, string>();
+    const order = site(journal);
+    walletLapses(wallet, async () => {
+      throw rejected();
+    });
+    const call = payCall();
+    await expect(order.send(call, deps)).rejects.toMatchObject({
+      code: 4001,
+    });
+    expect(journal.has("order")).toBe(false);
+    expect(hold.open(holdOf(call)).peek().status).toBe("clear");
+  });
+
+  it("leaves a newer attempt's record untouched", async () => {
+    const { deps, wallet } = setup();
+    reviewUi();
+    const journal = new Map<string, string>();
+    const rejectedOrder = site(journal);
+    walletLapses(wallet, async () => {
+      await rejectedOrder.successor();
+      throw rejected();
+    });
+    await expect(rejectedOrder.send(payCall(), deps)).rejects.toMatchObject({
+      code: 4001,
+    });
+    expect(journal.get("order")).toBe("B sending");
+
+    const sentOrder = site(journal);
+    walletLapses(wallet, async (send) => {
+      await sentOrder.successor();
+      return send();
+    });
+    const call = payCall(6n);
+    await sentOrder.send(call, deps);
+    expect(journal.get("order")).toBe("B sending");
+  });
+
+  it("lands a rejection matched by its attempt after another tab's unrelated update, keeping that update", async () => {
+    const { deps, wallet } = setup();
+    reviewUi();
+    for (const attemptScoped of [true, false]) {
+      const name = `order-${++lockCount}`;
+      const record = { attempt: "A", status: "sending", progress: "none" };
+      walletLapses(wallet, async () => {
+        const other = await origin.otherTab();
+        // Another tab's routine refresh, under the same lock: unrelated to A's attempt.
+        await other.browserLocks().request(name, async (lock) => {
+          await lock!.assertHeld();
+          record.progress = "B";
+        });
+        throw rejected();
+      });
+      await expect(
+        browserLocks().request(name, (lock) =>
+          sendReviewed(
+            action([payCall(attemptScoped ? 5n : 6n)], {
+              locks: [lock!],
+              attemptScoped,
+              // Matched by the attempt's id, merged into the latest record.
+              onUnsent: async () => {
+                await lock!.assertHeld();
+                if (record.attempt === "A") record.status = "unsent";
+              },
+            }),
+            deps,
+          ),
+        ),
+      ).rejects.toMatchObject({ code: 4001 });
+      expect(record).toEqual({
+        attempt: "A",
+        // Without the attempt match, only a lock nobody took since is used.
+        status: attemptScoped ? "unsent" : "sending",
+        progress: "B",
+      });
+    }
+  });
+
+  it("leaves the record as the lost lock left it when another tab took the lock meanwhile", async () => {
+    const { deps, wallet } = setup();
+    reviewUi();
+    const journal = new Map<string, string>();
+    const order = site(journal);
+    let release!: () => void;
+    let holding!: Promise<unknown>;
+    walletLapses(wallet, async (send) => {
+      const other = await origin.otherTab();
+      // Another tab takes the lock and keeps it, writing nothing.
+      await new Promise<void>((taken) => {
+        holding = other.browserLocks().request(order.name, async () => {
+          taken();
+          await new Promise<void>((resolve) => (release = resolve));
+        });
+      });
+      return send();
+    });
+    const sent = order.send(payCall(), deps);
+    await vi.waitFor(() => expect(release).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    release();
+    await holding;
+    // Queued behind that tab, the replay finds the lock taken since: its
+    // recovery still shows, the record still saying sending.
+    await sent;
+    expect(journal.get("order")).toBe("A sending");
   });
 });

@@ -134,8 +134,34 @@ export const WRITE_HOLD_STALE_REVIEW_LINE =
 /** The one line while a sent write, direct or through a Safe, is being confirmed. */
 export const HELD_CONFIRMING_LINE = "Confirming your transaction.";
 
+/** A run closed after an earlier step was sent (`stopped`): the rest can be reviewed again. */
+export const REVIEW_STOPPED_LINE =
+  "The rest was not sent. Review it again when you are ready.";
+
+/**
+ * Another window took over this action's lock (a lease that lapsed while the
+ * tab slept, as in a wallet app): `errorLine` of a `LockLostError`.
+ */
+export const LOCK_LOST_LINE =
+  "This action moved to another window. Nothing more was sent.";
+
+/**
+ * A sent step's confirmation is recorded only once the site's current work
+ * ends: `errorLine` of a `ConfirmationQueuedError`. Nothing is sent again.
+ */
+export const CONFIRMATION_QUEUED_LINE =
+  "Confirmed. It is recorded here once this step finishes. Nothing more was sent.";
+
 /** A held write the user released with their exit: they can send it again. */
 export const HELD_RELEASED_LINE = "Released. You can send it again.";
+
+/** A hash the user gave for a held write is another transaction. */
+export const HELD_HASH_MISMATCH_LINE =
+  "This hash is not that transaction. Check it in your wallet.";
+
+/** A hash the user gave for a held write could not be read yet: retryable. */
+export const HELD_HASH_UNVERIFIED_LINE =
+  "Couldn't verify this transaction yet. Try again shortly.";
 
 /** A held write another window released: neutral, never a result. */
 export const HELD_RELEASED_ELSEWHERE_LINE =

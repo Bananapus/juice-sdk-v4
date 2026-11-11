@@ -59,7 +59,12 @@ import {
 } from "./relayr.js";
 import { ReviewFixedLineError } from "./lineError.js";
 import { TAB, tabShared } from "./tabState.js";
-import { assertLocksHeld, LockLostError, type LockHandle } from "./locks.js";
+import {
+  assertLocksHeld,
+  keepOutcome,
+  LockLostError,
+  type LockHandle,
+} from "./locks.js";
 
 /** Exact frozen calldata plus the Safe intent it executes. Context belongs to the app. */
 export type SafeRelayrExecution = {
@@ -117,7 +122,8 @@ export type SafeRelayrStore = {
    * every lock taken (`browserLocks`' handles): the controller checks them,
    * on a fresh read, after every read and right before every `save` under
    * the lock, and a lost one (`LockLostError`) saves nothing. A wallet
-   * answer that arrives after the loss is saved under a fresh lock, only
+   * answer that arrives after the loss is saved once these locks are taken
+   * back (`keepOutcome`), only if no other tab took them since and only
    * while the saved record is still that payment attempt's.
    */
   withLock<T>(
@@ -1858,34 +1864,34 @@ export function createSafeRelayrController(options: SafeRelayrOptions) {
     onStatus?: SafeRelayrStatus;
   }): Promise<SafeRelayrResult> {
     // Once this attempt saved "sending", every later save goes through
-    // `keep`: one refused for a lost lock leaves what it would have saved
-    // (the attempt's outcome) to be applied under a fresh lock, to the saved
-    // record only while it is still this attempt's.
-    let late:
-      | ((current: SafeRelayrSession) => SafeRelayrSession | undefined)
-      | undefined;
-    const keep = async (next: SafeRelayrSession, onLost: typeof late) => {
-      try {
-        await store.save(next);
-      } catch (error) {
-        if (error instanceof LockLostError) late = onLost;
-        throw error;
-      }
+    // `keep` (`keepOutcome`): one refused for a lost lock leaves what it
+    // would have saved (the attempt's outcome) to `settle`, applied once the
+    // store's locks are taken back, to the saved record only while it is
+    // still this attempt's. The caller still gets a `LockLostError`.
+    const key = account.toLowerCase();
+    const keep = async (
+      next: SafeRelayrSession,
+      settle: (current: SafeRelayrSession) => SafeRelayrSession | undefined,
+    ) => {
+      const locks = storeLocks.get(key);
+      const saved = await keepOutcome(
+        locks,
+        () => store.save(next),
+        async () => {
+          // The save path checks the same locks, taken back.
+          const before = storeLocks.get(key);
+          storeLocks.set(key, locks);
+          try {
+            const settled = settle(await load(account, sessionId));
+            if (settled) await store.save(settled);
+          } finally {
+            storeLocks.set(key, before);
+          }
+        },
+      );
+      if (!saved) throw new LockLostError(locks![0].name);
     };
-    try {
-      return await funding();
-    } catch (error) {
-      const settle = late;
-      if (settle)
-        await store
-          .withLock(account, async () => {
-            const next = settle(await load(account, sessionId));
-            if (next) await store.save(next);
-          })
-          // Unreconciled, the record stays as the lost lock left it.
-          .catch(() => undefined);
-      throw error;
-    }
+    return funding();
     async function funding(): Promise<SafeRelayrResult> {
       return store.withLock(account, async () => {
         checkAccount(account, signal);

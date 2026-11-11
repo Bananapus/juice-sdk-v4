@@ -1,4 +1,5 @@
-import { assertLocksHeld, type LockHandle } from "./locks.js";
+import { assertLocksHeld, keepOutcome, type LockHandle } from "./locks.js";
+import { CONFIRMING_RENEW_MS } from "./confirming.js";
 import {
   ReviewedCallRevertedError,
   ReviewedReceiptUnverifiedError,
@@ -65,12 +66,15 @@ import { relayrPaymentChains } from "./relayr.js";
 import { relayrFeeCap } from "./relayrSend.js";
 import {
   assertSavableCalls,
+  decodeOutcome,
+  encodeOutcome,
   readReviewedSequence,
   removeReviewedSequence,
   REVIEWED_SEQUENCE_MOVED_LINE,
   REVIEWED_SEQUENCE_UNCERTAIN_LINE,
   REVIEWED_SEQUENCE_UNFINISHED_LINE,
   saveReviewedSequence,
+  type ReviewedOutcome,
   type ReviewedSequenceRecord,
 } from "./sequence.js";
 import {
@@ -202,20 +206,32 @@ export type ReviewedAction = {
    * is checked, on a fresh read, before `beforeWallet`, and, with the SDK's
    * own, by the wallet adapter as the last await before every request that
    * sends or signs (`WalletRequestOptions`). A lost one sends or signs
-   * nothing and releases the step's hold. `onUnsent` then runs only while
-   * every one of `locks` still reads as held, read fresh before each step's
-   * callback: once one is lost, the lock's new owner owns the site's journal,
-   * and a stale "unsent" write could clear its record. A record the site
-   * wrote in `beforeWallet` stays as it was; its recovery reads it like any
-   * interrupted send (ask the user to check their wallet's activity).
+   * nothing and releases the step's hold. `onUnsent` runs only while every
+   * one of `locks` still reads as held, read fresh before each step's
+   * callback. A wallet answer that comes after one was lost (a lease that
+   * lapsed while the user was in the wallet) is kept ({@link keepOutcome}):
+   * `onUnsent`, and an `onSubmitted` or `onConfirmed` whose own write
+   * refused for the lost lock, run again once the site's work under `locks`
+   * ended, under the same locks taken back, and only if no other tab took
+   * them since. Otherwise the record the site wrote in `beforeWallet` stays
+   * as it was; its recovery reads it like any interrupted send (ask the user
+   * to check their wallet's activity).
    */
   locks?: readonly LockHandle[];
   /**
+   * The site's `onUnsent`, `onSubmitted` and `onConfirmed` change only this
+   * attempt's own record, matched by its identity (an attempt or reservation
+   * id, never the whole record), and merge into the latest one. A late
+   * answer after a lost lock then lands under `locks` taken back even when
+   * another tab held them meanwhile (a routine refresh), not only when
+   * nobody did ({@link keepOutcome}'s `later`).
+   */
+  attemptScoped?: boolean;
+  /**
    * Awaited when nothing was sent for a step whose `beforeWallet` began: a
    * gate refused (the SDK's own lock lost included), `beforeWallet` threw,
-   * or the wallet rejected (4001). Never after an ambiguous failure, nor once
-   * any of `locks` is lost (checked on a fresh read before each step's
-   * callback, whatever ended the attempt, a wallet's 4001 included).
+   * or the wallet rejected (4001). Never after an ambiguous failure. Once
+   * any of `locks` is lost, it waits for them to be taken back (see `locks`).
    */
   onUnsent?: (call: ReviewedCall, step: number) => void | Promise<void>;
   /**
@@ -807,6 +823,7 @@ export async function resumeReviewed(
     | "title"
     | "beforeWallet"
     | "locks"
+    | "attemptScoped"
     | "onUnsent"
     | "onSubmitted"
     | "onConfirmed"
@@ -856,15 +873,49 @@ export async function resumeReviewed(
       settled,
       deps.clientFor(call.chainId),
     );
-    // This sequence's own step: it is recorded, told, and only then
-    // acknowledged, so it is never offered again.
-    const kept = await recordSending(saved, settled, storage, expected);
-    await tellConfirmed(action, handle, call, step, settled, receipt);
+    // This sequence's own step: told, recorded, and only then acknowledged,
+    // so it is never offered again. Its notice not delivered yet, it stays
+    // held at its receipt, acknowledged by none, for a completion to tell.
+    let kept: string | null = expected;
+    const outcome = outcomeOf(handle, reservation, {
+      account: saved.account,
+      step,
+      call,
+      prior: [...saved.completed],
+      ...(saved.signatures ? { signatures: saved.signatures } : {}),
+    });
+    const ended = await endStep(
+      action,
+      handle,
+      outcome,
+      settled,
+      receipt,
+      async () => {
+        kept = await recordSending(saved, settled, storage, expected);
+      },
+    );
+    if (!ended)
+      throw new ReviewedReceiptUnverifiedError(
+        step,
+        (settled as { hash: Hex }).hash,
+        undefined,
+        {
+          call: outcome.call,
+          reservation,
+          hashes: [...outcome.prior],
+          ...signedBy(outcome),
+        },
+      );
     if (settled?.result === "success") await handle.acknowledge(settled);
     if (kept === null) {
       const total = saved.calls.length;
       tell(deps.onProgress, { step: total - 1, total, phase: "done" });
-      return { status: "done", hashes: saved.completed, receipts: [] };
+      return {
+        status: "done",
+        hashes: hashesThrough(outcome, settled),
+        receipts: [],
+        ...signedBy(outcome),
+      };
     }
     expected = kept;
   }
@@ -916,26 +967,153 @@ async function confirmedReceipt(
 }
 
 /**
+ * Where a step's `onConfirmed` notice is: told to the site (or nothing to
+ * tell), still pending (kept for a lost lock, or another completion's claim
+ * not yet told), or undelivered (its lock never taken back). Only a
+ * delivered one lets its success be acknowledged or shown done.
+ */
+type ConfirmationDelivery = "delivered" | "pending" | "undelivered";
+
+/**
  * Tells `onConfirmed` of a step's verified success, once per settlement:
  * only the completion (a run, `completeReviewedStep`, `resumeReviewed`, in
- * any tab) that claims its notice on the hold tells it.
+ * any tab) that claims its notice on the hold tells it. The claim is made
+ * for good once told, and given back if the site never gets it, so a later
+ * completion tells it.
  */
 async function tellConfirmed(
-  action: Pick<ReviewedAction, "onConfirmed">,
-  handle: Pick<WriteHoldHandle, "claimConfirmed">,
+  action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
+  handle: Pick<
+    WriteHoldHandle,
+    "claimConfirmed" | "settleConfirmed" | "confirmation"
+  >,
   call: ReviewedCall,
   step: number,
   settled: WriteHoldSettled | undefined,
   receipt: TransactionReceipt | null,
-): Promise<void> {
-  if (
-    settled?.result === "success" &&
-    receipt &&
-    (await handle.claimConfirmed(settled))
-  )
-    await tell(action.onConfirmed, call, step, receipt);
+): Promise<ConfirmationDelivery> {
+  if (settled?.result !== "success" || !receipt) return "delivered";
+  const claimant = globalThis.crypto.randomUUID();
+  if (!(await handle.claimConfirmed(settled, claimant)))
+    // Another completion's: delivered, or not yet.
+    return (await handle.confirmation(settled)) === "delivered"
+      ? "delivered"
+      : "pending";
+  // Renewed while this delivery runs (kept for a lock too), so only a claim
+  // whose tab closed or crashed lapses; ended only by this claimant.
+  const renewal = setInterval(
+    () => void handle.claimConfirmed(settled, claimant).catch(() => undefined),
+    CONFIRMING_RENEW_MS,
+  );
+  let delivery: ConfirmationDelivery = "pending";
+  const end = async (delivered: boolean) => {
+    clearInterval(renewal);
+    await handle.settleConfirmed(settled, delivered, claimant);
+  };
+  try {
+    const told = await tellKept(
+      action,
+      () => action.onConfirmed?.(call, step, receipt),
+      async (applied) => {
+        delivery = applied ? "delivered" : "undelivered";
+        await end(applied);
+      },
+    );
+    if (!told) return delivery;
+    await end(true);
+    return "delivered";
+  } catch (error) {
+    clearInterval(renewal);
+    throw error;
+  }
 }
 
+/**
+ * Ends a settled step, the one way every completion does (a run, a resume,
+ * `completeReviewedStep`): its `onConfirmed` told with its outcome's call
+ * and step, and only once delivered is it recorded done (`record`, its
+ * reservation leaving the sequence's journal). Until then the step stays
+ * held there, so a later completion or resume tells it before any step
+ * after it is sent. False while undelivered.
+ */
+async function endStep(
+  action: Pick<ReviewedAction, "onConfirmed" | "locks" | "attemptScoped">,
+  handle: Pick<
+    WriteHoldHandle,
+    "claimConfirmed" | "settleConfirmed" | "confirmation"
+  >,
+  outcome: Pick<ReviewedOutcome, "call" | "step">,
+  settled: WriteHoldSettled | undefined,
+  receipt: TransactionReceipt | null,
+  record: () => Promise<unknown>,
+): Promise<boolean> {
+  if (
+    (await tellConfirmed(
+      action,
+      handle,
+      outcome.call,
+      outcome.step,
+      settled,
+      receipt,
+    )) !== "delivered"
+  )
+    return false;
+  await record();
+  return true;
+}
+
+/**
+ * A sent step's outcome as its run saved it on the hold with `reservation`
+ * ({@link ReviewedOutcome}), else `handed` (what its caller has: a hold
+ * that saved none, or an older version's).
+ */
+const outcomeOf = (
+  handle: Pick<WriteHoldHandle, "outcomeOf">,
+  reservation: string | undefined,
+  handed: ReviewedOutcome,
+): ReviewedOutcome =>
+  (reservation === undefined
+    ? undefined
+    : decodeOutcome(handle.outcomeOf(reservation))) ?? handed;
+
+/** The action's hashes through `outcome`'s step, as `settled` ended it. */
+const hashesThrough = (
+  outcome: Pick<ReviewedOutcome, "prior">,
+  settled: WriteHoldSettled | undefined,
+): Hex[] =>
+  settled?.result === "success" && "hash" in settled
+    ? [...outcome.prior, settled.hash]
+    : [...outcome.prior];
+
+/** The outcome's signatures, as a result spreads them. */
+const signedBy = ({ signatures }: Pick<ReviewedOutcome, "signatures">) =>
+  signatures ? { signatures: [...signatures] } : {};
+
+/**
+ * Tells a site what the wallet answered, under its `locks`: refused for a
+ * lost one, kept for a fresh lock ({@link keepOutcome}, `settled` told
+ * whether it was applied in the end), or dropped when it can't be kept
+ * (`settled` told false). Any other failure is logged and never changes
+ * what was sent. False when the outcome was only kept, not told.
+ */
+const tellKept = async (
+  { locks, attemptScoped }: Pick<ReviewedAction, "locks" | "attemptScoped">,
+  run: () => unknown,
+  settled?: (applied: boolean) => unknown,
+): Promise<boolean> => {
+  let kept = false;
+  await tell(() =>
+    keepOutcome(locks, run, attemptScoped ? run : undefined, settled).then(
+      (applied) => void (kept = !applied),
+      async (error) => {
+        if ((error as { code?: unknown })?.code !== "LOCK_LOST") throw error;
+        kept = true;
+        await settled?.(false);
+      },
+    ),
+  );
+  return !kept;
+};
 /**
  * A sent step's settlement by its own reservation, and the receipt its hold
  * verified ({@link heldReceipt}), read again until it reads. Null on `follow`'s
@@ -1006,11 +1184,16 @@ async function followSent(
  * the journal and `onConfirmed` to the run that resumes it. With
  * `acknowledge` false it acknowledges nothing: the caller acknowledges the
  * success once it has shown it (`handle.acknowledge`), so a success it
- * never showed still warns the next run.
+ * never showed still warns the next run. `undelivered` says `onConfirmed`
+ * was kept for a lost lock and dropped: nothing is acknowledged, and a later
+ * completion (under the same or a fresh lock) tells it once.
  */
 export async function completeReviewedStep(
   unverified: Pick<ReviewedReceiptUnverifiedError, "step" | "held">,
-  action: Pick<ReviewedAction, "account" | "scope" | "onConfirmed">,
+  action: Pick<
+    ReviewedAction,
+    "account" | "scope" | "onConfirmed" | "locks" | "attemptScoped"
+  >,
   deps: ReviewedSendDeps,
   receipt?: TransactionReceipt | null,
   signal?: AbortSignal,
@@ -1018,6 +1201,11 @@ export async function completeReviewedStep(
 ): Promise<{
   settled: WriteHoldSettled;
   receipt: TransactionReceipt | null;
+  undelivered?: true;
+  /** The action's hashes through this step, as its run saved them. */
+  hashes: Hex[];
+  /** The run's signatures, when it signed any. */
+  signatures?: Hex[];
 } | null> {
   const { step, held } = unverified;
   if (!held || signal?.aborted) return null;
@@ -1033,23 +1221,50 @@ export async function completeReviewedStep(
   if (!settled) return null;
   const confirmed = await confirmedReceipt(settled, client, receipt);
   if (signal?.aborted) return null;
-  if (action.scope !== undefined) {
-    const storage = deps.storage ?? createHeldWriteStorage();
-    const { raw, record } = readReviewedSequence(
-      action.scope,
-      action.account,
-      storage,
-    );
-    if (
-      record?.sending?.step === step &&
-      record.sending.reservation === reservation
-    )
-      await recordSending(record, settled, storage, raw);
-  }
-  await tellConfirmed(action, handle, call, step, settled, confirmed);
+  const outcome = outcomeOf(handle, reservation, {
+    account: action.account,
+    step,
+    call,
+    prior: [...(held.hashes ?? [])],
+    ...(held.signatures ? { signatures: held.signatures } : {}),
+  });
+  const ended = await endStep(
+    action,
+    handle,
+    outcome,
+    settled,
+    confirmed,
+    async () => {
+      if (action.scope === undefined) return;
+      const storage = deps.storage ?? createHeldWriteStorage();
+      const scope = action.scope;
+      // Its journal entry by the reservation it saved (by the step its
+      // outcome saved, without one), never by the index of the action that
+      // completes it: a refreshed action's calls may be fewer.
+      const sending = () => {
+        const read = readReviewedSequence(scope, action.account, storage);
+        const saved = read.record?.sending;
+        return saved &&
+          saved.reservation === reservation &&
+          (reservation !== undefined || saved.step === outcome.step)
+          ? read
+          : null;
+      };
+      const read = sending();
+      if (!read) return;
+      // Another completion recording it first leaves nothing to record.
+      await recordSending(read.record!, settled, storage, read.raw).catch(
+        (error) => {
+          if (sending()) throw error;
+        },
+      );
+    },
+  );
+  const done = { settled, receipt: confirmed, ...signedBy(outcome) };
+  if (!ended) return { ...done, undelivered: true, hashes: [] };
   if (acknowledge && settled.result === "success")
     await handle.acknowledge(settled);
-  return { settled, receipt: confirmed };
+  return { ...done, hashes: hashesThrough(outcome, settled) };
 }
 
 /**
@@ -1094,13 +1309,11 @@ async function send(
    * own release.
    */
   const tellUnsent = async (steps: readonly ReviewedCall[], from: number) => {
-    for (const [index, call] of steps.entries()) {
-      const held = await Promise.all(
-        (action.locks ?? []).map((lock) => lock.held().catch(() => false)),
-      );
-      if (held.includes(false)) return;
-      await tell(action.onUnsent, call, from + index);
-    }
+    for (const [index, call] of steps.entries())
+      await tellKept(action, async () => {
+        await assertLocksHeld(action.locks);
+        await action.onUnsent?.(call, from + index);
+      });
   };
   const connected = adapter.account();
   if (!connected) throw new ReviewLineError("Connect a wallet first.");
@@ -1167,10 +1380,12 @@ async function send(
     }
     // Every step is told; a site's failure to record it never changes what was sent.
     for (const [step, call] of calls.entries())
-      await tell(action.onSubmitted, call, step, hash, {
-        safe: false,
-        adopted: false,
-      });
+      await tellKept(action, () =>
+        action.onSubmitted?.(call, step, hash, {
+          safe: false,
+          adopted: false,
+        }),
+      );
     return { status: "done", hashes: [hash], receipts: [] };
   }
 
@@ -1357,7 +1572,16 @@ async function send(
             return sending;
           },
           beforeWrite: async () => {
-            await gate.beforeSend();
+            await gate.beforeSend(
+              undefined,
+              encodeOutcome({
+                account,
+                step: calls.length - 1,
+                call: batched as ReviewedCall,
+                prior: [],
+                ...signed,
+              }),
+            );
             try {
               for (const [step, call] of calls.entries()) {
                 began = step + 1;
@@ -1393,10 +1617,12 @@ async function send(
             gate.afterSubmit(submitted);
             // Every step went: each is told, whatever an earlier callback does.
             for (const [step, call] of calls.entries())
-              await tell(action.onSubmitted, call, step, submitted, {
-                safe: true,
-                adopted: false,
-              });
+              await tellKept(action, () =>
+                action.onSubmitted?.(call, step, submitted, {
+                  safe: true,
+                  adopted: false,
+                }),
+              );
           },
           write: async () => {
             const id = await adapter.sendCalls!(
@@ -1436,6 +1662,7 @@ async function send(
           ...snapshots[step].sent,
         })),
         completed: [],
+        ...signed,
       };
     // Refused when another window changed it meanwhile.
     expected = await saveReviewedSequence(journal, storage, expected);
@@ -1455,6 +1682,10 @@ async function send(
   };
 
   const hashes: Hex[] = [];
+  // A resumed run shows the signatures its first run signed.
+  if (journal?.signatures) signed = { signatures: journal.signatures };
+  /** The last step's outcome, as its hold keeps it, and its hashes: the done result's source. */
+  let last: { outcome: ReviewedOutcome; hashes: Hex[] } | undefined;
   const receipts: TransactionReceipt[] = [];
   const total = offset + calls.length;
   for (const [step, call] of calls.entries()) {
@@ -1525,6 +1756,14 @@ async function send(
     const runEnd = hashes.length ? action.follow?.signal : undefined;
     /** The site's failed record of this step's hash: the step was sent, and is held unverified. */
     let unrecorded: unknown;
+    /** What this step's run shows, saved with its reservation. */
+    const outcome: ReviewedOutcome = {
+      account,
+      step: at,
+      call,
+      prior: journal ? [...journal.completed] : [...hashes],
+      ...signed,
+    };
     const hash = await handles[step]
       .send<Hex>(client, (gate) => {
         // Under the hold's own check of the call, before anything reserves.
@@ -1606,7 +1845,7 @@ async function send(
           },
           beforeWrite: async () => {
             // An adopted proposal is held as the call it runs.
-            await gate.beforeSend(queued?.call);
+            await gate.beforeSend(queued?.call, encodeOutcome(outcome));
             reserved = handles[step].peek().reservation;
             if (journal)
               try {
@@ -1664,10 +1903,12 @@ async function send(
           // An adopted proposal's nonce lets the hold prove its execution onchain.
           onWriteSubmitted: async (submitted) => {
             gate.afterSubmit(submitted, queued?.tx);
-            await tell(action.onSubmitted, call, at, submitted, {
-              safe,
-              adopted: !!queued,
-            });
+            await tellKept(action, () =>
+              action.onSubmitted?.(call, at, submitted, {
+                safe,
+                adopted: !!queued,
+              }),
+            );
           },
           write: async ({ chainId, to, data, value, gas }) =>
             queued?.proposalHash ??
@@ -1715,6 +1956,7 @@ async function send(
     }
     // From here the step was sent: it ends done, failed as its hold
     // verified, or unverified with what resumes it, never any other way.
+    /** `completed`: this step's hash already recorded as completed. */
     const unverified = (cause?: unknown) =>
       new ReviewedReceiptUnverifiedError(
         at,
@@ -1725,9 +1967,8 @@ async function send(
         {
           call,
           reservation: reserved,
-          // This run's sends, its own last: only the steps before it completed.
-          hashes: journal ? [...journal.completed] : hashes.slice(0, -1),
-          ...signed,
+          hashes: [...outcome.prior],
+          ...signedBy(outcome),
         },
         cause === undefined ? {} : { cause },
       );
@@ -1792,18 +2033,28 @@ async function send(
       throw new ReviewedCallRevertedError(at, mined, receipt);
     }
     receipts.push(receipt);
-    if (journal) {
-      delete journal.sending;
-      journal.completed.push(mined);
-      await keep();
-    }
-    await tellConfirmed(action, handles[step], call, at, settled, receipt);
+    // Its notice not delivered yet: held at its receipt for its completion.
+    const ended = await endStep(
+      action,
+      handles[step],
+      outcome,
+      settled,
+      receipt,
+      async () => {
+        if (!journal) return;
+        delete journal.sending;
+        journal.completed.push(mined);
+        await keep();
+      },
+    );
+    if (!ended) throw unverified();
+    last = { outcome, hashes: hashesThrough(outcome, settled) };
   }
   onProgress({ step: total - 1, total, phase: "done" });
   return {
     status: "done",
-    hashes: journal ? [...journal.completed] : hashes,
+    hashes: last!.hashes,
     receipts,
-    ...signed,
+    ...signedBy(last!.outcome),
   };
 }

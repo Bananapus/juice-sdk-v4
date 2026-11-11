@@ -1,3 +1,4 @@
+import { LOCK_LOST_LINE } from "./messages.js";
 import { ReviewLineError, WalletNotInvokedError } from "./lineError.js";
 import {
   BaseError,
@@ -115,7 +116,8 @@ const NETWORK_CHANGED = "Your wallet changed networks. Review again.";
 const UNREACHABLE =
   "Your wallet could not be reached. Nothing was sent; try again.";
 const RUN_ENDED = "This action was closed. Nothing more was sent.";
-const MOVED = "This action moved to another window. Nothing was sent.";
+/** A lost lock refused the request: nothing was sent. */
+const MOVED = LOCK_LOST_LINE;
 
 /** The connected account, as a request's own was read: a change refuses, unsent. */
 function sameAccount(account: Address, now: Address | undefined): void {

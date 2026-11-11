@@ -135,18 +135,23 @@ describe("published core SDK surfaces", () => {
 
   test("exports exactly the review surface, nothing an internal module adds", () => {
     expect(Object.keys(review).sort()).toEqual([
+      "CONFIRMATION_QUEUED_LINE",
+      "ConfirmationQueuedError",
       "FOLLOW_MS",
       "HELD_AWAY_SUCCESS_LINE",
       "HELD_CONFIRMING_LINE",
       "HELD_EXIT_LABEL",
       "HELD_EXPIRED_LINE",
       "HELD_FAILED_LINE",
+      "HELD_HASH_MISMATCH_LINE",
+      "HELD_HASH_UNVERIFIED_LINE",
       "HELD_POLL_MS",
       "HELD_RELEASED_ELSEWHERE_LINE",
       "HELD_RELEASED_LINE",
       "HELD_RELEASE_LABEL",
       "HELD_SEND_AGAIN_LABEL",
       "HELD_SUCCESS_LINE",
+      "LOCK_LOST_LINE",
       "LockLostError",
       "NETWORK_ERROR_LINE",
       "RECEIPT_RETRY_MS",
@@ -166,6 +171,7 @@ describe("published core SDK surfaces", () => {
       "REVIEWED_SEQUENCE_UNSAVABLE_LINE",
       "REVIEWED_SIMULATION_FAILED_LINE",
       "REVIEWED_SIMULATION_UNEXPLAINED_LINE",
+      "REVIEW_STOPPED_LINE",
       "ReviewFixedLineError",
       "ReviewLineError",
       "ReviewedCallRevertedError",
@@ -248,6 +254,7 @@ describe("published core SDK surfaces", () => {
       "isDefiniteWalletRejection",
       "isRevert",
       "isTransactionReceiptUnavailableError",
+      "keepOutcome",
       "launchIntent",
       "liquidityIntent",
       "listReviewedWrites",
@@ -534,6 +541,7 @@ describe("published core SDK surfaces", () => {
     ];
     expect(Object.keys(testing).sort()).toEqual([
       "REVIEW_REQUESTS",
+      "lapsingLocksForTests",
       "promptReviewForTests",
       ...resets,
     ]);

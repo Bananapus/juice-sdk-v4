@@ -20,6 +20,7 @@ import {
 } from "../safeService.js";
 import { promptReview } from "./confirm.js";
 import {
+  isDefiniteWalletRejection,
   SubmittedContractWriteError,
   submitReviewedContractWrite,
 } from "./contractWrite.js";
@@ -31,7 +32,7 @@ import {
   type ReviewedPlan,
   type ReviewedPlanCall,
 } from "./plan.js";
-import { heldReceipt, waitForTrackedReceipt } from "./receipt.js";
+import { heldReceipt, tell, waitForTrackedReceipt } from "./receipt.js";
 import {
   bindRelayrQuote,
   FORWARD_REQUEST_TYPES,
@@ -72,7 +73,10 @@ import {
 } from "./relayr.js";
 import type { SafeRelayrOptions } from "./safeRelayr.js";
 import type { ReviewedSendDeps } from "./send.js";
-import { ReviewedCallRevertedError } from "./lineError.js";
+import {
+  ReviewedCallRevertedError,
+  WalletNotInvokedError,
+} from "./lineError.js";
 import {
   prepareSignature,
   signPrepared,
@@ -91,6 +95,7 @@ import {
   browserLocks,
   type LockHandle,
 } from "./writeRecovery.js";
+import { keepOutcome } from "./locks.js";
 import { pause, timeout } from "../pause.js";
 import { FOLLOW_MS, RECEIPT_RETRY_MS } from "./heldWrite.js";
 
@@ -585,10 +590,17 @@ async function sendPayment(
     recheck?: () => Promise<void>;
     /** Runs after the hold reserves, right before the wallet opens. */
     onSending?: () => Promise<void>;
-    /** The site's own locks, checked with the hold's as the last await before the wallet. */
+    /**
+     * The site's own locks, checked with the hold's as the last await before
+     * the wallet. An `onSent` refused for a lost one is kept ({@link keepOutcome}).
+     */
     locks?: readonly LockHandle[];
     /** Every hash the payment is known by: the wallet's, then the mined one. */
     onSent?: (hash: Hex) => Promise<void>;
+    /** Nothing was sent after `onSending` began: a final gate refused, or the wallet rejected (4001). */
+    onUnsent?: () => Promise<void>;
+    /** `onSent` and `onUnsent` match this attempt by its identity and merge (see `ReviewedAction.attemptScoped`). */
+    attemptScoped?: boolean;
     /**
      * Paid by a Safe app: its proposal hash comes back, held until the Safe
      * runs it, and is neither awaited nor proven here.
@@ -608,6 +620,12 @@ async function sendPayment(
     ...(hooks.intent ? { intent: hooks.intent.key } : {}),
   };
   const handle = openStepHold(deps.hold, account, safe, call);
+  /** The app's `onSent`: refused for a lost lock, kept for a fresh one ({@link keepOutcome}). */
+  const scoped = <T>(run: () => T) => (hooks.attemptScoped ? run : undefined);
+  const sent = (hash: Hex) => {
+    const run = () => hooks.onSent?.(hash);
+    return keepOutcome(hooks.locks, run, scoped(run));
+  };
   /**
    * The app's `onSending` began, so its saved "sending" record may stand:
    * any refusal before the wallet then says "not sent", so the app restores it.
@@ -733,7 +751,7 @@ async function sendPayment(
         onWriteRejected: () => gate.onRejected(),
         onWriteSubmitted: async (submitted) => {
           gate.afterSubmit(submitted, queued?.tx);
-          await hooks.onSent?.(submitted);
+          await sent(submitted);
         },
         // The pinned contract and gas, never the quote's word.
         write: async ({ chainId, calldata, amount }) => {
@@ -762,6 +780,23 @@ async function sendPayment(
     if (hooks.intent) requireIntentClear(deps, account, hooks.intent);
     hash = await attempt();
   } catch (error) {
+    // The app's record of a payment nothing sent, under its locks or kept
+    // for them ({@link keepOutcome}); the caller gets the original error.
+    const unsent = async () => {
+      await assertLocksHeld(hooks.locks);
+      await hooks.onUnsent?.();
+    };
+    if (
+      saved &&
+      (!invoked ||
+        isDefiniteWalletRejection(error) ||
+        error instanceof WalletNotInvokedError)
+    )
+      await tell(() =>
+        keepOutcome(hooks.locks, unsent, scoped(unsent)).catch((lost) => {
+          if ((lost as { code?: unknown })?.code !== "LOCK_LOST") throw lost;
+        }),
+      );
     // Saved as sending, refused by a final gate, never given to the wallet.
     if (saved && !invoked && !(error instanceof RelayrPaymentNotSentError)) {
       throw new RelayrPaymentNotSentError(error);
@@ -792,7 +827,7 @@ async function sendPayment(
     const mined = settled?.hash ?? seen.transactionHash;
     if (mined.toLowerCase() !== hash.toLowerCase()) {
       try {
-        await hooks.onSent?.(mined);
+        await sent(mined);
       } catch (error) {
         throw new SubmittedContractWriteError(mined, error);
       }
@@ -936,7 +971,22 @@ export async function payRelayrReviewed(
     context?: readonly ReviewContextRow[];
     onSending?: () => Promise<void>;
     onSent?: (hash: Hex) => Promise<void>;
-    /** The site's own locks, checked before `onSending` and as the last await before the wallet; a lost one sends nothing. */
+    /**
+     * Awaited when nothing was sent after `onSending` began (a final gate
+     * refused, or the wallet rejected with 4001), to restore the app's
+     * record. Never after an ambiguous failure. A throw is logged.
+     */
+    onUnsent?: () => Promise<void>;
+    /** `onSent` and `onUnsent` match this attempt by its identity and merge (see `ReviewedAction.attemptScoped`). */
+    attemptScoped?: boolean;
+    /**
+     * The site's own locks, checked before `onSending` and as the last await
+     * before the wallet; a lost one sends nothing. An `onSent` whose own
+     * write refused for a lost one (the user was in the wallet past the
+     * lease) runs again under the same locks taken back once the site's work
+     * ended, only if no other tab took them since ({@link keepOutcome}), as
+     * does `onUnsent`.
+     */
     locks?: readonly LockHandle[];
     /** A plan already reviewed with exactly this payment (`reviewPlan`): nothing is asked. */
     plan?: ReviewedPlan;
@@ -993,6 +1043,8 @@ export async function payRelayrReviewed(
     recheck: () => requireRelayrBundleUnpaid(details.bundleUuid),
     ...(action.onSending ? { onSending: action.onSending } : {}),
     ...(action.onSent ? { onSent: action.onSent } : {}),
+    ...(action.onUnsent ? { onUnsent: action.onUnsent } : {}),
+    ...(action.attemptScoped ? { attemptScoped: true } : {}),
     ...(action.locks ? { locks: action.locks } : {}),
     safe,
   });

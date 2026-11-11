@@ -237,6 +237,11 @@ export type WriteHeldState = Exclude<WriteHoldStateOf, { status: "clear" }> & {
   reservation?: string;
 };
 
+/** What {@link WriteHoldHandle.attachHash} made of the hash it was given. */
+export type HashCheck = "attached" | "mismatch" | "unverified";
+
+export type AttachedHashState = WriteHoldState & { hashCheck: HashCheck };
+
 /** A send was refused because the exact call is held; `state` says how. */
 export class WriteHeldError extends ReviewLineError {
   readonly name = "WriteHeldError";
@@ -287,9 +292,13 @@ export type WriteHoldGate = {
    * Hold the call right before the wallet opens: `beforeWrite`. It reads the
    * account's next nonce for later proof, rechecks, and throws
    * {@link WriteHeldError} if the call became held meanwhile. `actualCall`:
-   * a reused Safe proposal's exact call.
+   * a reused Safe proposal's exact call. `outcome`: what the run shows of
+   * this step, saved with the reservation ({@link outcomeOf} reads it).
    */
-  beforeSend(actualCall?: ReviewedWriteRecoveryInput["call"]): Promise<void>;
+  beforeSend(
+    actualCall?: ReviewedWriteRecoveryInput["call"],
+    outcome?: string,
+  ): Promise<void>;
   /**
    * Throws `LockLostError` unless every lock the send reserved under is still
    * this tab's, on a fresh read: the last await of `beforeWrite`, right before
@@ -1334,7 +1343,7 @@ export function createWriteHold(
         let acrossHeld: (() => Promise<void>) | undefined;
         let reviewed = "";
         const gate: WriteHoldGate = {
-          async beforeSend(actualCall) {
+          async beforeSend(actualCall, outcome) {
             let evidence:
               | Awaited<ReturnType<typeof readReviewedWriteNonce>>
               | undefined;
@@ -1349,6 +1358,8 @@ export function createWriteHold(
             }
             const reserve = () => {
               attempt = recovery.reserve(actualCall, evidence);
+              if (outcome !== undefined)
+                recovery.recordOutcome(attempt.id, outcome);
             };
             try {
               if (hooks.across)
@@ -1750,32 +1761,87 @@ export function createWriteHold(
       /**
        * Claim the one `onConfirmed` notice of the settlement `settled` names,
        * under the call's lock: true for the first completion in any tab or
-       * run; a completion that loses it stays silent.
+       * run; a completion that loses it stays silent. `claimant` names the
+       * claim: claimed again by it while pending, it is renewed.
        */
-      async claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+      async claimConfirmed(
+        settled: { hash: Hex },
+        claimant: string = globalThis.crypto.randomUUID(),
+      ): Promise<boolean> {
         const result = await locked(
-          async () => recovery.claimConfirmedSettled(settled),
+          async () => recovery.claimConfirmedSettled(settled, claimant),
           true,
         );
         return result?.value === true;
       },
+      /**
+       * Ends a claimed notice under the call's lock: delivered, or given
+       * back (the site never got it) for a later completion to tell. Only
+       * the claim `claimant` holds: another's is never ended.
+       */
+      async settleConfirmed(
+        settled: { hash: Hex },
+        delivered: boolean,
+        claimant: string,
+      ): Promise<void> {
+        await locked(
+          async () =>
+            recovery.settleConfirmedSettled(settled, delivered, claimant),
+          true,
+        );
+      },
+      /** What reservation `id`'s run showed, as its send saved it, if any. */
+      outcomeOf(id: string): string | undefined {
+        return recovery.outcomeOf(id);
+      },
+      /**
+       * Whether the settlement's `onConfirmed` notice was delivered or is
+       * pending under a live claim; undefined otherwise. Only a delivered
+       * one lets its success be acknowledged.
+       */
+      async confirmation(settled: {
+        hash: Hex;
+      }): Promise<"delivered" | "pending" | undefined> {
+        const result = await locked(
+          async () => recovery.confirmationOf(settled),
+          true,
+        );
+        return result?.value;
+      },
+      /**
+       * Attaches the hash the user found for a held write whose wallet reply
+       * was lost. `hashCheck` says whether it was `attached`, read and found
+       * to be another transaction (`mismatch`, `HELD_HASH_MISMATCH_LINE`),
+       * or not readable yet (`unverified`, `HELD_HASH_UNVERIFIED_LINE`: try
+       * again).
+       */
       async attachHash(
         client: WriteHoldClient,
         hash: Hex,
-      ): Promise<WriteHoldState> {
+      ): Promise<AttachedHashState> {
+        let hashCheck: HashCheck = "unverified";
         const result = await locked(async () => {
           const record = recovery.read();
-          if (
-            record &&
-            !record.safe &&
-            !record.hash &&
-            !record.mirrorOf &&
-            isBytes32(hash) &&
-            (await client.getChainId().catch(() => null)) === record.chainId
-          ) {
-            const sent = await client
-              .getTransaction({ hash })
-              .catch(() => null);
+          if (record?.hash?.toLowerCase() === hash.toLowerCase())
+            hashCheck = "attached";
+          else if (
+            !record ||
+            record.safe ||
+            record.hash ||
+            record.mirrorOf ||
+            !isBytes32(hash)
+          )
+            hashCheck = "mismatch";
+          else {
+            const chainId = await client.getChainId().catch(() => null);
+            const sent =
+              chainId === null
+                ? null
+                : chainId !== record.chainId
+                  ? undefined
+                  : await client.getTransaction({ hash }).catch(() => null);
+            // Read, and not this attempt: another transaction.
+            hashCheck = sent === null ? "unverified" : "mismatch";
             if (
               sent &&
               sentIsCall(sent, hash, record) &&
@@ -1790,6 +1856,7 @@ export function createWriteHold(
                 sent.blockNumber >= BigInt(record.fromBlock))
             )
               try {
+                hashCheck = "attached";
                 recovery.submitted(hash, record);
               } catch {
                 /* Kept in this tab's memory, it still holds. */
@@ -1797,7 +1864,8 @@ export function createWriteHold(
           }
           return inspect(client);
         }, true);
-        return shown(result?.value ?? peek());
+        if (!result) hashCheck = "unverified";
+        return { ...shown(result?.value ?? peek()), hashCheck };
       },
       /**
        * The app's word that the held Safe proposal ran, with its execution's
@@ -2319,8 +2387,30 @@ export function createWriteHold(
           : own.acknowledge(settled);
       },
       /** A settlement's notice is claimed where it was saved, found by its hash. */
-      claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+      claimConfirmed(
+        settled: { hash: Hex },
+        claimant?: string,
+      ): Promise<boolean> {
         return (legacySaving(settled.hash)?.handle ?? own).claimConfirmed(
+          settled,
+          claimant,
+        );
+      },
+      settleConfirmed(
+        settled: { hash: Hex },
+        delivered: boolean,
+        claimant: string,
+      ): Promise<void> {
+        return (legacySaving(settled.hash)?.handle ?? own).settleConfirmed(
+          settled,
+          delivered,
+          claimant,
+        );
+      },
+      confirmation(settled: {
+        hash: Hex;
+      }): Promise<"delivered" | "pending" | undefined> {
+        return (legacySaving(settled.hash)?.handle ?? own).confirmation(
           settled,
         );
       },
