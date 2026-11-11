@@ -270,3 +270,29 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - [x] draft PR #300
 - [x] Codex pass 1 (FIX-FIRST, 1 Medium): an exact-match historic success put in `watched` became owned on dismiss and closed a changed payment as done with the old hash. Fixed with a failing-first test: every historic intent success is shown from run state, never followed; `sentOtherCall` removed.
 - [ ] Codex until MERGE
+
+## Signa-only protocol evidence extraction (2026-11-11)
+
+## Plan refinement
+
+- **Objective:** Remove Signa's inherited MCP dependency while preserving modeled Juicebox outcome verification through the existing core SDK; no SDK publication or app migration.
+- **System fit:** Center prepares protocol actions, Signa owns account authority and canonical execution evidence, and the SDK owns pure interpretation of that evidence. Host validation, signatures, secret tokens, databases and workers remain outside the SDK.
+- **Reuse and simplicity:** Extract only the existing modeled verifier into core/v6/operationEvidence, reuse core ABIs and deployment histories, and switch both Center and Signa callers to this one owner. No new package or dependencies.
+- **Evidence and unknowns:** Latest SDK 6.3.1 contains builders and deployment histories but no full modeled verifier. Both services' current/retired router, gateway and buyback addresses match SDK histories. Center has newer controller token/URI and omnichain outcome checks than Signa, so Center is the extraction baseline; exact interpretation parity against each service's existing cases is the acceptance gate.
+- **Verification:** Compare the extracted verifier against the original through the existing plan suite, add direct valid/mismatched/unsupported evidence checks, run core tests and full type-check including test types, build and pack the SDK. Center and Signa consume the packed artifact during integration verification.
+- **Resource budget:** One module and existing package exports, bounded extraction of the existing modeled verifier, no transport or normalization rewrite. Replan if SDK ABI differences change accepted outcome evidence.
+- [x] Extract modeled verification to core and add focused tests/changeset.
+- [x] Verify equivalence, run core checks, build and pack for service consumers.
+
+### Review
+
+- Extracted the latest Center verifier superset to `@bananapus/nana-sdk-core/v6/operation-evidence` and `/v6`, with structural types and no new dependencies, server tokens, RPC or storage. Both service callers use this owner.
+- Current/retired deployment sets match both original service catalogs across 42 contract/chain/service combinations. Original Signa suite 71/71 and Center suite 90/90 pass with deep old/new result comparison against the actual packed SDK. Direct SDK regressions cover 21 positive, spoofed/mismatched and strict pool-key cases.
+- Core final suite: 123 files, 3,844 tests passed under Node 22.23.4 with loopback access. Core source and test type-check, ESM/CJS builds, React/connect builds, package/browser import budgets, protocol fixture verification, dead-code, formatting, wallet-boundary, review-react and generated-output gates pass. Initial sandbox suite was invalidated by loopback EPERM; final rerun is green. Initial import-time ABI parsing was corrected to static ABI literals and the module-load gate passes.
+- Existing SDK dependency tree was cloned from sdk-keep after confirming zero lockfile package-entry differences; own source outputs were rebuilt. The incomplete cold install was stopped and its generated files removed.
+- Candidate `/private/tmp/signa-only-sdk-pack/bananapus-nana-sdk-core-6.3.1.tgz`: SHA1 `bab8f2fb99b4b1a64a43cd27d082eb1a1c99e965`, 1,920,350 B packed, 25,043,455 B unpacked, 1,931 entries. Archive budgets increased only for the new module/eight artifacts; browser import limits unchanged.
+- Status-only Changesets plan `/private/tmp/signa-sdk-release-plan.json`: core 6.4.0, react 68.0.0 by existing dependent-version policy, connect unchanged 0.6.1. No versioning or publication performed. Services verify with the local pack; registry pins await the separately authorized release.
+
+- Final release checks: all-workspace source/test type-check passed (6/6 uncached Turbo tasks); full coverage passed with core 3,844, React 165 and connect 35 tests; examples passed 5/5; final aggregate build passed (3/3 uncached tasks). Node 22.23.4/npm 10.9.9, serial package execution, at most two Vitest workers and exact CI deployment artifact revisions. Dependency graph, production audit (zero vulnerabilities) and committed-schema GraphQL generation also passed.
+- Coverage remains at the existing floors: core 96.25% lines/statements, 96.17% branches and 99.26% functions. The extracted verifier itself has 31.12% line and 64.28% branch coverage in its 21 owner tests; permanent Center/Signa semantic suites plus the exact differential checks provide broader extraction evidence. No thresholds were lowered.
+- Final build comparison found identical runtime files and verifier declarations across the existing candidate's 1,931 entries. Four existing declaration files differ only in equivalent TypeScript union-member ordering; the integration candidate remains unchanged. Full packed-candidate consumer checks and the separately authorized SDK release remain pending.

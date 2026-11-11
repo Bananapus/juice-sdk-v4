@@ -130,6 +130,11 @@
       "types": "./dist/esm/testing.d.ts",
       "import": "./dist/esm/testing.js",
       "require": "./dist/cjs/testing.js"
+    },
+    "./v6/operation-evidence": {
+      "types": "./dist/esm/v6/operationEvidence.d.ts",
+      "import": "./dist/esm/v6/operationEvidence.js",
+      "require": "./dist/cjs/v6/operationEvidence.js"
     }
   },
   "bin": {
