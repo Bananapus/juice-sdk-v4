@@ -1352,6 +1352,124 @@ describe("useReviewedRun", () => {
     expect(prompts).toHaveLength(2);
   });
 
+  /** A payment under `intent` that went through while its form was unmounted: nothing showed it. */
+  async function paidWhileAway(call: ReturnType<typeof payCall>) {
+    let answer!: () => void;
+    reviewUi(
+      (prompt) =>
+        new Promise((resolve) => (answer = () => resolve(prompt.confirmation))),
+    );
+    const { wallet, deps, hold } = setup();
+    const gone = harness({ ...deps, account: ACCOUNT });
+    let pending!: ReturnType<UseReviewedRunResult["run"]>;
+    act(() => {
+      pending = gone.seen.current!.run({ calls: [call] });
+    });
+    await vi.waitFor(() => expect(answer).toBeDefined());
+    act(() => root?.unmount());
+    answer();
+    await expect(pending).resolves.toMatchObject({ status: "done" });
+    expect(
+      openStepHold(hold, ACCOUNT, false, call).unacknowledgedSuccess(),
+    ).toBeDefined();
+    resetReviewUi();
+    reviewUi();
+    return { wallet, deps };
+  }
+
+  test("a payment under an intent that went through while its form was away is offered to a fresh runner of that call as Send it again, which sends it once", async () => {
+    const call = { ...payCall(), intent: "pay:1" };
+    const { wallet, deps } = await paidWhileAway(call);
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await expect(run({ calls: [call] })).resolves.toMatchObject({
+      status: "failed",
+      error: HELD_AWAY_SUCCESS_LINE,
+    });
+    await vi.waitFor(() =>
+      expect(seen.current!.sendAgainAction).not.toBeNull(),
+    );
+    expect(seen.current!.held).toMatchObject({ phase: "succeeded" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    await act(async () => {
+      await seen.current!.sendAgainAction!.run();
+    });
+    await expect(run({ calls: [call] })).resolves.toMatchObject({
+      status: "done",
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  test("a payment under an intent shown as gone through while away, dismissed, never closes a changed payment as done: that one is refused and offered Send it again", async () => {
+    const call = { ...payCall(), intent: "pay:1" };
+    const { wallet, deps } = await paidWhileAway(call);
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await run({ calls: [call] });
+    await vi.waitFor(() =>
+      expect(seen.current!.sendAgainAction).not.toBeNull(),
+    );
+    act(() => void seen.current!.dismiss());
+    expect(seen.current!.held).toBeNull();
+    // The amount changed: the earlier payment never stands for it.
+    const changed = { calls: [{ ...payCall(9n), intent: "pay:1" }] };
+    await expect(run(changed)).resolves.toMatchObject({
+      status: "failed",
+      error: HELD_AWAY_SUCCESS_LINE,
+    });
+    await vi.waitFor(() =>
+      expect(seen.current!.sendAgainAction).not.toBeNull(),
+    );
+    await act(async () => {
+      await seen.current!.sendAgainAction!.run();
+    });
+    await expect(run(changed)).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(wallet.adapter.sendTransaction.mock.calls[1][0]).toMatchObject({
+      data: payCall(9n).data,
+    });
+  });
+
+  test("another form's payment under the same intent that went through while away is never adopted by a fresh runner of a different call: shown with Send it again, after which that form sends its own call once", async () => {
+    const { wallet, deps } = await paidWhileAway({
+      ...payCall(),
+      intent: "pay:1",
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const onConfirmed = vi.fn();
+    const action = {
+      calls: [{ ...payCall(9n), intent: "pay:1" }],
+      onConfirmed,
+    };
+    // Refused (a resend may pay twice), but never a dead end.
+    await expect(run(action)).resolves.toMatchObject({
+      status: "failed",
+      error: HELD_AWAY_SUCCESS_LINE,
+    });
+    await vi.waitFor(() =>
+      expect(seen.current!.sendAgainAction).not.toBeNull(),
+    );
+    // Shown, never adopted: not followed, not done, nothing told.
+    expect(seen.current).toMatchObject({
+      held: { phase: "succeeded", line: HELD_AWAY_SUCCESS_LINE },
+      following: false,
+    });
+    expect(seen.current!.phase).not.toBe("done");
+    expect(onConfirmed).not.toHaveBeenCalled();
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    await act(async () => {
+      await seen.current!.sendAgainAction!.run();
+    });
+    expect(seen.current!.held).toBeNull();
+    await expect(run(action)).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(2);
+    expect(wallet.adapter.sendTransaction.mock.calls[1][0]).toMatchObject({
+      data: payCall(9n).data,
+    });
+    expect(onConfirmed).toHaveBeenCalledOnce();
+    expect(onConfirmed.mock.calls[0][0]).toMatchObject({
+      data: payCall(9n).data,
+    });
+  });
+
   /** A run that hands a step still confirming back at once, as one whose follow timed out. */
   const HANDED_BACK = { follow: { timeoutMs: 0 } };
 
@@ -2951,6 +3069,26 @@ describe("useReviewedRun", () => {
     }
   }, 30_000);
 
+  /**
+   * Last, a payment under an intent sent from it confirms while its form is
+   * unmounted, and a fresh runner brings that call or another form's under
+   * the same intent: the first four cases alternately, the rest seeded
+   * (mulberry32, apart from the cases' own draws).
+   */
+  const remounts = (() => {
+    let seed = 0x7e3a;
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    return (index: number) => ({
+      remount: index < 4 || random() < 0.4,
+      remountOther: index < 4 ? index % 2 === 1 : random() < 0.5,
+    });
+  })();
+
   /** Seeded (mulberry32): the same interleavings every run. */
   const PROPERTY_CASES = (() => {
     let seed = 0x5eed;
@@ -3269,11 +3407,13 @@ describe("useReviewedRun", () => {
     ].map((c, index) => ({
       ...c,
       index,
+      // Its own stream, so every earlier draw stays as it was.
+      ...remounts(index),
     }));
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed, switch $switchAt, lapse in confirm $lapseInConfirm, replaced $replaced, shorter $shorter, stall confirm $stallConfirm): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed, switch $switchAt, lapse in confirm $lapseInConfirm, replaced $replaced, shorter $shorter, stall confirm $stallConfirm, remount $remount, other call $remountOther): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached; remounted after a background success, never a dead end",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -3404,7 +3544,14 @@ describe("useReviewedRun", () => {
         const replacing = { ...payCall(13n), intent: "pay:prop" };
         const replacedTold: number[] = [];
         let replacedSent = 0;
+        /** Last, a payment confirmed while its form is unmounted, and what a fresh runner brings. */
+        const background = { ...payCall(21n), intent: "pay:remount" };
+        const bring = c.remountOther
+          ? { ...payCall(23n), intent: "pay:remount" }
+          : background;
         wallet.adapter.sendTransaction.mockImplementation(async (...args) => {
+          if (args[0].data === background.data || args[0].data === bring.data)
+            return send(...args);
           if (args[0].data === replacing.data) {
             replacedSent += 1;
             return send(...args);
@@ -3866,6 +4013,55 @@ describe("useReviewedRun", () => {
                   hash.toLowerCase(),
                 ),
               ).toEqual(sent);
+
+        // A payment under an intent confirms while its form is unmounted;
+        // a fresh runner then brings that call, or another form's under
+        // the same intent. Never a dead end: every refused run offers Send
+        // it again, and the call it brings is sent once, after it.
+        if (c.remount && !safe) {
+          resetReviewUi();
+          let answer: (() => void) | undefined;
+          reviewUi(
+            (prompt) =>
+              new Promise(
+                (resolve) => (answer = () => resolve(prompt.confirmation)),
+              ),
+          );
+          let pending!: ReturnType<UseReviewedRunResult["run"]>;
+          act(() => {
+            pending = seen.current!.run({ calls: [background] });
+          });
+          await vi.waitFor(() => expect(answer).toBeDefined());
+          act(() => root?.unmount());
+          answer!();
+          await expect(pending).resolves.toMatchObject({ status: "done" });
+          resetReviewUi();
+          reviewUi();
+          const fresh = harness({ ...deps, account: ACCOUNT });
+          const brought = () =>
+            wallet.adapter.sendTransaction.mock.calls.filter(
+              ([tx]) => tx.data === bring.data,
+            ).length;
+          const before = brought();
+          let refusals = 0;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            const ended = await fresh.run({ calls: [bring] });
+            if (ended?.status === "done") break;
+            refusals += 1;
+            await settle();
+            if (!fresh.seen.current!.sendAgainAction) {
+              violations.push(`a dead end: ${fresh.seen.current!.error}`);
+              break;
+            }
+            await act(async () => {
+              await fresh.seen.current!.sendAgainAction!.run();
+            });
+          }
+          expect(violations).toEqual([]);
+          // Its success was shown before anything was sent over it.
+          expect(refusals).toBe(1);
+          expect(brought() - before).toBe(1);
+        }
       } finally {
         vi.useRealTimers();
         vi.unstubAllGlobals();
