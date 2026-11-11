@@ -2711,24 +2711,76 @@ describe("a write held under an intent", () => {
       status: "clear",
     });
     // Its one confirmed notice is claimed where the legacy hold saved it.
-    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(true);
+    await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+      true,
+    );
     await expect(
       old.hold.open(ordinary).claimConfirmed({ hash: HASH }),
     ).resolves.toBe(false);
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
-    // Pending until settled there; given back, it is claimed once again,
-    // and delivered, never again.
+    // Pending until settled there, and only by its claimant; given back, it
+    // is claimed once again, and delivered, never again.
     await expect(handle.confirmation({ hash: HASH })).resolves.toBe("pending");
-    await handle.settleConfirmed({ hash: HASH }, false);
+    await handle.settleConfirmed({ hash: HASH }, true, "b");
+    await expect(handle.confirmation({ hash: HASH })).resolves.toBe("pending");
+    await handle.settleConfirmed({ hash: HASH }, false, "a");
     await expect(handle.confirmation({ hash: HASH })).resolves.toBeUndefined();
-    await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(true);
-    await handle.settleConfirmed({ hash: HASH }, true);
+    // Given back, its old claimant never renews it into a claim again.
+    await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+      false,
+    );
+    await expect(handle.claimConfirmed({ hash: HASH }, "c")).resolves.toBe(
+      true,
+    );
+    await handle.settleConfirmed({ hash: HASH }, true, "c");
     await expect(handle.confirmation({ hash: HASH })).resolves.toBe(
       "delivered",
     );
     await expect(handle.claimConfirmed({ hash: HASH })).resolves.toBe(false);
     // A legacy hold's reservation saved no outcome.
     expect(handle.outcomeOf(legacy.record.id)).toBeUndefined();
+  });
+
+  it("keeps a renewed claim past the bound, and lets one whose tab is gone lapse, its old claimant ending nothing of the new one's", async () => {
+    const { handle, client, chain, receiptOf } = await delegated();
+    chain.txs.push(sent(HASH));
+    await handle.attachHash(client, HASH);
+    chain.txs[0].block = 101n;
+    await handle.onReceipt(receiptOf(chain.txs[0]), client);
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+        true,
+      );
+      // Renewed by its claimant every 4 minutes: pending past 5.
+      clock.mockReturnValue(now + 4 * 60_000);
+      await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+        true,
+      );
+      clock.mockReturnValue(now + 8 * 60_000);
+      await expect(handle.claimConfirmed({ hash: HASH }, "b")).resolves.toBe(
+        false,
+      );
+      // Its tab gone, never renewed: lapsed, and claimed by another.
+      clock.mockReturnValue(now + 14 * 60_000);
+      await expect(handle.claimConfirmed({ hash: HASH }, "b")).resolves.toBe(
+        true,
+      );
+      await handle.settleConfirmed({ hash: HASH }, false, "a");
+      await expect(handle.claimConfirmed({ hash: HASH }, "a")).resolves.toBe(
+        false,
+      );
+      await expect(handle.confirmation({ hash: HASH })).resolves.toBe(
+        "pending",
+      );
+      await handle.settleConfirmed({ hash: HASH }, true, "b");
+      await expect(handle.confirmation({ hash: HASH })).resolves.toBe(
+        "delivered",
+      );
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("saves a send's outcome with its reservation, for its last 8 reservations, and reads none for another", async () => {

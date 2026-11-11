@@ -1,4 +1,5 @@
 import { assertLocksHeld, keepOutcome, type LockHandle } from "./locks.js";
+import { CONFIRMING_RENEW_MS } from "./confirming.js";
 import {
   ReviewedCallRevertedError,
   ReviewedReceiptUnverifiedError,
@@ -992,23 +993,39 @@ async function tellConfirmed(
   receipt: TransactionReceipt | null,
 ): Promise<ConfirmationDelivery> {
   if (settled?.result !== "success" || !receipt) return "delivered";
-  if (!(await handle.claimConfirmed(settled)))
+  const claimant = globalThis.crypto.randomUUID();
+  if (!(await handle.claimConfirmed(settled, claimant)))
     // Another completion's: delivered, or not yet.
     return (await handle.confirmation(settled)) === "delivered"
       ? "delivered"
       : "pending";
-  let delivery: ConfirmationDelivery = "pending";
-  const told = await tellKept(
-    action,
-    () => action.onConfirmed?.(call, step, receipt),
-    async (applied) => {
-      delivery = applied ? "delivered" : "undelivered";
-      await handle.settleConfirmed(settled, applied);
-    },
+  // Renewed while this delivery runs (kept for a lock too), so only a claim
+  // whose tab closed or crashed lapses; ended only by this claimant.
+  const renewal = setInterval(
+    () => void handle.claimConfirmed(settled, claimant).catch(() => undefined),
+    CONFIRMING_RENEW_MS,
   );
-  if (!told) return delivery;
-  await handle.settleConfirmed(settled, true);
-  return "delivered";
+  let delivery: ConfirmationDelivery = "pending";
+  const end = async (delivered: boolean) => {
+    clearInterval(renewal);
+    await handle.settleConfirmed(settled, delivered, claimant);
+  };
+  try {
+    const told = await tellKept(
+      action,
+      () => action.onConfirmed?.(call, step, receipt),
+      async (applied) => {
+        delivery = applied ? "delivered" : "undelivered";
+        await end(applied);
+      },
+    );
+    if (!told) return delivery;
+    await end(true);
+    return "delivered";
+  } catch (error) {
+    clearInterval(renewal);
+    throw error;
+  }
 }
 
 /**
@@ -1221,10 +1238,15 @@ export async function completeReviewedStep(
       if (action.scope === undefined) return;
       const storage = deps.storage ?? createHeldWriteStorage();
       const scope = action.scope;
+      // Its journal entry by the reservation it saved (by the step its
+      // outcome saved, without one), never by the index of the action that
+      // completes it: a refreshed action's calls may be fewer.
       const sending = () => {
         const read = readReviewedSequence(scope, action.account, storage);
-        return read.record?.sending?.step === step &&
-          read.record.sending.reservation === reservation
+        const saved = read.record?.sending;
+        return saved &&
+          saved.reservation === reservation &&
+          (reservation !== undefined || saved.step === outcome.step)
           ? read
           : null;
       };

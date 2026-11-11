@@ -1761,25 +1761,32 @@ export function createWriteHold(
       /**
        * Claim the one `onConfirmed` notice of the settlement `settled` names,
        * under the call's lock: true for the first completion in any tab or
-       * run; a completion that loses it stays silent.
+       * run; a completion that loses it stays silent. `claimant` names the
+       * claim: claimed again by it while pending, it is renewed.
        */
-      async claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+      async claimConfirmed(
+        settled: { hash: Hex },
+        claimant: string = globalThis.crypto.randomUUID(),
+      ): Promise<boolean> {
         const result = await locked(
-          async () => recovery.claimConfirmedSettled(settled),
+          async () => recovery.claimConfirmedSettled(settled, claimant),
           true,
         );
         return result?.value === true;
       },
       /**
        * Ends a claimed notice under the call's lock: delivered, or given
-       * back (the site never got it) for a later completion to tell.
+       * back (the site never got it) for a later completion to tell. Only
+       * the claim `claimant` holds: another's is never ended.
        */
       async settleConfirmed(
         settled: { hash: Hex },
         delivered: boolean,
+        claimant: string,
       ): Promise<void> {
         await locked(
-          async () => recovery.settleConfirmedSettled(settled, delivered),
+          async () =>
+            recovery.settleConfirmedSettled(settled, delivered, claimant),
           true,
         );
       },
@@ -2380,18 +2387,24 @@ export function createWriteHold(
           : own.acknowledge(settled);
       },
       /** A settlement's notice is claimed where it was saved, found by its hash. */
-      claimConfirmed(settled: { hash: Hex }): Promise<boolean> {
+      claimConfirmed(
+        settled: { hash: Hex },
+        claimant?: string,
+      ): Promise<boolean> {
         return (legacySaving(settled.hash)?.handle ?? own).claimConfirmed(
           settled,
+          claimant,
         );
       },
       settleConfirmed(
         settled: { hash: Hex },
         delivered: boolean,
+        claimant: string,
       ): Promise<void> {
         return (legacySaving(settled.hash)?.handle ?? own).settleConfirmed(
           settled,
           delivered,
+          claimant,
         );
       },
       confirmation(settled: {

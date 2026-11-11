@@ -2757,6 +2757,109 @@ describe("useReviewedRun", () => {
     expect(confirmed).toHaveBeenCalledTimes(2);
   }, 20_000);
 
+  test("a sequence reopened with fewer calls closes on its own payment and leaves no journal: the next payment of its scope is not refused", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    let lagging = false;
+    chain.client.getTransactionReceipt.mockImplementation(async (args) => {
+      if (lagging) throw new Error("lagging node");
+      return read(args);
+    });
+    const action = {
+      follow: { timeoutMs: 0 },
+      calls: [approveCall(), payCall()],
+      scope: "pay:sequence",
+      // The node lags once the approval is confirmed.
+      onConfirmed: (_call: unknown, step: number) => {
+        if (step === 0) lagging = true;
+      },
+    };
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    await expect(run(action)).resolves.toMatchObject({
+      status: "receipt",
+      step: 1,
+    });
+    act(() => void seen.current!.dismiss());
+    await rendered(() => expect(seen.current!.busy).toBe(false));
+    act(() => void seen.current!.dismiss());
+    lagging = false;
+    const handle = openStepHold(deps.hold, ACCOUNT, false, payCall());
+    await vi.waitFor(
+      () => expect(handle.unacknowledgedSuccess()).toBeDefined(),
+      { timeout: 12_000 },
+    );
+    const sent = await Promise.all(
+      wallet.adapter.sendTransaction.mock.results.map(({ value }) => value),
+    );
+    expect(sent).toHaveLength(2);
+    // Reopened with only the payment (the approval now suffices).
+    await expect(run({ ...action, calls: [payCall()] })).resolves.toMatchObject(
+      { status: "done", hashes: sent },
+    );
+    expect(
+      findReviewedSequence(action.scope, ACCOUNT, { storage: deps.storage }),
+    ).toBeNull();
+    await rendered(() =>
+      expect(handle.unacknowledgedSuccess()).toBeUndefined(),
+    );
+    await expect(
+      run({ ...action, calls: [payCall(7n)] }),
+    ).resolves.toMatchObject({ status: "done" });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledTimes(3);
+  }, 20_000);
+
+  test("a delivery that outlasts the claim's bound keeps its claim: a reopen after it tells onConfirmed nothing more, then closes on it once delivered", async () => {
+    reviewUi();
+    const { chain, deps, wallet } = setup();
+    const read = chain.client.getTransactionReceipt.getMockImplementation()!;
+    chain.client.getTransactionReceipt.mockRejectedValue(new Error("lagging"));
+    let release!: () => void;
+    const stalled = new Promise<void>((resolve) => (release = resolve));
+    const onConfirmed = vi.fn(async () => {
+      if (onConfirmed.mock.calls.length === 1) await stalled;
+    });
+    const { seen, run } = harness({ ...deps, account: ACCOUNT });
+    const action = {
+      calls: [payCall()],
+      scope: "pay:ttl",
+      follow: { timeoutMs: 0 },
+      onConfirmed,
+    };
+    await expect(run(action)).resolves.toMatchObject({ status: "receipt" });
+    let reopened: Awaited<ReturnType<typeof run>> = null;
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    try {
+      chain.client.getTransactionReceipt.mockImplementation(read);
+      act(() => void globalThis.dispatchEvent(new Event("focus")));
+      await rendered(() => expect(onConfirmed).toHaveBeenCalledOnce());
+      act(() => seen.current!.reset());
+      // Six minutes of a delivery still running, renewed as it goes.
+      for (let minute = 0; minute < 6; minute += 1) {
+        vi.advanceTimersByTime(60_000);
+        await act(async () => {
+          await new Promise((resolve) => setImmediate(resolve));
+        });
+      }
+      // Its journal resumes it: followed, nothing sent or told again.
+      reopened = await run(action);
+      expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+      expect(onConfirmed).toHaveBeenCalledOnce();
+      expect(reopened).toMatchObject({ status: "receipt" });
+    } finally {
+      vi.useRealTimers();
+    }
+    // Delivered once it ends: the reopen it waited for ends done.
+    release();
+    await act(async () => {
+      await expect(
+        (reopened as { ended: () => Promise<unknown> }).ended(),
+      ).resolves.toMatchObject({ status: "done" });
+    });
+    expect(wallet.adapter.sendTransaction).toHaveBeenCalledOnce();
+    expect(onConfirmed).toHaveBeenCalledOnce();
+  }, 20_000);
+
   test("an approval whose onConfirmed was dropped is told before the payment is sent: a retry delivers it, then sends the payment once", async () => {
     const lapsing = lapsingLocksForTests();
     vi.stubGlobal("navigator", { locks: lapsing.locks });
@@ -2905,6 +3008,10 @@ describe("useReviewedRun", () => {
        * settlement, before it is reopened.
        */
       replaced: random() < 0.4,
+      /** A sequence's later runs bring only its last call (the approval suffices). */
+      shorter: random() < 0.3,
+      /** Its first onConfirmed runs past the claim's 5-minute bound. */
+      stallConfirm: random() < 0.3,
     }));
     // A sequence lapsing at each step, on each backend, refreshed or not.
     const sequences = (["lease", "native"] as const).flatMap((backend) =>
@@ -3017,6 +3124,8 @@ describe("useReviewedRun", () => {
       switchAt: "none" as "none" | "wallet" | "dismiss" | "first",
       lapseInConfirm: false,
       replaced: false,
+      shorter: false,
+      stallConfirm: false,
     };
     // Another intent's payment shown on the same runner after this one's
     // wait was dismissed and completed in the background, then reopened.
@@ -3121,6 +3230,30 @@ describe("useReviewedRun", () => {
         replaced: true,
       })),
     );
+    // A sequence whose payment's wait and view are dismissed, then reopened
+    // with only the payment; and a sequence whose approval's onConfirmed
+    // runs past the claim's bound while its lease lapses in the payment's
+    // wallet and its wait is dismissed: each backend.
+    const recoveries = (["lease", "native"] as const).flatMap((backend) => [
+      {
+        ...quiet,
+        backend,
+        shape: "sequence" as const,
+        dismiss: true,
+        reopen: true,
+        shorter: true,
+      },
+      {
+        ...quiet,
+        backend,
+        shape: "sequence" as const,
+        lapse: true,
+        unreadable: false,
+        dismiss: true,
+        dismissOnce: true,
+        stallConfirm: true,
+      },
+    ]);
     return [
       ...random$,
       ...sequences,
@@ -3132,6 +3265,7 @@ describe("useReviewedRun", () => {
       ...outcomes,
       ...owners,
       ...replaced,
+      ...recoveries,
     ].map((c, index) => ({
       ...c,
       index,
@@ -3139,7 +3273,7 @@ describe("useReviewedRun", () => {
   })();
 
   test.each(PROPERTY_CASES)(
-    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed, switch $switchAt, lapse in confirm $lapseInConfirm, replaced $replaced): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
+    "random interleaving $index ($backend, $shape, lapse $lapse at $lapseAt, refresh $refresh, unreadable $unreadable, recover in replay $recoverInReplay, dismiss $dismiss, reopen $reopen, dismiss in close $dismissInClose, acknowledged elsewhere $acknowledgedElsewhere, dismiss once $dismissOnce, ended in scope $endedInScope, lag last $lagLast, other intent $otherIntent, retry while recovering $retryWhileRecovering, concurrent completions $concurrentComplete, refreshed $refreshed, signed $signed, switch $switchAt, lapse in confirm $lapseInConfirm, replaced $replaced, shorter $shorter, stall confirm $stallConfirm): each step told in order with the call it sent, confirmed once before its acknowledgement, one send and one signing across dismiss and reopen, done with every hash and signature in order, every awaited end reached",
     async (c) => {
       const lapsing = lapsingLocksForTests();
       const native = nativeLocks();
@@ -3148,6 +3282,9 @@ describe("useReviewedRun", () => {
       });
       const other = () =>
         c.backend === "lease" ? lapsing.otherTab() : browserLocks();
+      // Its stalled onConfirmed moves the clock and the claim's renewals.
+      if (c.stallConfirm)
+        vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
       try {
         reviewUi();
         const context = setup();
@@ -3163,9 +3300,26 @@ describe("useReviewedRun", () => {
             ? [payCall()]
             : [approveCall(), payCall()];
         /** What every run after the first brings. */
-        const later = refreshing
-          ? [{ ...payCall(11n), intent: "pay:prop" }]
-          : calls;
+        /**
+         * What a run after the first brings. A reopen of a sequence whose
+         * payment already went through brings only the payment (the
+         * approval suffices); any other run with fewer calls is refused
+         * while its journal is unfinished, as `useReviewedRun` documents.
+         */
+        const laterCalls = (reopening = false) =>
+          refreshing
+            ? [{ ...payCall(11n), intent: "pay:prop" }]
+            : reopening &&
+                c.shorter &&
+                c.shape === "sequence" &&
+                !!openStepHold(
+                  deps.hold,
+                  ACCOUNT,
+                  false,
+                  calls[last],
+                ).unacknowledgedSuccess()
+              ? calls.slice(-1)
+              : calls;
         const signs = c.signed && c.shape !== "safe";
         const SIGNATURE = `0x${"5e".repeat(65)}` as const;
         const signing = signs
@@ -3297,6 +3451,7 @@ describe("useReviewedRun", () => {
         const { seen, run } = mounted;
         switchAccount = mounted.switchAccount;
         let lapsedInConfirm = false;
+        let stalled = false;
         const tries = new Map<number, number>();
         const sleep = (ms: number) =>
           new Promise((resolve) => setTimeout(resolve, ms));
@@ -3314,6 +3469,15 @@ describe("useReviewedRun", () => {
           onConfirmed: async (call: { data: string }, step: number) => {
             await lock.assertHeld();
             await sleep(c.confirmMs);
+            // Six minutes pass while it runs: its claim renewed as it goes.
+            if (c.stallConfirm && !stalled) {
+              stalled = true;
+              for (let minute = 0; minute < 6; minute += 1) {
+                vi.advanceTimersByTime(60_000);
+                await new Promise((resolve) => setImmediate(resolve));
+                await sleep(20);
+              }
+            }
             // The lease lapses while it is paused, before its last fence.
             if (c.lapseInConfirm && !lapsedInConfirm) {
               lapsedInConfirm = true;
@@ -3327,7 +3491,7 @@ describe("useReviewedRun", () => {
         const runOnce = (
           before?: () => Promise<void>,
           endInScope = c.endedInScope,
-          bringing = later,
+          bringing = laterCalls(),
         ) =>
           browserLocks().request("pay", async (lock) => {
             await before?.();
@@ -3340,30 +3504,42 @@ describe("useReviewedRun", () => {
               locks: [lock!],
               ...site(lock!),
             });
+            journalGone(result);
             if (!endInScope || result?.status !== "receipt")
               return result as unknown;
             // Awaited inside the scope, its node reading again: it ends,
             // with no dismiss.
             recover();
             return Promise.race([
-              result.ended(),
+              result.ended().then((ended) => (journalGone(ended), ended)),
               sleep(8_000).then(() => "stuck" as const),
             ]);
           });
         /** A reopen in the same tab, by a site that takes no lock. */
         const reopened: Promise<unknown>[] = [];
+        /** Every done leaves no journal of its scope. */
+        function journalGone(result: unknown) {
+          if (
+            scope !== undefined &&
+            (result as { status?: string } | null)?.status === "done" &&
+            findReviewedSequence(scope, ACCOUNT, { storage: deps.storage })
+          )
+            violations.push(`done with its journal left: ${told}`);
+        }
         const reopen = () =>
           act(
             () =>
               void reopened.push(
-                seen.current!.run({
-                  ...HANDED_BACK,
-                  ...signing,
-                  calls: later,
-                  ...(safe ? { batch: true } : {}),
-                  ...(scope ? { scope } : {}),
-                  ...site({ assertHeld: async () => {} }),
-                }),
+                seen
+                  .current!.run({
+                    ...HANDED_BACK,
+                    ...signing,
+                    calls: laterCalls(true),
+                    ...(safe ? { batch: true } : {}),
+                    ...(scope ? { scope } : {}),
+                    ...site({ assertHeld: async () => {} }),
+                  })
+                  .then((result) => (journalGone(result), result)),
               ),
           );
         // A retry's first run leaves its follow recovering behind it.
@@ -3691,6 +3867,7 @@ describe("useReviewedRun", () => {
                 ),
               ).toEqual(sent);
       } finally {
+        vi.useRealTimers();
         vi.unstubAllGlobals();
       }
     },

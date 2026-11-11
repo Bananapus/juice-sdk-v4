@@ -358,10 +358,12 @@ const budgets = {
     // own-reservation and dismissed-step rules and attachHash's hashCheck:
     // 1,863,423 B packed, 24,749,620 B unpacked. With the forward-only
     // ownership merge (react/ownership): 1,887,652 B packed, 24,856,127 B
-    // unpacked, 1,915 entries.
-    packed: 1_890_000,
-    unpacked: 24_866_000,
-    entries: 1_920,
+    // unpacked, 1,915 entries. With claimant-renewed confirmation claims
+    // (review/confirming): 1,890,953 B packed, 24,867,801 B unpacked, 1,923
+    // entries.
+    packed: 1_895_000,
+    unpacked: 24_880_000,
+    entries: 1_930,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
