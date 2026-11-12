@@ -1,5 +1,11 @@
 # juice-sdk-core
 
+## 6.4.0
+
+### Minor Changes
+
+- 752151e: Expose pure modeled V6 operation outcome verification for Center and Signa, sharing canonical protocol event interpretation without server transport, credentials or account state.
+
 ## 6.3.1
 
 ### Patch Changes
