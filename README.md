@@ -1513,8 +1513,8 @@ a settlement guarantee.
 
 ### Prerequisites
 
-- Node.js 22.23.4 (`nvm use` reads the repository pin)
-- npm 10.9.9
+- Node.js 26.13.1 (`nvm use` reads the repository pin)
+- npm 11.20.0
 
 ### Setup
 
