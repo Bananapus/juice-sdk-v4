@@ -296,3 +296,22 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - Final release checks: all-workspace source/test type-check passed (6/6 uncached Turbo tasks); full coverage passed with core 3,844, React 165 and connect 35 tests; examples passed 5/5; final aggregate build passed (3/3 uncached tasks). Node 22.23.4/npm 10.9.9, serial package execution, at most two Vitest workers and exact CI deployment artifact revisions. Dependency graph, production audit (zero vulnerabilities) and committed-schema GraphQL generation also passed.
 - Coverage remains at the existing floors: core 96.25% lines/statements, 96.17% branches and 99.26% functions. The extracted verifier itself has 31.12% line and 64.28% branch coverage in its 21 owner tests; permanent Center/Signa semantic suites plus the exact differential checks provide broader extraction evidence. No thresholds were lowered.
 - Final build comparison found identical runtime files and verifier declarations across the existing candidate's 1,931 entries. Four existing declaration files differ only in equivalent TypeScript union-member ordering; the integration candidate remains unchanged. Full packed-candidate consumer checks and the separately authorized SDK release remain pending.
+
+## SDK build runtime Node 26.13.1 (2026-11-12)
+
+## Plan refinement
+
+- **Objective:** Upgrade the SDK's development, CI and release runtime to exact Node 26.13.1 with bundled npm 11.20.0, as requested; preserve published library versions, consumer compatibility and dependency resolutions.
+- **System fit:** The private workspace owns build-tool pins, existing CI proves the unchanged SDK on the new runtime, and the normal reviewed PR path updates release tooling. Root owns the eventual merge; no changeset, package publication or service deployment is introduced.
+- **Reuse and simplicity:** Reuse .nvmrc, packageManager, private workspace engines and existing workflow npm assertions. Update current contributor docs and lock-root engine metadata only; retain every library manifest, source file and dependency entry.
+- **Evidence and unknowns:** Fresh main is 7fce09a6c765c516ff3a67369e2c567bbb3b09aa. The official temporary Node 26.13.1 binary reports npm 11.20.0. Existing published artifacts and consumer gates are already verified; compatibility of this SDK toolchain change must be demonstrated by normal CI, not inferred from the version number.
+- **Verification:** Run the plan checker, inspect the bounded diff, assert all non-root lock entries and published package/source paths are unchanged, and run formatting checks. Require exact-head normal PR CI, including locked install, audit, protocol/generated boundaries, coverage, types, builds, examples and package budgets. Replan on failures or changed generated output; coordinate any heavy local diagnosis with root.
+- **Resource budget:** One isolated current-main worktree and one focused PR. Prefer required remote CI over competing local full builds. Do not repeat seven consumer gates for unchanged SDK source/dependencies unless new evidence warrants them; no dependency upgrades or speculative test infrastructure.
+
+- [x] Update private workspace runtime pins and active contributor documentation.
+- [ ] Verify unchanged dependency/library scope and required exact-head CI.
+- [ ] Commit and open a reviewable PR for root, with final validation evidence.
+
+### Local review
+
+The diff changes eight files: private tooling pins, both workflow npm assertions, current contributor docs and this record. JSON comparison confirms every dependency resolution and non-root lock entry is unchanged; all published package manifests, source, generated bindings, tests and changesets are unchanged. Node 26.13.1 reports bundled npm 11.20.0. Formatting and whitespace checks pass after normalizing one extra blank line in this plan. Independent read-only review found no issues. Normal exact-head CI remains the release gate; no local install or heavy build was started.
