@@ -15,7 +15,7 @@ import {
   canonicalSafeTxHash,
   hasSafeService,
   listPendingSafeTransactions,
-  nextProposalNonce,
+  proposalNonceChoices,
   proposeSafeTransaction,
   readSafeTransaction,
   requireSafeExecutionSuccess,
@@ -175,9 +175,11 @@ async function signAsOwner(
  * Proposes `calls` to `safe`'s owners through Safe's transaction service: one
  * zero-refund Safe transaction, a CALL for one call or a MultiSendCallOnly
  * batch for several, signed by the connected owner after one review. It takes
- * the nonce after everything already queued. A queued proposal of exactly
- * these calls is confirmed instead, or, when this owner already confirmed it,
- * returned as it is.
+ * the nonce after everything already queued, or `nonce`, one of
+ * `proposalNonceChoices`: a queued nonce offers this proposal as a replacement
+ * of what is queued there. A queued proposal of exactly these calls (at
+ * `nonce`, when given) is confirmed instead, or, when this owner already
+ * confirmed it, returned as it is.
  *
  * Mirrors jbm `src/lib/safe.ts` `runSafeCalls` (service path), `proposeSafeTx`
  * and `signSafeTx` (`:331-420`).
@@ -194,6 +196,8 @@ export async function proposeReviewedSafeTransaction(
     service?: SafeServiceOptions;
     /** A plan already reviewed with these calls from `safe` (`reviewPlan`): nothing is asked. */
     plan?: ReviewedPlan;
+    /** The Safe nonce to propose at, one of `proposalNonceChoices`. Default: the next free one. */
+    nonce?: number;
   },
   deps: ReviewedSendDeps,
 ): Promise<{ safeTxHash: Hex }> {
@@ -233,7 +237,18 @@ export async function proposeReviewedSafeTransaction(
       ? safeProposalFor(calls[0], nonce)
       : safeBatchProposalFor(calls, nonce);
   const shape = safeTransactionMessage(build(state.nonce));
-  const queued = pending.find((tx) => safeTransactionMatchesCall(tx, shape));
+  const choices = proposalNonceChoices(state.nonce, pending);
+  if (input.nonce !== undefined && !choices.includes(input.nonce)) {
+    throw new Error(
+      `Safe nonce ${input.nonce} is not available. Nothing was proposed; pick ${choices.join(", ")}.`,
+    );
+  }
+  const nonce = input.nonce ?? choices[choices.length - 1];
+  const queued = pending.find(
+    (tx) =>
+      safeTransactionMatchesCall(tx, shape) &&
+      (input.nonce === undefined || Number(tx.nonce) === nonce),
+  );
   if (queued) {
     const confirmed = usableSafeConfirmations(
       queued,
@@ -255,7 +270,12 @@ export async function proposeReviewedSafeTransaction(
       deps,
     );
   }
-  const nonce = nextProposalNonce(state.nonce, pending);
+  // What a chosen nonce knowingly replaces: anything queued there since is new.
+  const replaced = new Set(
+    pending
+      .filter((other) => Number(other.nonce) === nonce)
+      .map((other) => other.safeTxHash),
+  );
   const tx = build(nonce);
   const safeTxHash = safeTransactionHash(chainId, safe, tx);
   const signature = await signAsOwner(
@@ -275,7 +295,12 @@ export async function proposeReviewedSafeTransaction(
           state.nonce,
           service,
         );
-        if (since.some((other) => other.nonce === nonce)) {
+        if (
+          since.some(
+            (other) =>
+              Number(other.nonce) === nonce && !replaced.has(other.safeTxHash),
+          )
+        ) {
           throw new Error(
             `Another proposal took Safe nonce ${nonce} during review. Nothing was proposed; review it again.`,
           );

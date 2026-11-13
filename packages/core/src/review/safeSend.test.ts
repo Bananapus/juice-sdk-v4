@@ -247,6 +247,32 @@ describe("proposeReviewedSafeTransaction", () => {
     });
   });
 
+  it("proposes at a chosen queued nonce as a replacement, and refuses any other", async () => {
+    const { wallet, deps } = signing();
+    const queued = service([transferTx({ nonce: 4 })]);
+    reviewUi();
+    const input = {
+      chainId: 10,
+      safe: SAFE,
+      calls: [payCall()],
+      service: queued.options,
+    };
+    await proposeReviewedSafeTransaction({ ...input, nonce: 4 }, deps);
+    const [signed] = wallet.adapter.signTypedData.mock.calls[0];
+    expect(signed.message).toMatchObject({ to: TERMINAL, nonce: 4n });
+    expect(queued.posts()[0].body).toMatchObject({ nonce: "4" });
+
+    // A gap, or a nonce the Safe has passed, can never execute.
+    for (const nonce of [3, 6]) {
+      await expect(
+        proposeReviewedSafeTransaction({ ...input, nonce }, deps),
+      ).rejects.toThrow(
+        `Safe nonce ${nonce} is not available. Nothing was proposed; pick 4, 5.`,
+      );
+    }
+    expect(queued.posts()).toHaveLength(1);
+  });
+
   it("confirms a queued proposal of the same calls instead of proposing it twice", async () => {
     const { wallet, deps } = signing();
     const call = payCall();

@@ -27,6 +27,7 @@ import {
   hasSafeService,
   listPendingSafeTransactions,
   nextProposalNonce,
+  proposalNonceChoices,
   onchainApprovalStep,
   parseSafeCreationPayload,
   proposeSafeTransaction,
@@ -955,6 +956,14 @@ describe("Safe proposals", () => {
     expect(() => nextProposalNonce(5, [{ nonce: Number.NaN }])).toThrow(
       "The Safe transaction's nonce is invalid: NaN.",
     );
+  });
+
+  it("offers each queued nonce from the Safe's own on, then the next free one", () => {
+    expect(proposalNonceChoices(5, [])).toEqual([5]);
+    expect(
+      proposalNonceChoices(5, [{ nonce: 7 }, { nonce: 5 }, { nonce: 5 }]),
+    ).toEqual([5, 7, 8]);
+    expect(proposalNonceChoices(9, [{ nonce: 5 }])).toEqual([9]);
   });
 
   it("lets the owner who completes the threshold execute instead of approving", () => {

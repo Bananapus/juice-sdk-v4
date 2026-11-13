@@ -1671,6 +1671,26 @@ describe("split group decoding", () => {
     );
   });
 
+  it("names the hook as the recipient of a split with no beneficiary", () => {
+    const steps = describeSplitGroups(BASE, [
+      {
+        groupId: 1n,
+        splits: [
+          {
+            ...split,
+            percent: 1_000_000_000,
+            beneficiary: zeroAddress,
+            hook: HOOK,
+          },
+        ],
+      },
+    ])!;
+    expect(rowsOf(steps)).toEqual([
+      `Split 1 — 100%=hook ${HOOK}`,
+      "Total=100%",
+    ]);
+  });
+
   it("names payout groups, hooks, locks and add-to-balance", () => {
     const lockedUntil = 1_900_000_000;
     const steps = describeSplitGroups(BASE, [
