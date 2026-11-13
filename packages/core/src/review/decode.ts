@@ -1434,6 +1434,14 @@ export function describeSplitGroups(
         (group.groupId !== 1n ||
           split.beneficiary.toLowerCase() === zeroAddress ||
           validateStickyGroupId(split.projectId) !== null);
+      const hooked =
+        typeof split.hook === "string" &&
+        split.hook.toLowerCase() !== zeroAddress;
+      // A hook with no project and no beneficiary is the split's only recipient.
+      const hookOnly =
+        hooked &&
+        split.projectId === 0n &&
+        split.beneficiary.toLowerCase() === zeroAddress;
       const parts = [
         collector
           ? collectorInvalid
@@ -1443,7 +1451,9 @@ export function describeSplitGroups(
             ? `${describeStickySplit({ projectId: split.projectId })} → Sticky token ${addressLabel(chainId, split.beneficiary)}`
             : split.projectId !== 0n
               ? `project #${split.projectId} (beneficiary ${split.beneficiary})`
-              : addressLabel(chainId, split.beneficiary),
+              : hookOnly
+                ? `hook ${addressLabel(chainId, split.hook as string)}`
+                : addressLabel(chainId, split.beneficiary),
       ];
       if (collector) {
         parts.push(
@@ -1451,10 +1461,7 @@ export function describeSplitGroups(
         );
       } else if (sticky) {
         parts.push(`via StickyDistributor ${split.hook}`);
-      } else if (
-        typeof split.hook === "string" &&
-        split.hook.toLowerCase() !== zeroAddress
-      ) {
+      } else if (hooked && !hookOnly) {
         parts.push(`via hook ${split.hook}`);
       }
       if (split.preferAddToBalance === true) {
