@@ -494,6 +494,7 @@ describe("published core SDK surfaces", () => {
       "nextProposalNonce",
       "onchainApprovalStep",
       "parseSafeCreationPayload",
+      "proposalNonceChoices",
       "proposeSafeTransaction",
       "provenSafeProposalEnd",
       "readSafeAppExecution",

@@ -1837,6 +1837,24 @@ export function nextProposalNonce(
 }
 
 /**
+ * The nonces a new proposal may take, ascending: each nonce already queued
+ * from the Safe's own on, where it is offered as a replacement, then
+ * {@link nextProposalNonce}. Nothing below the Safe's nonce and no gap.
+ */
+export function proposalNonceChoices(
+  currentNonce: number,
+  pending: readonly Pick<SafeQueuedTransaction, "nonce">[],
+): number[] {
+  const current = nonceOf(currentNonce);
+  const queued = pending
+    .map((tx) => nonceOf(tx?.nonce))
+    .filter((nonce) => nonce >= current);
+  return [...new Set([...queued, nextProposalNonce(current, pending)])].sort(
+    (left, right) => left - right,
+  );
+}
+
+/**
  * The next onchain step for `account` on a chain with no Safe service. Safe
  * counts the executing owner as a signature, so the owner who would complete
  * the threshold executes instead of approving first.
