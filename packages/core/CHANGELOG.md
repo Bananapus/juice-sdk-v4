@@ -1,5 +1,15 @@
 # juice-sdk-core
 
+## 6.5.0
+
+### Minor Changes
+
+- 838b229: Safe proposals: `proposeReviewedSafeTransaction` takes an optional `nonce`, one of the new `proposalNonceChoices` (each queued nonce from the Safe's own on, then the next free one). A queued nonce offers the proposal as a replacement. The default stays the next free nonce.
+
+### Patch Changes
+
+- 838b229: Review: a split with a hook and no beneficiary or project reads as `hook <address>` instead of the zero address followed by `via hook`.
+
 ## 6.4.0
 
 ### Minor Changes
