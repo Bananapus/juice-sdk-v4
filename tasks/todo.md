@@ -377,6 +377,14 @@ The diff changes eight files: private tooling pins, both workflow npm assertions
 - **Verification:** Run root format:ratchet, focused affected tests, full core tests with2workers and unchanged deadlines, types, builds and relevant root gates. Repack core and report exact hash; root validates every required consumer before publishing.
 - **Resource budget:** Reuse unchanged exact-lock dependency tree, return combined artifact promptly after build, and coordinate heavy tests with root to avoid concurrent host-load failures.
 
-- [ ] Merge current origin/main without rebase or force.
+- [x] Merge current origin/main without rebase or force.
 - [ ] Format journal, run gates and build combined candidate.
 - [ ] Commit and push PR fixes; root owns merge and release.
+
+### Combined candidate and CI preparation
+
+- Merged a6b690f normally into the Safe proxy branch at85b2e33 after journal formatting fix9659b90. Both minor changesets and all PR307 helpers remain present. Lockfile and dependencies are unchanged.
+- Combined ESM/CJS candidate: /tmp/sdk-safe-api-combined-candidate/bananapus-nana-sdk-core-6.5.0.tgz, SHA25691b1f6405530cf81760b28622f572f1b9ced87ea306577078c07cf388087eb41. Parent distributes this exact artifact for all required consumer checks.
+- Root format:ratchet, deps:check, wallet:check, dead-code:check, pinned protocol parity and GraphQL generation checks passed. Focused combined regressions passed243 tests across9 files. Full local SDK suite was stopped for exclusive consumer test slots; exact-head cloud CI remains the complete release gate.
+- Measured combined artifact1,938,367 B packed /25,165,777 B unpacked /1,939 entries. Relative to PR307, Safe routing adds4,475 B packed and22,847 B unpacked with no new files or dependencies. Updated only core packed/unpacked limits to1,945,000 /25,190,000, retaining6,633 /24,223 B of headroom for generated release notes. Browser import and entry-count limits are unchanged.
+- Root type-check requires build-time pinned contract checkout paths, unlike the direct package compile. Set PROTOCOL_DEPLOYMENTS_DIR to deploy-all-main8ff50c2 and STICKY_DEPLOYMENTS_DIR to isolated sticky-sdk-safe-source fce29cc for local root gates.

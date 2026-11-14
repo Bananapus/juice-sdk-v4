@@ -367,8 +367,11 @@ const budgets = {
     // Permit2 pay authorization and the project hook resolvers (v6/projectHooks,
     // one module/eight artifacts), with no dependencies: measured 1,933,892 B
     // packed, 25,142,930 B unpacked, 1,939 entries.
-    packed: 1_940_000,
-    unpacked: 25_160_000,
+    // Trusted Safe proxy routing, scoped headers and quota diagnostics add no
+    // files or dependencies: measured 1,938,367 B packed, 25,165,777 B unpacked,
+    // 1,939 entries. Keep a small margin for the combined minor's release notes.
+    packed: 1_945_000,
+    unpacked: 25_190_000,
     entries: 1_939,
   },
   "@bananapus/nana-sdk-react": {
