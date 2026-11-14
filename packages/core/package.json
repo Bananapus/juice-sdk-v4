@@ -56,6 +56,11 @@
       "import": "./dist/esm/review/decode.js",
       "require": "./dist/cjs/review/decode.js"
     },
+    "./review/contract-audit": {
+      "types": "./dist/esm/review/contractAudit.d.ts",
+      "import": "./dist/esm/review/contractAudit.js",
+      "require": "./dist/cjs/review/contractAudit.js"
+    },
     "./review/relayr": {
       "types": "./dist/esm/review/relayr.d.ts",
       "import": "./dist/esm/review/relayr.js",

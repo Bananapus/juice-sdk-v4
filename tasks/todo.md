@@ -14,7 +14,7 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - [x] Permit2 pay: `addToHookMetadata`, `readPermit2PayAuthorization`, `planErc20PayAuthorization`, `addPermit2PayMetadata`, tests
 - [x] `resolveProjectBuybackHook` (direction aware, omnichain and REVOwner aware, every hook generation), `resolveProjectRouterTerminal` (directory gated)
 - [x] revnet cash out fee: `revnetCashOutFeeApplies`, `cashOutCountAfterRevnetFee`, `getCashOutQuote` option
-- [ ] `.jb` draft format: held for jango's answer on the canonical schema, ships in a later release
+- [x] `.jb` draft format, version 2 (rulings of 2026-11-14, for 6.8.0): `v6/jbDraft.ts` holds the schema, the strict reader with defaults for keys left out, the per-kind rules and the empty-row helpers; each site maps its own form and refuses what it cannot express with `jbDraftUnsupported`. `jbDraft.vectors.json` pins the format; Juicescan runs the same vectors against its hand port. No version 1 import.
 - [x] changeset, `npm run check` (exit 0), pack, Codex passes (pass 1 four findings fixed, pass 2 one fixed, pass 3 clean), live Permit2 pay simulation on Base (multi terminal and router registry succeed, three controls revert)
 - [ ] every consumer green on the packed tarball: juicebox.money pay suites pass, full checks of juicebox.money and revnet.money still to run
 

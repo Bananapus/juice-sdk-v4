@@ -14,7 +14,11 @@ import {
   type DecodeAbiParametersReturnType,
   type Hex,
 } from "viem";
-import { SPLITS_TOTAL_PERCENT, USDC_ADDRESSES } from "../pureConstants.js";
+import {
+  CROPTOP_DEPLOYER_ADDRESS,
+  SPLITS_TOTAL_PERCENT,
+  USDC_ADDRESSES,
+} from "../pureConstants.js";
 import { defifaDeployments } from "../v6/defifaDeployments.js";
 import { hookMetadataId } from "../utils/hook.js";
 import { jbBuybackHookAbi } from "../generated/abi/jbBuybackHookAbi.js";
@@ -120,6 +124,15 @@ function namedAddresses(): Map<string, string> {
     }
   }
   add(USDC_ADDRESSES, "USDC");
+  add(
+    Object.fromEntries(
+      Object.keys(USDC_ADDRESSES).map((chainId) => [
+        chainId,
+        CROPTOP_DEPLOYER_ADDRESS,
+      ]),
+    ) as AddressTable,
+    "CTDeployer",
+  );
   add(
     UNISWAP_V4_UNIVERSAL_ROUTER_ADDRESSES as AddressTable,
     "Uniswap Universal Router",
