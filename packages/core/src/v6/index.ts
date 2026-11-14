@@ -11,6 +11,7 @@ export * from "./terminals.js";
 export * from "./pay.js";
 export * from "./priceFeeds.js";
 export * from "./permit2.js";
+export * from "./projectHooks.js";
 export * from "./projectPayers.js";
 export * from "./cashOut.js";
 export {

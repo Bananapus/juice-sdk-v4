@@ -1,6 +1,10 @@
 import { encodeAbiParameters, keccak256, toBytes } from "viem";
 import { describe, expect, test } from "vitest";
-import { createHookMetadata, hookMetadataId } from "./hook.js";
+import {
+  addToHookMetadata,
+  createHookMetadata,
+  hookMetadataId,
+} from "./hook.js";
 
 /**
  * Expected bytes captured from `JBMetadataResolver.createMetadata` in
@@ -147,5 +151,84 @@ describe("hookMetadataId", () => {
     ).join("");
 
     expect(hookMetadataId(target, "cashOut")).toBe(`0x${expected}`);
+  });
+});
+
+describe("addToHookMetadata", () => {
+  const word = (n: number) => `0x${n.toString(16).padStart(64, "0")}`;
+  const ids = ["0x11111111", "0x22222222", "0x33333333"];
+  const datas = [word(1), `${word(2)}${word(3).slice(2)}`, word(4)];
+
+  test("appends an entry exactly as packing them together would", () => {
+    let metadata: string | undefined;
+    ids.forEach((id, i) => {
+      metadata = addToHookMetadata(metadata, id, datas[i]);
+      expect(metadata).toBe(
+        createHookMetadata(ids.slice(0, i + 1), datas.slice(0, i + 1)),
+      );
+    });
+  });
+
+  test("keeps earlier entries when the lookup table grows into a second word", () => {
+    // Six entries fill 30 bytes of table; the seventh spills into a new word.
+    const many = Array.from({ length: 7 }, (_, i) => `0x0000000${i + 1}`);
+    const payloads = many.map((_, i) => word(i + 10));
+    const built = many
+      .slice(0, 6)
+      .reduce<
+        string | undefined
+      >((metadata, id, i) => addToHookMetadata(metadata, id, payloads[i]), undefined);
+    expect(addToHookMetadata(built, many[6], payloads[6])).toBe(
+      createHookMetadata(many, payloads),
+    );
+  });
+
+  test("refuses malformed metadata instead of padding it into something valid", () => {
+    const good = createHookMetadata([ids[0]], [TWO_WORDS]);
+    const table = (entries: string) =>
+      `0x${"0".repeat(64)}${entries.padEnd(64, "0")}${word(1).slice(2)}`;
+    for (const bad of [
+      // A payload cut mid-word: padding it would flip `true` to `false`.
+      good.slice(0, -2),
+      // Cut inside the lookup table.
+      good.slice(0, 2 + 64 + 20),
+      // An offset pointing past the end.
+      table("1111111109"),
+      // An offset pointing into the table.
+      table("1111111101"),
+      // Offsets out of order.
+      `${table("11111111022222222202")}${word(2).slice(2)}`,
+    ])
+      expect(() => addToHookMetadata(bad, ids[1], datas[1])).toThrow(
+        "not well-formed",
+      );
+  });
+
+  test("keeps the reserved word, alone or ahead of entries, as the contract does", () => {
+    const reserved = "ab".repeat(32);
+    const fresh = createHookMetadata([ids[0]], [datas[0]]).slice(66);
+    // JBMetadataResolver.addToMetadata's short path: bytes32(original), then the one entry.
+    expect(addToHookMetadata(`0x${reserved}`, ids[0], datas[0])).toBe(
+      `0x${reserved}${fresh}`,
+    );
+    expect(addToHookMetadata(`0x${"0".repeat(64)}`, ids[0], datas[0])).toBe(
+      `0x${"0".repeat(64)}${fresh}`,
+    );
+    // A shorter one is left-aligned in its word, as bytes32(bytes) is.
+    expect(addToHookMetadata("0xabcd", ids[0], datas[0])).toBe(
+      `0xabcd${"0".repeat(60)}${fresh}`,
+    );
+    const two = createHookMetadata(ids.slice(0, 2), datas.slice(0, 2)).slice(
+      66,
+    );
+    expect(addToHookMetadata(`0x${reserved}${fresh}`, ids[1], datas[1])).toBe(
+      `0x${reserved}${two}`,
+    );
+  });
+
+  test("starts from empty metadata", () => {
+    expect(addToHookMetadata("0x", ids[0], datas[0])).toBe(
+      createHookMetadata([ids[0]], [datas[0]]),
+    );
   });
 });

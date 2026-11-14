@@ -1,3 +1,23 @@
+# Client parity rules into the SDK (2026-11-13)
+
+Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. jango's rulings of 2026-11-13: rules that lived in one client move here as the full general version (Juicescan ports inline), ERC-20 pays authorize through Permit2, one `.jb` draft format for the three clients.
+
+## Plan refinement
+
+- **Objective:** juicebox.money and revnet.money answer four questions from one SDK home each: what an ERC-20 pay needs from the payer (Permit2), which buyback hook and router terminal a project really uses, what a revnet cash out nets after the revnet fee, and how a `.jb` draft reads and writes. Success: both clients delete their own copies and their checks pass on the packed tarball.
+- **System fit:** Owners: `v6/permit2.ts` and `utils/hook.ts` (pay authorization and its metadata entry), `v6/pay.ts` and `v6/terminals.ts` (hook and router resolution, absorbing the private `directBuybackHookOf` and `resolvedBuybackHookOf`), `v6/cashOut.ts` (revnet fee), a new `v6/draft.ts` (`.jb`). Signing stays with `signReviewed({ kind: "permit2" })` and sending with the reviewed run; nothing here signs or sends. Consumers: jbm `PayPanel`, `MultiChainBuybackRouterCard`, `MarketSection`, `OwnersTab`, `lib/cashOut.ts`; revnet `V6PayCard`, `BuybackRouterCard`, `market/lib.ts`, `feeHelpers.ts`.
+- **Reuse and simplicity:** Reuses `permit2TypedData`, `readPermit2Allowance`, `shouldUsePermit2Signature`, `createHookMetadata`, `resolveRouterPath`, `isV6Deployment`, `getCashOutQuote`. New exports only where no home exists. The two revnet.money buyback resolvers and jbm's raw registry reads collapse into one function.
+- **Evidence and unknowns:** Contract sources read: `JBMultiTerminal._acceptFundsFor` and `_transferFrom` (1066-1110, 2053-2071), `JBRouterTerminalGateway._acceptFundsFor` (653-715), `JBRouterTerminal` `_PERMIT2_ID` (279, 1144), `JBMetadataResolver.getId` (287-298), `JBSingleAllowance`, `REVOwner.beforeCashOutRecordedWith` (242-444), `JBBuybackHookRegistry` (559-576), `JBOmnichainDeployer` (466, 487). Unknown: whether CTDeployer ever delegates to a buyback hook (treated as none, as both clients do today). Not yet proven live: a Permit2 pay against the deployed terminal; planned as a simulation with a state override before the clients ship.
+- **Verification:** Unit tests per export, written to fail without the rule (table rebuild equals packing together, tuple decodes as `JBSingleAllowance`, each resolution case in the research table, the contract's fee rounding `count - count/40`). `npm run check`, pack, both clients' full checks on the tarball, Codex passes until clean, then the live simulation.
+- **Resource budget:** One writer in `.worktrees/parity-sdk`, one release. Order: Permit2 pay, resolution, revnet fee, `.jb`. Replan if the reviewed run cannot carry a payment whose metadata is signed after review.
+
+- [x] Permit2 pay: `addToHookMetadata`, `readPermit2PayAuthorization`, `planErc20PayAuthorization`, `addPermit2PayMetadata`, tests
+- [x] `resolveProjectBuybackHook` (direction aware, omnichain and REVOwner aware, every hook generation), `resolveProjectRouterTerminal` (directory gated)
+- [x] revnet cash out fee: `revnetCashOutFeeApplies`, `cashOutCountAfterRevnetFee`, `getCashOutQuote` option
+- [ ] `.jb` draft format: held for jango's answer on the canonical schema, ships in a later release
+- [x] changeset, `npm run check` (exit 0), pack, Codex passes (pass 1 four findings fixed, pass 2 one fixed, pass 3 clean), live Permit2 pay simulation on Base (multi terminal and router registry succeed, three controls revert)
+- [ ] every consumer green on the packed tarball: juicebox.money pay suites pass, full checks of juicebox.money and revnet.money still to run
+
 # Lost-lock keep in one SDK home (2026-11-10)
 
 Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`, lesson "2026-11-10: Fix ordering, not interruptions" in `/Users/jango/Documents/jb/v6/evm/tasks/lessons.md` (lock fixtures grant asynchronously). Design base: 6.2.0 lock fencing (#295).

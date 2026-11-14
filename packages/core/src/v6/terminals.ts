@@ -185,6 +185,16 @@ export async function resolveRouterPath(
     };
   }
 
+  return routerPathOf(client, chainId, registry, terminal);
+}
+
+/** What a terminal on a router route is: a known gateway, a known router, or neither. */
+async function routerPathOf(
+  client: PublicClient,
+  chainId: JBChainId,
+  registry: Address,
+  terminal: Address,
+): Promise<ResolvedRouterPath> {
   if (isV6Deployment(terminal, "JBRouterTerminalGateway", chainId)) {
     const router = await client.readContract({
       address: terminal,
@@ -217,6 +227,72 @@ export async function resolveRouterPath(
     terminal,
     gateway: null,
     router: null,
+  };
+}
+
+/** A project's router route, and whether its directory reaches it through the registry. */
+export type ResolvedProjectRouterTerminal = ResolvedRouterPath & {
+  /** `registry`: the registry is one of the project's terminals. `direct`: a router or gateway is. */
+  via: "registry" | "direct" | "none";
+};
+
+/**
+ * The router route a project actually has, read from its own terminal list.
+ *
+ * `JBRouterTerminalRegistry.terminalOf` answers for every project, with a
+ * cohort default when nothing is pinned, so {@link resolveRouterPath} alone
+ * names a route for projects that never listed the registry. This reads
+ * `JBDirectory.terminalsOf` first:
+ *
+ * - the registry is listed: the registry's route (`via: "registry"`);
+ * - a gateway or router of any generation is listed instead: that terminal
+ *   (`via: "direct"`), the first one in the project's own order;
+ * - neither: `unresolved` with `via: "none"`.
+ *
+ * RPC failures propagate to the caller.
+ */
+export async function resolveProjectRouterTerminal(
+  client: PublicClient,
+  {
+    chainId,
+    projectId,
+  }: {
+    chainId: JBChainId;
+    projectId: bigint;
+  },
+): Promise<ResolvedProjectRouterTerminal> {
+  const registry = v6Address("JBRouterTerminalRegistry", chainId);
+  const terminals = await client.readContract({
+    address: v6Address("JBDirectory", chainId),
+    abi: jbDirectoryAbi,
+    functionName: "terminalsOf",
+    args: [projectId],
+  });
+  const same = (a: Address, b: Address) => a.toLowerCase() === b.toLowerCase();
+  if (terminals.some((terminal) => same(terminal, registry))) {
+    return {
+      ...(await resolveRouterPath(client, { chainId, projectId })),
+      via: "registry",
+    };
+  }
+  const listed = terminals.find(
+    (terminal) =>
+      isV6Deployment(terminal, "JBRouterTerminalGateway", chainId) ||
+      isV6Deployment(terminal, "JBRouterTerminal", chainId),
+  );
+  if (!listed) {
+    return {
+      status: "unresolved",
+      registry,
+      terminal: null,
+      gateway: null,
+      router: null,
+      via: "none",
+    };
+  }
+  return {
+    ...(await routerPathOf(client, chainId, registry, listed)),
+    via: "direct",
   };
 }
 
