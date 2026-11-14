@@ -1,6 +1,13 @@
-import type { Address, PublicClient } from "viem";
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  type Address,
+  type PublicClient,
+} from "viem";
+import { NATIVE_TOKEN } from "../constants.js";
 import type { JBChainId } from "../types.js";
 import {
+  buildPayTx,
   PaySwapQuoteFailedError,
   prepareUserPay,
   type PreparedUserPay,
@@ -14,7 +21,57 @@ import {
 export type PayRouteCandidate = { terminal: Address; type: "multi" | "router" };
 
 /** The prepared payment of the winning candidate. */
-export type BestUserPay = PreparedUserPay & PayRouteCandidate;
+export type BestUserPay = PreparedUserPay &
+  PayRouteCandidate & {
+    /**
+     * The project tokens the beneficiary received when this exact payment was
+     * run as a call from `simulateFrom`. Set only when every surviving
+     * candidate could be run, so the choice was made on these figures.
+     */
+    simulatedTokenCount?: bigint;
+  };
+
+/** A candidate's run: the tokens delivered, a revert, or null when it could not be run. */
+type Run = bigint | "reverted" | null;
+
+/**
+ * Run one prepared native-token payment as a call from `payer`, with its own
+ * metadata and minimum, funded for the call only. A terminal's preview is an
+ * estimate (a pool may not fill the order at the previewed price); the call
+ * returns what the payment would deliver in this block.
+ */
+async function runPay(
+  client: PublicClient,
+  args: {
+    chainId: JBChainId;
+    projectId: bigint;
+    token: Address;
+    amount: bigint;
+    beneficiary: Address;
+  },
+  route: BestUserPay,
+  payer: Address,
+): Promise<Run> {
+  try {
+    const { result } = await client.simulateContract({
+      ...buildPayTx({
+        ...args,
+        terminal: route.terminal,
+        minReturnedTokens: route.minReturnedTokens,
+        metadata: route.metadata,
+      }),
+      account: payer,
+      // The payer may not hold the amount yet: the balance is lent to this call alone.
+      stateOverride: [{ address: payer, balance: args.amount * 2n + 10n ** 18n }],
+    });
+    return typeof result === "bigint" ? result : null;
+  } catch (error) {
+    const reverted =
+      error instanceof BaseError &&
+      error.walk((cause) => cause instanceof ContractFunctionRevertedError);
+    return reverted ? "reverted" : null;
+  }
+}
 
 function isBetter(candidate: BestUserPay, current: BestUserPay): boolean {
   const ours = candidate.preview.beneficiaryTokenCount;
@@ -45,11 +102,19 @@ function isBetter(candidate: BestUserPay, current: BestUserPay): boolean {
  * can retry it instead of reading "no route".
  *
  * Send the payment to the returned `terminal`, with the ABI its `type` names.
+ *
+ * With `simulateFrom` on a native-token payment, each prepared candidate is
+ * also run as a call from that account. A candidate whose call reverts is
+ * dropped when another runs. When every remaining candidate ran, the one
+ * delivering the most tokens wins and carries `simulatedTokenCount`; when one
+ * could not be run (an RPC without call overrides), the previews decide as
+ * before. ERC-20 payments are not run: they need the payer's approval first.
  */
 export async function prepareBestUserPay(
   client: PublicClient,
   {
     candidates,
+    simulateFrom,
     ...args
   }: {
     chainId: JBChainId;
@@ -61,6 +126,7 @@ export async function prepareBestUserPay(
     tiers?: UserPayTiers;
     slippageBps?: bigint;
     skipSplits?: boolean;
+    simulateFrom?: Address;
   },
 ): Promise<BestUserPay | null> {
   let swapQuoteFailure: PaySwapQuoteFailedError | undefined;
@@ -80,9 +146,37 @@ export async function prepareBestUserPay(
       }
     }),
   );
+  let routes = prepared.filter((route): route is BestUserPay => !!route);
+  if (
+    simulateFrom &&
+    routes.length > 1 &&
+    args.token.toLowerCase() === NATIVE_TOKEN.toLowerCase()
+  ) {
+    const runs = await Promise.all(
+      routes.map((route) => runPay(client, args, route, simulateFrom)),
+    );
+    const ran = routes.filter((_, index) => typeof runs[index] === "bigint");
+    if (ran.length) {
+      const live = routes.filter((_, index) => runs[index] !== "reverted");
+      // Exact figures decide only when every candidate left has one.
+      if (live.length === ran.length) {
+        routes = ran.map((route) => ({
+          ...route,
+          simulatedTokenCount: runs[routes.indexOf(route)] as bigint,
+        }));
+      } else routes = live;
+    }
+  }
   let best: BestUserPay | null = null;
-  for (const route of prepared) {
-    if (route && (!best || isBetter(route, best))) best = route;
+  for (const route of routes) {
+    if (!best) best = route;
+    else if (
+      route.simulatedTokenCount !== undefined &&
+      best.simulatedTokenCount !== undefined &&
+      route.simulatedTokenCount !== best.simulatedTokenCount
+    ) {
+      if (route.simulatedTokenCount > best.simulatedTokenCount) best = route;
+    } else if (isBetter(route, best)) best = route;
   }
   if (!best && swapQuoteFailure) throw swapQuoteFailure;
   return best;

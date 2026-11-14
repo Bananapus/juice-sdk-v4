@@ -9,6 +9,7 @@ export * from "./distributions.js";
 export * from "./revnets.js";
 export * from "./terminals.js";
 export * from "./pay.js";
+export * from "./payNotice.js";
 export * from "./payRoute.js";
 export * from "./priceFeeds.js";
 export * from "./permit2.js";
