@@ -8,6 +8,7 @@ import {
   emptyJbDraftItem,
   emptyJbDraftSplit,
   emptyJbDraftStage,
+  jbDraftDecimal,
   jbDraftFileName,
   jbDraftUnsupported,
   parseJbDraft,
@@ -67,8 +68,8 @@ function sample(): JbDraft {
     ],
     shop: {
       currency: "eth",
-      collectionName: "",
-      collectionSymbol: "",
+      collectionName: "Sample shop",
+      collectionSymbol: "SHOP",
       preventOverspending: false,
       noNewTiersWithReserves: false,
       noNewTiersWithVotes: false,
@@ -194,6 +195,22 @@ describe(".jb draft v2", () => {
     expect(jbDraftUnsupported("revnet.money", "tags").message).toBe(
       "revnet.money can't launch this file: it has tags.",
     );
+  });
+
+  it("writes a typed number the way the format reads it, or refuses to write it", () => {
+    expect([".5", "5.", " 12.50 ", "", "007"].map(jbDraftDecimal)).toEqual([
+      "0.5",
+      "5",
+      "12.50",
+      "",
+      "7",
+    ]);
+    expect(jbDraftDecimal(undefined)).toBe("");
+    for (const typed of ["1e1", "1,000", "-1", ".", "abc"]) {
+      expect(() => jbDraftDecimal(typed)).toThrow(
+        `This draft has a number a .jb file can't hold: ${typed}.`,
+      );
+    }
   });
 
   it("hands out fresh empty rows", () => {
@@ -394,6 +411,99 @@ describe(".jb draft v2", () => {
       "stages[0].isuance",
     );
     expect(refused({ ...short, links: { site: "x" } })).toContain("links.site");
+  });
+
+  it("refuses what no site could launch as written", () => {
+    const base = { v: 2, kind: "project", chains: [1] };
+    const stage = (patch: object, more: object = {}) => ({
+      ...base,
+      ...more,
+      stages: [{ issuance: "1", ...patch }],
+    });
+    const revnet = (patch: object, more: object = {}) => ({
+      ...stage(patch, more),
+      kind: "revnet",
+    });
+    expect(refused(stage({}, { accepts: ["usdc", "eth"] }))).toContain(
+      "draft.accepts",
+    );
+    expect(refused(revnet({}, { anyToken: false }))).toContain(
+      "draft.anyToken",
+    );
+    expect(refused(stage({ issuance: "0.000000000000000001" }))).toContain(
+      "issuance",
+    );
+    expect(refused(stage({ issuance: "1.0000000000000000005" }))).toContain(
+      "issuance",
+    );
+    expect(refused(revnet({ cutPercent: "10", cutDays: "1.00002" }))).toContain(
+      "cutDays",
+    );
+    expect(
+      checkJbDraft(revnet({ cutPercent: "10", cutDays: "1.5" })).stages[0]
+        .cutDays,
+    ).toBe("1.5");
+    expect(
+      refused(
+        revnet({
+          autoIssuances: [{ count: "1", address: "a.eth", chainId: 8453 }],
+        }),
+      ),
+    ).toContain("autoIssuances[0].chainId");
+    const usdcAmount = (amount: string) =>
+      stage(
+        {
+          payouts: [
+            {
+              token: "usdc",
+              mode: "amounts",
+              splits: [{ amount, address: "a.eth" }],
+            },
+          ],
+        },
+        { accepts: ["usdc"] },
+      );
+    expect(refused(usdcAmount("0.1234567"))).toContain("splits[0].amount");
+    expect(checkJbDraft(usdcAmount("0.123456")).stages).toHaveLength(1);
+    expect(refused(stage({ issuance: "00.5" }))).toContain("issuance");
+    expect(refused(stage({ issuance: "5192296858534828" }))).toContain(
+      "issuance",
+    );
+    expect(
+      checkJbDraft(stage({ issuance: "5192296858534827" })).stages,
+    ).toHaveLength(1);
+    expect(
+      refused(
+        revnet({
+          autoIssuances: [
+            { count: "20282409603652", address: "a.eth", chainId: 1 },
+          ],
+        }),
+      ),
+    ).toContain("autoIssuances[0].count");
+    const toProject = (ids: object) =>
+      stage({
+        reserved: [{ to: "project", share: "10", address: "a.eth", ...ids }],
+      });
+    expect(
+      refused(toProject({ projectIdPerChain: { 1: "9007199254740993" } })),
+    ).toContain("projectId");
+    expect(refused(toProject({ projectId: "7.5" }))).toContain("projectId");
+    expect(
+      refused({
+        ...base,
+        stages: [{}],
+        shop: { items: [{ name: "Thing", price: "1" }] },
+      }),
+    ).toContain("shop.collectionName");
+    expect(
+      refused(
+        stage(
+          { surplusAllowance: { mode: "limited", amount: "0.1234567" } },
+          { accepts: ["usdc"] },
+        ),
+      ),
+    ).toContain("surplusAllowance.amount");
   });
 
   it("ties a Sticky group to a Sticky row", () => {

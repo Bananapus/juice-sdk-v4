@@ -372,10 +372,11 @@ const budgets = {
     // 1,939 entries. Keep a small margin for the combined minor's release notes.
     // The shared `.jb` draft format (v6/jbDraft: schema, strict reader, defaults,
     // per-kind rules) adds one module in ESM and CJS with types and maps, 8 files:
-    // measured 1,955,142 B packed, 25,281,819 B unpacked, 1,947 entries. The same
-    // small margin for release notes is kept.
-    packed: 1_962_000,
-    unpacked: 25_306_000,
+    // measured 1,958,794 B packed, 25,306,060 B unpacked, 1,947 entries once the
+    // rules a launch enforces (precision, field widths, revnet limits) moved into
+    // the reader. The same small margin for release notes is kept.
+    packed: 1_966_000,
+    unpacked: 25_330_000,
     entries: 1_947,
   },
   "@bananapus/nana-sdk-react": {

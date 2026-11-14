@@ -71,7 +71,8 @@ export type JbDraftStage = {
   startAt: number;
   /** A later project stage: after this many cycles of the one before. Empty when by date. */
   startAfterCycles: string;
-  /** A later revnet stage: days after the one before starts. */
+  /** A later revnet stage: days after the one before starts. A stage starts on a cut of
+   *  the one before, so every site rounds this up to that stage's `cutDays`. */
   startAfterDays: string;
   /** Project: cycle length in seconds, 0 for "until changed". Revnets have none. */
   duration: number;
@@ -224,6 +225,25 @@ export function jbDraftFileName(name: string, fallback = "project"): string {
   return `${slug || fallback}.jb`;
 }
 
+/**
+ * A number as a form holds it, written the way the format reads it: ".5" is "0.5", "5." is
+ * "5", and nothing typed stays "". Anything else (an exponent, a comma, a sign) throws, so a
+ * writer never drops a value the form would have launched with.
+ */
+export function jbDraftDecimal(value: unknown): string {
+  const typed = String(value ?? "").trim();
+  if (typed === "") return "";
+  if (!/^(?:\d+\.?\d*|\.\d+)$/.test(typed)) {
+    throw new JbDraftError(
+      `This draft has a number a .jb file can't hold: ${typed.slice(0, 40)}.`,
+    );
+  }
+  const [whole, fraction = ""] = typed.split(".");
+  // One spelling per number: no zeros ahead of it.
+  const lead = whole.replace(/^0+(?=\d)/, "") || "0";
+  return fraction ? `${lead}.${fraction}` : lead;
+}
+
 type Check<T> = (value: unknown, path: string) => T;
 
 function invalid(path: string): never {
@@ -238,7 +258,13 @@ const text =
 const decimal: Check<string> = (value, path) =>
   typeof value === "string" &&
   value.length <= 40 &&
-  /^\d*(?:\.\d*)?$/.test(value)
+  /^(?:(?:0|[1-9]\d*)(?:\.\d+)?)?$/.test(value)
+    ? value
+    : invalid(path);
+
+/** A count: a whole number a script holds exactly, or "" for none. */
+const count: Check<string> = (value, path) =>
+  typeof value === "string" && /^(?:0|[1-9]\d{0,14})?$/.test(value)
     ? value
     : invalid(path);
 
@@ -314,7 +340,14 @@ const chainMap =
     return out;
   };
 
-const address = text(64);
+/** An address, or a name that resolves to one (it has a dot), or "" for none. Anything
+ *  else, a bare number say, would be read as something other than an address. */
+const address: Check<string> = (value, path) =>
+  typeof value === "string" &&
+  value.length <= 64 &&
+  /^(?:0x[0-9a-fA-F]{40}|[^\s.]+(?:\.[^\s.]+)+)?$/.test(value)
+    ? value
+    : invalid(path);
 const addresses = chainMap(address);
 const decimals = chainMap(decimal);
 const currency = oneOf("eth", "usd", "token");
@@ -322,7 +355,7 @@ const currency = oneOf("eth", "usd", "token");
 const time = whole(0, 9_999_999_999);
 
 const supplyOnChain: Check<string> = (value, path) =>
-  value === "unlimited" ? value : decimal(value, path);
+  value === "unlimited" ? value : count(value, path);
 
 const split = shape<JbDraftSplit>({
   share: decimal,
@@ -348,7 +381,7 @@ const splits = list(split, 100);
 
 const stage = shape<JbDraftStage>({
   startAt: time,
-  startAfterCycles: decimal,
+  startAfterCycles: count,
   startAfterDays: decimal,
   duration: whole(0, 4_294_967_295),
   issuance: decimal,
@@ -407,15 +440,15 @@ const item = shape<JbDraftItem>({
   mediaType: text(100),
   metadataUri: uri,
   price: decimal,
-  supply: decimal,
+  supply: count,
   supplyPerChain: chainMap(supplyOnChain),
   excludedChains: list(chainId, MAX_CHAINS),
   discountPercent: decimal,
-  reserveEvery: decimal,
+  reserveEvery: count,
   reserveBeneficiary: address,
   reserveBeneficiaryPerChain: addresses,
   category: whole(0, 0xffffff),
-  votingUnits: decimal,
+  votingUnits: count,
   splits,
   allowOwnerMint: flag,
   transfersPausable: flag,
@@ -501,11 +534,57 @@ function checkKind(value: JbDraft): void {
   /** `token` means the custom token, so it needs one. */
   const money = (unit: JbDraftCurrency, path: string) =>
     bad(unit === "token" && !custom, path);
+  /** Digits after the point. The protocol stores each rate at a fixed precision, so a
+   *  value finer than it holds would launch as something else: the file is refused. */
+  const places = (text: string) => (text.split(".")[1] ?? "").length;
+  const rate = (text: string, max: number, finest: number, path: string) =>
+    bad(Number(text) > max || places(text) > finest, path);
+  /** Shares of one whole: each within what a split holds, together no more than 100. */
+  const shares = (rows: JbDraftSplit[], finest: number, path: string) => {
+    rows.forEach((row, index) =>
+      rate(row.share, 100, finest, `${path}[${index}].share`),
+    );
+    const total = rows.reduce(
+      (sum, row) => sum + Math.round(Number(row.share) * 1e7),
+      0,
+    );
+    bad(total > 100 * 1e7, path);
+  };
+  /** A price no finer than its currency counts: 18 places of ETH, 6 of USD. */
+  const price = (text: string, unit: JbDraftCurrency, path: string) =>
+    bad(places(text) > (unit === "usd" ? 6 : 18), path);
+  /** An amount no finer than its token counts: 6 places of USDC, 18 of anything else. A
+   *  custom token with fewer decimals is for the site that knows them to refuse. */
+  const amount = (text: string, token: Token | undefined, path: string) =>
+    bad(places(text) > (token === "usdc" ? 6 : 18), path);
+  /** A token count in its 18-place units, within what the protocol's field holds. */
+  const units = (text: string, bits: bigint, path: string) => {
+    bad(places(text) > 18, path);
+    const [whole, fraction = ""] = text.split(".");
+    bad(BigInt((whole || "0") + fraction.padEnd(18, "0")) >= 2n ** bits, path);
+  };
+  /** A project id is a whole number a script holds exactly. */
+  const projectIds = (row: JbDraftSplit, path: string) =>
+    [row.projectId, ...Object.values(row.projectIdPerChain)].forEach((id) =>
+      bad(!/^(?:[1-9]\d{0,14})?$/.test(id), `${path}.projectId`),
+    );
+  /** Days that are a whole number of seconds, so no site has to round them. */
+  const days = (text: string, path: string) =>
+    bad(
+      places(text) > 5 ||
+        (BigInt(text.replace(".", "") || "0") * 86_400n) %
+          10n ** BigInt(places(text)) !==
+          0n ||
+        // The protocol counts a cycle in 32 bits of seconds.
+        Number(text) * 86_400 > 4_294_967_295,
+      path,
+    );
   /** A row carries only what its kind uses, and a share or an amount, never both. */
   const eachSplit = (rows: JbDraftSplit[], path: string, amounts = false) =>
     rows.forEach((row, index) => {
       const at = `${path}[${index}]`;
       bad((row.to === "sticky") !== (row.sticky !== null), `${at}.sticky`);
+      projectIds(row, at);
       bad(row.to !== "hook" && row.hook !== "", `${at}.hook`);
       bad(row.to !== "project" && row.addToBalance, `${at}.addToBalance`);
       // A project row names a project. A hook row may pass one on to its hook.
@@ -525,8 +604,24 @@ function checkKind(value: JbDraft): void {
       bad(!amounts && hasEntries(row.amountPerChain), `${at}.amountPerChain`);
     });
   bad(custom && value.accepts.length > 1, "draft.accepts");
+  // One order for the accepted tokens, so no reader pairs a payout with the wrong one.
+  bad(value.accepts.join() === "usdc,eth", "draft.accepts");
+  // REVDeployer turns both of these off for every revnet's shop.
+  bad(
+    revnet && value.shop.issueTokensForSplits,
+    "draft.shop.issueTokensForSplits",
+  );
+  bad(revnet && value.shop.itemsRedeem, "draft.shop.itemsRedeem");
+  // A revnet's deployer takes any token through its router: a file cannot turn that off.
+  bad(revnet && !value.anyToken, "draft.anyToken");
   bad(new Set(value.accepts).size !== value.accepts.length, "draft.accepts");
   bad(new Set(value.chains).size !== value.chains.length, "draft.chains");
+  // A new Safe is the owner: a file names one or the other, never both.
+  bad(
+    value.safe !== null &&
+      (value.owner !== "" || hasEntries(value.ownerPerChain)),
+    "draft.safe",
+  );
   bad(revnet && value.afterMode !== "wait", "draft.afterMode");
   bad(revnet && value.approvalHook !== "", "draft.approvalHook");
   bad(
@@ -534,12 +629,52 @@ function checkKind(value: JbDraft): void {
     "draft.approvalHookPerChain",
   );
   money(value.shop.currency, "draft.shop.currency");
-  value.shop.items.forEach((entry, index) =>
-    eachSplit(entry.splits, `draft.shop.items[${index}].splits`),
+  // A shop with items launches under a name: each site would otherwise make up its own.
+  bad(
+    value.shop.items.length > 0 && value.shop.collectionName.trim() === "",
+    "draft.shop.collectionName",
   );
+  bad(
+    value.shop.items.length > 0 && value.shop.collectionSymbol.trim() === "",
+    "draft.shop.collectionSymbol",
+  );
+  value.shop.items.forEach((entry, index) => {
+    const at = `draft.shop.items[${index}]`;
+    eachSplit(entry.splits, `${at}.splits`);
+    shares(entry.splits, 7, `${at}.splits`);
+    price(entry.price, value.shop.currency, `${at}.price`);
+    // A discount is stored in halves of a percent.
+    bad(
+      !/^(?:\d+(?:\.[05])?)?$/.test(entry.discountPercent) ||
+        Number(entry.discountPercent) > 100,
+      `${at}.discountPercent`,
+    );
+  });
   value.stages.forEach((entry, index) => {
     const at = `draft.stages[${index}]`;
     money(entry.baseCurrency, `${at}.baseCurrency`);
+    // Issuance counts 18 places. The smallest amount is how the protocol says "keep the
+    // rate before", so a file cannot ask for it as a rate.
+    units(entry.issuance, 112n, `${at}.issuance`);
+    bad(/^0\.0{17}1$/.test(entry.issuance), `${at}.issuance`);
+    rate(entry.cashOutTax, 1, 4, `${at}.cashOutTax`);
+    days(entry.cutDays, `${at}.cutDays`);
+    days(entry.startAfterDays, `${at}.startAfterDays`);
+    amount(
+      entry.surplusAllowance.amount,
+      value.accepts.join() === "usdc" ? "usdc" : undefined,
+      `${at}.surplusAllowance.amount`,
+    );
+    entry.autoIssuances.forEach((row, n) => {
+      units(row.count, 104n, `${at}.autoIssuances[${n}].count`);
+      bad(
+        !value.chains.includes(row.chainId),
+        `${at}.autoIssuances[${n}].chainId`,
+      );
+    });
+    rate(entry.cutPercent, 100, 7, `${at}.cutPercent`);
+    // The reserved percent is stored in hundredths, and its rows add up to it.
+    shares(entry.reserved, 2, `${at}.reserved`);
     money(entry.surplusAllowance.currency, `${at}.surplusAllowance.currency`);
     eachSplit(entry.reserved, `${at}.reserved`);
     entry.payouts.forEach((payout, n) => {
@@ -553,6 +688,15 @@ function checkKind(value: JbDraft): void {
         `${at}.payouts[${n}].splits`,
         payout.mode === "amounts",
       );
+      payout.splits.forEach((row, r) => {
+        const split = `${at}.payouts[${n}].splits[${r}]`;
+        amount(row.amount, payout.token, `${split}.amount`);
+        Object.values(row.amountPerChain).forEach((text) =>
+          amount(text, payout.token, `${split}.amountPerChain`),
+        );
+      });
+      if (payout.mode === "all")
+        shares(payout.splits, 7, `${at}.payouts[${n}].splits`);
     });
     bad(index === 0 && entry.startAfterCycles !== "", `${at}.startAfterCycles`);
     bad(index === 0 && entry.startAfterDays !== "", `${at}.startAfterDays`);
@@ -588,6 +732,8 @@ function checkKind(value: JbDraft): void {
     bad(!entry.pause721Transfers, `${at}.pause721Transfers`);
     bad(!entry.useTotalSurplusForCashOuts, `${at}.useTotalSurplusForCashOuts`);
     bad(entry.ownerMustSendPayouts, `${at}.ownerMustSendPayouts`);
+    // REVDeployer takes a cash out tax under 1: a revnet always lets its holders out.
+    bad(Number(entry.cashOutTax) >= 1, `${at}.cashOutTax`);
     bad(Object.values(entry.powers).some(Boolean), `${at}.powers`);
   });
 }
@@ -800,7 +946,13 @@ function withJbDraftDefaults(source: Record<string, unknown>): unknown {
   const accepts = written.filter(
     (token): token is Token => token in TOKEN_CURRENCY,
   );
-  const { stages: _stages, ...defaults } = emptyJbDraft(kind, accepts);
+  // `v`, `kind` and `stages` are the file's to state: none of them is filled in.
+  const {
+    v: _v,
+    kind: _kind,
+    stages: _stages,
+    ...defaults
+  } = emptyJbDraft(kind, accepts);
   const filled = withDefaults(source, defaults) as Record<string, unknown>;
   filled.stages = eachOf(filled.stages, (entry) => {
     const stage = withDefaults(entry, emptyJbDraftStage(kind, accepts));
