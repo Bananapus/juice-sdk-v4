@@ -11,11 +11,12 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - **Verification:** Unit tests per export, written to fail without the rule (table rebuild equals packing together, tuple decodes as `JBSingleAllowance`, each resolution case in the research table, the contract's fee rounding `count - count/40`). `npm run check`, pack, both clients' full checks on the tarball, Codex passes until clean, then the live simulation.
 - **Resource budget:** One writer in `.worktrees/parity-sdk`, one release. Order: Permit2 pay, resolution, revnet fee, `.jb`. Replan if the reviewed run cannot carry a payment whose metadata is signed after review.
 
-- [x] Permit2 pay: `addToHookMetadata`, `readPermit2PayAuthorization`, `addPermit2PayMetadata`, tests
-- [ ] `resolveProjectBuybackHook` (direction aware, omnichain and REVOwner aware, every hook generation), `resolveProjectRouterTerminal` (directory gated)
-- [ ] revnet cash out fee: `revnetCashOutFeeApplies`, `cashOutCountAfterRevnetFee`, `getCashOutQuote` option
-- [ ] `.jb` draft format
-- [ ] changeset, `npm run check`, pack, client checks on the tarball, Codex passes, live Permit2 pay simulation
+- [x] Permit2 pay: `addToHookMetadata`, `readPermit2PayAuthorization`, `planErc20PayAuthorization`, `addPermit2PayMetadata`, tests
+- [x] `resolveProjectBuybackHook` (direction aware, omnichain and REVOwner aware, every hook generation), `resolveProjectRouterTerminal` (directory gated)
+- [x] revnet cash out fee: `revnetCashOutFeeApplies`, `cashOutCountAfterRevnetFee`, `getCashOutQuote` option
+- [ ] `.jb` draft format: held for jango's answer on the canonical schema, ships in a later release
+- [x] changeset, `npm run check` (exit 0), pack, Codex passes (pass 1 four findings fixed, pass 2 one fixed, pass 3 clean), live Permit2 pay simulation on Base (multi terminal and router registry succeed, three controls revert)
+- [ ] every consumer green on the packed tarball: juicebox.money pay suites pass, full checks of juicebox.money and revnet.money still to run
 
 # Lost-lock keep in one SDK home (2026-11-10)
 
