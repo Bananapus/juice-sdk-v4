@@ -280,7 +280,7 @@ describe("Permit2 pay authorization", () => {
     await expect(plan({ code: "0xef0100aa" })).resolves.toEqual(exact);
     await expect(plan({}, true)).resolves.toEqual(exact);
   });
-  test("permit2PayAuthorizationReusable keeps a signature only for the same unspent payment with time left", () => {
+  test("permit2PayAuthorizationReusable keeps a signature only for the same payer's unspent payment with time left", () => {
     const fresh = {
       chainId: 8453 as const,
       token: TOKEN,
@@ -291,18 +291,18 @@ describe("Permit2 pay authorization", () => {
       sigDeadline: 10_000n,
     };
     const signed = (change: Partial<typeof fresh> = {}) => ({
+      owner: OWNER,
       authorization: { ...fresh, ...change },
       signature: "0x12" as const,
     });
-    expect(permit2PayAuthorizationReusable(null, fresh)).toBe(false);
-    expect(permit2PayAuthorizationReusable(signed(), fresh)).toBe(true);
+    const reusable = (kept: ReturnType<typeof signed> | null, owner = OWNER) =>
+      permit2PayAuthorizationReusable(kept, fresh, owner);
+    expect(reusable(null)).toBe(false);
+    expect(reusable(signed())).toBe(true);
+    // Another account with the same nonce and payment: Permit2 would reject the signature.
+    expect(reusable(signed(), TOKEN)).toBe(false);
     // Signed up to 28 minutes ago: 120 seconds are still left.
-    expect(
-      permit2PayAuthorizationReusable(
-        signed({ sigDeadline: 10_000n - 1_680n }),
-        fresh,
-      ),
-    ).toBe(true);
+    expect(reusable(signed({ sigDeadline: 10_000n - 1_680n }))).toBe(true);
     for (const change of [
       { sigDeadline: 10_000n - 1_681n },
       { nonce: 2 },
@@ -311,8 +311,6 @@ describe("Permit2 pay authorization", () => {
       { token: OWNER },
       { chainId: 1 as const },
     ])
-      expect(
-        permit2PayAuthorizationReusable(signed(change as never), fresh),
-      ).toBe(false);
+      expect(reusable(signed(change as never))).toBe(false);
   });
 });

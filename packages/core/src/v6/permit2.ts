@@ -358,6 +358,8 @@ export function addPermit2PayMetadata({
 
 /** A pay authorization the payer signed, kept while its payment retries. */
 export interface SignedPermit2PayAuthorization {
+  /** The account that signed. Permit2 checks the signature against the payer. */
+  owner: Address;
   authorization: Permit2SignatureAuthorization;
   signature: Hex;
 }
@@ -367,20 +369,23 @@ const PERMIT2_PAY_REUSE_MARGIN_SECONDS = 120;
 
 /**
  * Whether a signature from an earlier attempt still authorizes this exact
- * payment: the same chain, token, entry, amount and Permit2 nonce as a freshly
+ * payment: the same payer, chain, token, entry, amount and Permit2 nonce as a freshly
  * read authorization, with time left. Permit2 moves the nonce on when an
  * allowance is used, so a spent signature is never reused.
  *
  * @param signed The kept signature, if any.
  * @param fresh From {@link readPermit2PayAuthorization} or {@link planErc20PayAuthorization} now.
+ * @param owner The account `fresh` was read for, which pays.
  */
 export function permit2PayAuthorizationReusable(
   signed: SignedPermit2PayAuthorization | null | undefined,
   fresh: Permit2SignatureAuthorization,
+  owner: Address,
 ): signed is SignedPermit2PayAuthorization {
   if (!signed) return false;
   const was = signed.authorization;
   return (
+    signed.owner.toLowerCase() === owner.toLowerCase() &&
     was.chainId === fresh.chainId &&
     was.token.toLowerCase() === fresh.token.toLowerCase() &&
     was.spender.toLowerCase() === fresh.spender.toLowerCase() &&
