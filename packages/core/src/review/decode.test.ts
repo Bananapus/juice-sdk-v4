@@ -123,6 +123,16 @@ const rowsOf = (steps: PrettyStep[] | null) =>
 describe("known addresses", () => {
   it("names deployments, Uniswap, USDC and every generation of a contract", () => {
     expect(knownAddressName(BASE, CONTROLLER)).toBe("JBController");
+    // Croptop is not in the generated table: its deployer is named by hand on every chain.
+    expect(
+      knownAddressName(BASE, "0xf21b8717cb50e497e90f375ec532557dd9022655"),
+    ).toBe("CTDeployer");
+    expect(
+      knownAddressName(
+        1,
+        "0xF21B8717CB50E497E90F375EC532557DD9022655".replace("0XF", "0xf"),
+      ),
+    ).toBe("CTDeployer");
     expect(
       knownAddressName(BASE, CONTROLLER.toUpperCase().replace("0X", "0x")),
     ).toBe("JBController");

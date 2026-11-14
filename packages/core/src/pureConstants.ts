@@ -17,6 +17,13 @@ export const SPLITS_TOTAL_PERCENT = 1_000_000_000;
 /**
  * USDC contract addresses on supported chains.
  */
+/**
+ * Croptop's project deployer, the data hook of every project it launches. One address on every
+ * chain (deploy-all-v6 `CTDeployer`); the generated address table does not carry Croptop yet.
+ */
+export const CROPTOP_DEPLOYER_ADDRESS: Address =
+  "0xf21b8717cb50e497e90f375ec532557dd9022655";
+
 export const USDC_ADDRESSES: Record<JBChainId, Address> = {
   11155111: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // Sepolia
   1: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // Ethereum
