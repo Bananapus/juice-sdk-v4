@@ -7,3 +7,5 @@ Add the shared `.jb` launch draft, version 2 (`v6/jbDraft`): one file juicebox.m
 The known address names now include Croptop's project deployer (`CTDeployer`), one address on every chain, exported as `CROPTOP_DEPLOYER_ADDRESS`.
 
 `prepareBestUserPay` prepares a payment on every terminal the caller lists and returns the one that gives the beneficiary the most project tokens, so every client chooses a pay route the same way.
+
+`auditProjectContracts` (from `review/decode`) checks the controller, terminals, routed terminal and hooks a project points at against the known deployments, and says when a read failed instead of reporting a clean project.

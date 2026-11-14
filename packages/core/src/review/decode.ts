@@ -167,6 +167,12 @@ export function knownAddressName(
   return namedAddresses().get(addressKey(chainId, value)) ?? null;
 }
 
+export {
+  auditProjectContracts,
+  type ProjectContractAudit,
+  type UnknownProjectContract,
+} from "./contractAudit.js";
+
 /** "Name | 0x…" for a known address, otherwise the address. */
 export function addressLabel(chainId: number, address: string): string {
   const name = knownAddressName(chainId, address);
