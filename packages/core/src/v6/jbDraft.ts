@@ -19,7 +19,13 @@ export const JB_DRAFT_MAX_CHARS = 2_000_000;
 
 /** `eth` and `usd` are the protocol's abstract currencies; `token` is the accepted custom token. */
 export type JbDraftCurrency = "eth" | "usd" | "token";
-export type JbDraftApproval = "none" | "3hours" | "1day" | "3days" | "7days" | "custom";
+export type JbDraftApproval =
+  | "none"
+  | "3hours"
+  | "1day"
+  | "3days"
+  | "7days"
+  | "custom";
 export type JbDraftChainMap = Record<number, string>;
 
 export type JbDraftSplit = {
@@ -42,7 +48,11 @@ export type JbDraftSplit = {
   addToBalance: boolean;
   /** Unix seconds, 0 for unlocked. */
   lockedUntil: number;
-  sticky: { group: "all" | "tenure"; minWeeks: string; maxWeeks: string } | null;
+  sticky: {
+    group: "all" | "tenure";
+    minWeeks: string;
+    maxWeeks: string;
+  } | null;
 };
 
 export type JbDraftPayout = {
@@ -226,7 +236,9 @@ const text =
     typeof value === "string" && value.length <= max ? value : invalid(path);
 
 const decimal: Check<string> = (value, path) =>
-  typeof value === "string" && value.length <= 40 && /^\d*(?:\.\d*)?$/.test(value)
+  typeof value === "string" &&
+  value.length <= 40 &&
+  /^\d*(?:\.\d*)?$/.test(value)
     ? value
     : invalid(path);
 
@@ -236,7 +248,10 @@ const flag: Check<boolean> = (value, path) =>
 const whole =
   (min: number, max: number): Check<number> =>
   (value, path) =>
-    typeof value === "number" && Number.isSafeInteger(value) && value >= min && value <= max
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= min &&
+    value <= max
       ? value
       : invalid(path);
 
@@ -269,12 +284,14 @@ const shape =
   (value, path) => {
     const source = record(value, path);
     for (const key of Object.keys(source)) {
-      if (!Object.prototype.hasOwnProperty.call(spec, key)) invalid(`${path}.${key}`);
+      if (!Object.prototype.hasOwnProperty.call(spec, key))
+        invalid(`${path}.${key}`);
     }
     const out = {} as T;
     for (const key of Object.keys(spec) as (keyof T & string)[]) {
       // Defaults are filled before this runs, so a key still missing is one that must be written.
-      if (!Object.prototype.hasOwnProperty.call(source, key)) invalid(`${path}.${key}`);
+      if (!Object.prototype.hasOwnProperty.call(source, key))
+        invalid(`${path}.${key}`);
       out[key] = spec[key](source[key], `${path}.${key}`);
     }
     return out;
@@ -340,7 +357,11 @@ const stage = shape<JbDraftStage>({
   cutDays: decimal,
   reserved: splits,
   autoIssuances: list(
-    shape<JbDraftStage["autoIssuances"][number]>({ count: decimal, address, chainId }),
+    shape<JbDraftStage["autoIssuances"][number]>({
+      count: decimal,
+      address,
+      chainId,
+    }),
     100,
   ),
   cashOutTax: decimal,
@@ -404,7 +425,8 @@ const item = shape<JbDraftItem>({
 });
 
 const draft = shape<JbDraft>({
-  v: (value, path) => (value === JB_DRAFT_VERSION ? JB_DRAFT_VERSION : invalid(path)),
+  v: (value, path) =>
+    value === JB_DRAFT_VERSION ? JB_DRAFT_VERSION : invalid(path),
   kind: oneOf("project", "revnet"),
   name: text(100),
   ticker: text(32),
@@ -455,7 +477,10 @@ const draft = shape<JbDraft>({
     operatorCanMint: flag,
     operatorCanIncreaseDiscount: flag,
     categories: list(
-      shape<JbDraftShop["categories"][number]>({ id: whole(1, 0xffffff), name: text(64) }),
+      shape<JbDraftShop["categories"][number]>({
+        id: whole(1, 0xffffff),
+        name: text(64),
+      }),
       255,
     ),
     items: list(item, 100),
@@ -474,7 +499,8 @@ function checkKind(value: JbDraft): void {
     if (when) invalid(path);
   };
   /** `token` means the custom token, so it needs one. */
-  const money = (unit: JbDraftCurrency, path: string) => bad(unit === "token" && !custom, path);
+  const money = (unit: JbDraftCurrency, path: string) =>
+    bad(unit === "token" && !custom, path);
   /** A row carries only what its kind uses, and a share or an amount, never both. */
   const eachSplit = (rows: JbDraftSplit[], path: string, amounts = false) =>
     rows.forEach((row, index) => {
@@ -482,10 +508,20 @@ function checkKind(value: JbDraft): void {
       bad((row.to === "sticky") !== (row.sticky !== null), `${at}.sticky`);
       bad(row.to !== "hook" && row.hook !== "", `${at}.hook`);
       bad(row.to !== "project" && row.addToBalance, `${at}.addToBalance`);
-      const noProject = row.to === "address" || row.to === "sticky";
-      bad(noProject && row.projectId !== "", `${at}.projectId`);
-      bad(row.to !== "project" && hasEntries(row.projectIdPerChain), `${at}.projectIdPerChain`);
-      bad(amounts ? row.share !== "" : row.amount !== "", amounts ? `${at}.share` : `${at}.amount`);
+      // A project row names a project. A hook row may pass one on to its hook.
+      const takesProject =
+        row.to === "project" || row.to === "hook" || row.to === "fundMarket";
+      bad(!takesProject && row.projectId !== "", `${at}.projectId`);
+      bad(
+        row.to !== "project" &&
+          row.to !== "hook" &&
+          hasEntries(row.projectIdPerChain),
+        `${at}.projectIdPerChain`,
+      );
+      bad(
+        amounts ? row.share !== "" : row.amount !== "",
+        amounts ? `${at}.share` : `${at}.amount`,
+      );
       bad(!amounts && hasEntries(row.amountPerChain), `${at}.amountPerChain`);
     });
   bad(custom && value.accepts.length > 1, "draft.accepts");
@@ -493,7 +529,10 @@ function checkKind(value: JbDraft): void {
   bad(new Set(value.chains).size !== value.chains.length, "draft.chains");
   bad(revnet && value.afterMode !== "wait", "draft.afterMode");
   bad(revnet && value.approvalHook !== "", "draft.approvalHook");
-  bad(revnet && hasEntries(value.approvalHookPerChain), "draft.approvalHookPerChain");
+  bad(
+    revnet && hasEntries(value.approvalHookPerChain),
+    "draft.approvalHookPerChain",
+  );
   money(value.shop.currency, "draft.shop.currency");
   value.shop.items.forEach((entry, index) =>
     eachSplit(entry.splits, `draft.shop.items[${index}].splits`),
@@ -505,15 +544,29 @@ function checkKind(value: JbDraft): void {
     eachSplit(entry.reserved, `${at}.reserved`);
     entry.payouts.forEach((payout, n) => {
       money(payout.currency, `${at}.payouts[${n}].currency`);
-      bad(payout.mode === "none" && payout.splits.length > 0, `${at}.payouts[${n}].splits`);
-      eachSplit(payout.splits, `${at}.payouts[${n}].splits`, payout.mode === "amounts");
+      bad(
+        payout.mode === "none" && payout.splits.length > 0,
+        `${at}.payouts[${n}].splits`,
+      );
+      eachSplit(
+        payout.splits,
+        `${at}.payouts[${n}].splits`,
+        payout.mode === "amounts",
+      );
     });
     bad(index === 0 && entry.startAfterCycles !== "", `${at}.startAfterCycles`);
     bad(index === 0 && entry.startAfterDays !== "", `${at}.startAfterDays`);
-    bad(entry.startAt > 0 && entry.startAfterCycles !== "", `${at}.startAfterCycles`);
+    bad(
+      entry.startAt > 0 && entry.startAfterCycles !== "",
+      `${at}.startAfterCycles`,
+    );
     if (!revnet) {
       // One payout entry per accepted token, in the same order.
-      bad(entry.payouts.map((payout) => payout.token).join() !== value.accepts.join(), `${at}.payouts`);
+      bad(
+        entry.payouts.map((payout) => payout.token).join() !==
+          value.accepts.join(),
+        `${at}.payouts`,
+      );
       bad(entry.autoIssuances.length > 0, `${at}.autoIssuances`);
       bad(entry.startAfterDays !== "", `${at}.startAfterDays`);
       bad(entry.cutDays !== "", `${at}.cutDays`);
@@ -540,7 +593,11 @@ function checkKind(value: JbDraft): void {
 }
 
 type Token = JbDraft["accepts"][number];
-const TOKEN_CURRENCY: Record<Token, JbDraftCurrency> = { eth: "eth", usdc: "usd", custom: "token" };
+const TOKEN_CURRENCY: Record<Token, JbDraftCurrency> = {
+  eth: "eth",
+  usdc: "usd",
+  custom: "token",
+};
 
 /** What a token's amounts are counted in when nothing says otherwise: itself. */
 export function jbDraftTokenCurrency(token: Token): JbDraftCurrency {
@@ -549,12 +606,20 @@ export function jbDraftTokenCurrency(token: Token): JbDraftCurrency {
 
 /** What issuance is priced in when nothing says otherwise: the custom token, else ETH when
  *  ETH is accepted, else USD. */
-export function jbDraftBaseCurrency(accepts: readonly Token[]): JbDraftCurrency {
-  return accepts.includes("custom") ? "token" : accepts.includes("eth") ? "eth" : "usd";
+export function jbDraftBaseCurrency(
+  accepts: readonly Token[],
+): JbDraftCurrency {
+  return accepts.includes("custom")
+    ? "token"
+    : accepts.includes("eth")
+      ? "eth"
+      : "usd";
 }
 
 /** A split row with everything unset, for a writer to fill. */
-export function emptyJbDraftSplit(to: JbDraftSplit["to"] = "address"): JbDraftSplit {
+export function emptyJbDraftSplit(
+  to: JbDraftSplit["to"] = "address",
+): JbDraftSplit {
   return {
     share: "",
     amount: "",
@@ -599,7 +664,11 @@ export function emptyJbDraftStage(
     autoIssuances: [],
     cashOutTax: revnet ? "0.1" : "1",
     payouts: revnet ? [] : accepts.map(emptyJbDraftPayout),
-    surplusAllowance: { mode: "none", amount: "", currency: TOKEN_CURRENCY[accepts[0] ?? "eth"] },
+    surplusAllowance: {
+      mode: "none",
+      amount: "",
+      currency: TOKEN_CURRENCY[accepts[0] ?? "eth"],
+    },
     approval: revnet ? "none" : "1day",
     holdFees: false,
     ownerMinting: false,
@@ -663,7 +732,14 @@ export function emptyJbDraft(
     tags: [],
     logoUri: "",
     coverUri: "",
-    links: { website: "", twitter: "", discord: "", telegram: "", instagram: "", whatsapp: "" },
+    links: {
+      website: "",
+      twitter: "",
+      discord: "",
+      telegram: "",
+      instagram: "",
+      whatsapp: "",
+    },
     chains: [],
     linkChains: true,
     bridge: "ccip",
@@ -721,7 +797,9 @@ const fillSplit = (value: unknown) => withDefaults(value, emptyJbDraftSplit());
 function withJbDraftDefaults(source: Record<string, unknown>): unknown {
   const kind = source.kind === "revnet" ? "revnet" : "project";
   const written = Array.isArray(source.accepts) ? source.accepts : ["eth"];
-  const accepts = written.filter((token): token is Token => token in TOKEN_CURRENCY);
+  const accepts = written.filter(
+    (token): token is Token => token in TOKEN_CURRENCY,
+  );
   const { stages: _stages, ...defaults } = emptyJbDraft(kind, accepts);
   const filled = withDefaults(source, defaults) as Record<string, unknown>;
   filled.stages = eachOf(filled.stages, (entry) => {
@@ -731,9 +809,13 @@ function withJbDraftDefaults(source: Record<string, unknown>): unknown {
     stage.payouts = eachOf(stage.payouts, (payout) => {
       const token = isRecord(payout) && String(payout.token) in TOKEN_CURRENCY;
       const filledPayout = token
-        ? withDefaults(payout, emptyJbDraftPayout((payout as { token: Token }).token))
+        ? withDefaults(
+            payout,
+            emptyJbDraftPayout((payout as { token: Token }).token),
+          )
         : payout;
-      if (isRecord(filledPayout)) filledPayout.splits = eachOf(filledPayout.splits, fillSplit);
+      if (isRecord(filledPayout))
+        filledPayout.splits = eachOf(filledPayout.splits, fillSplit);
       return filledPayout;
     });
     return stage;
@@ -741,7 +823,8 @@ function withJbDraftDefaults(source: Record<string, unknown>): unknown {
   if (isRecord(filled.shop)) {
     filled.shop.items = eachOf(filled.shop.items, (entry) => {
       const filledItem = withDefaults(entry, emptyJbDraftItem());
-      if (isRecord(filledItem)) filledItem.splits = eachOf(filledItem.splits, fillSplit);
+      if (isRecord(filledItem))
+        filledItem.splits = eachOf(filledItem.splits, fillSplit);
       return filledItem;
     });
   }
@@ -764,7 +847,8 @@ export function checkJbDraft(value: unknown): JbDraft {
 
 /** Read the text of a `.jb` file. Throws a {@link JbDraftError} a person can act on. */
 export function parseJbDraft(source: string): JbDraft {
-  if (source.length > JB_DRAFT_MAX_CHARS) throw new JbDraftError("That file is too large.");
+  if (source.length > JB_DRAFT_MAX_CHARS)
+    throw new JbDraftError("That file is too large.");
   let value: unknown;
   try {
     value = JSON.parse(source);
@@ -781,4 +865,3 @@ export function parseJbDraft(source: string): JbDraft {
 export function serializeJbDraft(value: JbDraft): string {
   return JSON.stringify(checkJbDraft(value), null, 2);
 }
-

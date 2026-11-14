@@ -1,0 +1,1379 @@
+[
+  {
+    "name": "the shortest project",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [{}]
+    },
+    "reads": {
+      "v": 2,
+      "kind": "project",
+      "name": "",
+      "ticker": "",
+      "tagline": "",
+      "description": "",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 0,
+          "issuance": "",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "cutDays": "",
+          "reserved": [],
+          "autoIssuances": [],
+          "cashOutTax": "1",
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "none",
+              "currency": "eth",
+              "splits": []
+            }
+          ],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "1day",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": false,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "the shortest revnet",
+    "file": {
+      "v": 2,
+      "kind": "revnet",
+      "stages": [{}]
+    },
+    "reads": {
+      "v": 2,
+      "kind": "revnet",
+      "name": "",
+      "ticker": "",
+      "tagline": "",
+      "description": "",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 0,
+          "issuance": "",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "cutDays": "",
+          "reserved": [],
+          "autoIssuances": [],
+          "cashOutTax": "0.1",
+          "payouts": [],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "none",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": true,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "juicebox.money's example",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "name": "Example project",
+      "ticker": "EXMPL",
+      "tagline": "Replace every value before launching.",
+      "owner": "",
+      "accepts": ["eth"],
+      "chains": [8453],
+      "stages": [
+        {
+          "duration": 0,
+          "issuance": "10000",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "reserved": [],
+          "cashOutTax": "0.1",
+          "approval": "1day"
+        }
+      ]
+    },
+    "reads": {
+      "v": 2,
+      "kind": "project",
+      "name": "Example project",
+      "ticker": "EXMPL",
+      "tagline": "Replace every value before launching.",
+      "description": "",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [8453],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 0,
+          "issuance": "10000",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "cutDays": "",
+          "reserved": [],
+          "autoIssuances": [],
+          "cashOutTax": "0.1",
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "none",
+              "currency": "eth",
+              "splits": []
+            }
+          ],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "1day",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": false,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "revnet.money's example",
+    "file": {
+      "v": 2,
+      "kind": "revnet",
+      "name": "Example Revnet",
+      "description": "A three-stage example schedule. Replace every value before launching.",
+      "ticker": "EXMPL",
+      "chains": [8453],
+      "stages": [
+        {
+          "issuance": "1000",
+          "cutPercent": "10",
+          "cutDays": "30",
+          "cashOutTax": "0.2",
+          "reserved": [
+            {
+              "to": "address",
+              "share": "30",
+              "address": ""
+            }
+          ]
+        },
+        {
+          "startAfterDays": "365",
+          "issuance": "",
+          "cutPercent": "5",
+          "cutDays": "90",
+          "cashOutTax": "0.5",
+          "reserved": [
+            {
+              "to": "address",
+              "share": "10",
+              "address": ""
+            }
+          ]
+        },
+        {
+          "startAfterDays": "1460",
+          "issuance": "0",
+          "cashOutTax": "0.5"
+        }
+      ]
+    },
+    "reads": {
+      "v": 2,
+      "kind": "revnet",
+      "name": "Example Revnet",
+      "ticker": "EXMPL",
+      "tagline": "",
+      "description": "A three-stage example schedule. Replace every value before launching.",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [8453],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 0,
+          "issuance": "1000",
+          "baseCurrency": "eth",
+          "cutPercent": "10",
+          "cutDays": "30",
+          "reserved": [
+            {
+              "share": "30",
+              "amount": "",
+              "amountPerChain": {},
+              "to": "address",
+              "address": "",
+              "addressPerChain": {},
+              "projectId": "",
+              "projectIdPerChain": {},
+              "hook": "",
+              "addToBalance": false,
+              "lockedUntil": 0,
+              "sticky": null
+            }
+          ],
+          "autoIssuances": [],
+          "cashOutTax": "0.2",
+          "payouts": [],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "none",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": true,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        },
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "365",
+          "duration": 0,
+          "issuance": "",
+          "baseCurrency": "eth",
+          "cutPercent": "5",
+          "cutDays": "90",
+          "reserved": [
+            {
+              "share": "10",
+              "amount": "",
+              "amountPerChain": {},
+              "to": "address",
+              "address": "",
+              "addressPerChain": {},
+              "projectId": "",
+              "projectIdPerChain": {},
+              "hook": "",
+              "addToBalance": false,
+              "lockedUntil": 0,
+              "sticky": null
+            }
+          ],
+          "autoIssuances": [],
+          "cashOutTax": "0.5",
+          "payouts": [],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "none",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": true,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        },
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "1460",
+          "duration": 0,
+          "issuance": "0",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "cutDays": "",
+          "reserved": [],
+          "autoIssuances": [],
+          "cashOutTax": "0.5",
+          "payouts": [],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "none",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": true,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "a project with payouts by amount on two tokens",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "accepts": ["eth", "usdc"],
+      "chains": [1, 8453],
+      "stages": [
+        {
+          "duration": 604800,
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "amounts",
+              "splits": [
+                {
+                  "to": "address",
+                  "amount": "1.5",
+                  "amountPerChain": {
+                    "8453": "2"
+                  },
+                  "address": "a.eth"
+                }
+              ]
+            },
+            {
+              "token": "usdc",
+              "mode": "all",
+              "splits": [
+                {
+                  "to": "project",
+                  "share": "100",
+                  "projectId": "1",
+                  "address": "a.eth",
+                  "addToBalance": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "reads": {
+      "v": 2,
+      "kind": "project",
+      "name": "",
+      "ticker": "",
+      "tagline": "",
+      "description": "",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [1, 8453],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth", "usdc"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 604800,
+          "issuance": "",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "cutDays": "",
+          "reserved": [],
+          "autoIssuances": [],
+          "cashOutTax": "1",
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "amounts",
+              "currency": "eth",
+              "splits": [
+                {
+                  "share": "",
+                  "amount": "1.5",
+                  "amountPerChain": {
+                    "8453": "2"
+                  },
+                  "to": "address",
+                  "address": "a.eth",
+                  "addressPerChain": {},
+                  "projectId": "",
+                  "projectIdPerChain": {},
+                  "hook": "",
+                  "addToBalance": false,
+                  "lockedUntil": 0,
+                  "sticky": null
+                }
+              ]
+            },
+            {
+              "token": "usdc",
+              "mode": "all",
+              "currency": "usd",
+              "splits": [
+                {
+                  "share": "100",
+                  "amount": "",
+                  "amountPerChain": {},
+                  "to": "project",
+                  "address": "a.eth",
+                  "addressPerChain": {},
+                  "projectId": "1",
+                  "projectIdPerChain": {},
+                  "hook": "",
+                  "addToBalance": true,
+                  "lockedUntil": 0,
+                  "sticky": null
+                }
+              ]
+            }
+          ],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "1day",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": false,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "a revnet with a Sticky split and auto issuance",
+    "file": {
+      "v": 2,
+      "kind": "revnet",
+      "chains": [1],
+      "stages": [
+        {
+          "issuance": "1000",
+          "cutPercent": "5",
+          "cutDays": "30",
+          "reserved": [
+            {
+              "to": "sticky",
+              "share": "10",
+              "address": "0x1",
+              "sticky": {
+                "group": "tenure",
+                "minWeeks": "4",
+                "maxWeeks": "52"
+              }
+            }
+          ],
+          "autoIssuances": [
+            {
+              "count": "100",
+              "address": "a.eth",
+              "chainId": 1
+            }
+          ]
+        }
+      ]
+    },
+    "reads": {
+      "v": 2,
+      "kind": "revnet",
+      "name": "",
+      "ticker": "",
+      "tagline": "",
+      "description": "",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [1],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 0,
+          "issuance": "1000",
+          "baseCurrency": "eth",
+          "cutPercent": "5",
+          "cutDays": "30",
+          "reserved": [
+            {
+              "share": "10",
+              "amount": "",
+              "amountPerChain": {},
+              "to": "sticky",
+              "address": "0x1",
+              "addressPerChain": {},
+              "projectId": "",
+              "projectIdPerChain": {},
+              "hook": "",
+              "addToBalance": false,
+              "lockedUntil": 0,
+              "sticky": {
+                "group": "tenure",
+                "minWeeks": "4",
+                "maxWeeks": "52"
+              }
+            }
+          ],
+          "autoIssuances": [
+            {
+              "count": "100",
+              "address": "a.eth",
+              "chainId": 1
+            }
+          ],
+          "cashOutTax": "0.1",
+          "payouts": [],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "none",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": true,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "a hook split with a project id per chain",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [
+        {
+          "reserved": [
+            {
+              "to": "hook",
+              "share": "5",
+              "hook": "0x2",
+              "projectId": "3",
+              "projectIdPerChain": {
+                "10": "4"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "reads": {
+      "v": 2,
+      "kind": "project",
+      "name": "",
+      "ticker": "",
+      "tagline": "",
+      "description": "",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 0,
+          "issuance": "",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "cutDays": "",
+          "reserved": [
+            {
+              "share": "5",
+              "amount": "",
+              "amountPerChain": {},
+              "to": "hook",
+              "address": "",
+              "addressPerChain": {},
+              "projectId": "3",
+              "projectIdPerChain": {
+                "10": "4"
+              },
+              "hook": "0x2",
+              "addToBalance": false,
+              "lockedUntil": 0,
+              "sticky": null
+            }
+          ],
+          "autoIssuances": [],
+          "cashOutTax": "1",
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "none",
+              "currency": "eth",
+              "splits": []
+            }
+          ],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "1day",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": false,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "a shop item",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [{}],
+      "shop": {
+        "items": [
+          {
+            "name": "Hat",
+            "price": "0.1",
+            "supply": "10",
+            "supplyPerChain": {
+              "8453": "unlimited"
+            },
+            "splits": [
+              {
+                "to": "address",
+                "share": "50",
+                "address": "a.eth"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "reads": {
+      "v": 2,
+      "kind": "project",
+      "name": "",
+      "ticker": "",
+      "tagline": "",
+      "description": "",
+      "payNotice": "",
+      "tags": [],
+      "logoUri": "",
+      "coverUri": "",
+      "links": {
+        "website": "",
+        "twitter": "",
+        "discord": "",
+        "telegram": "",
+        "instagram": "",
+        "whatsapp": ""
+      },
+      "chains": [],
+      "linkChains": true,
+      "bridge": "ccip",
+      "owner": "",
+      "ownerPerChain": {},
+      "safe": null,
+      "accepts": ["eth"],
+      "customToken": "",
+      "anyToken": true,
+      "approvalHook": "",
+      "approvalHookPerChain": {},
+      "afterMode": "wait",
+      "stages": [
+        {
+          "startAt": 0,
+          "startAfterCycles": "",
+          "startAfterDays": "",
+          "duration": 0,
+          "issuance": "",
+          "baseCurrency": "eth",
+          "cutPercent": "",
+          "cutDays": "",
+          "reserved": [],
+          "autoIssuances": [],
+          "cashOutTax": "1",
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "none",
+              "currency": "eth",
+              "splits": []
+            }
+          ],
+          "surplusAllowance": {
+            "mode": "none",
+            "amount": "",
+            "currency": "eth"
+          },
+          "approval": "1day",
+          "holdFees": false,
+          "ownerMinting": false,
+          "pausePay": false,
+          "pauseCreditTransfers": false,
+          "pause721Transfers": false,
+          "useTotalSurplusForCashOuts": true,
+          "ownerMustSendPayouts": false,
+          "metadataExtra": 0,
+          "powers": {
+            "setTerminals": false,
+            "setController": false,
+            "terminalMigration": false,
+            "setCustomToken": false,
+            "addAccountingContext": false,
+            "addPriceFeed": false
+          }
+        }
+      ],
+      "shop": {
+        "currency": "eth",
+        "collectionName": "",
+        "collectionSymbol": "",
+        "preventOverspending": false,
+        "noNewTiersWithReserves": false,
+        "noNewTiersWithVotes": false,
+        "noNewTiersWithOwnerMinting": false,
+        "issueTokensForSplits": false,
+        "itemsRedeem": false,
+        "operatorCanAdjustTiers": true,
+        "operatorCanUpdateMetadata": true,
+        "operatorCanMint": true,
+        "operatorCanIncreaseDiscount": true,
+        "categories": [],
+        "items": [
+          {
+            "name": "Hat",
+            "description": "",
+            "mediaUri": "",
+            "mediaType": "",
+            "metadataUri": "",
+            "price": "0.1",
+            "supply": "10",
+            "supplyPerChain": {
+              "8453": "unlimited"
+            },
+            "excludedChains": [],
+            "discountPercent": "",
+            "reserveEvery": "",
+            "reserveBeneficiary": "",
+            "reserveBeneficiaryPerChain": {},
+            "category": 0,
+            "votingUnits": "",
+            "splits": [
+              {
+                "share": "50",
+                "amount": "",
+                "amountPerChain": {},
+                "to": "address",
+                "address": "a.eth",
+                "addressPerChain": {},
+                "projectId": "",
+                "projectIdPerChain": {},
+                "hook": "",
+                "addToBalance": false,
+                "lockedUntil": 0,
+                "sticky": null
+              }
+            ],
+            "allowOwnerMint": false,
+            "transfersPausable": false,
+            "cantBeRemoved": false,
+            "allowCredits": true,
+            "ownerCanEditDiscount": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "a version 1 file",
+    "file": {
+      "v": 1,
+      "app": "revnet.money",
+      "data": {}
+    },
+    "refuses": "This .jb file was saved in a format this site no longer reads. Export it again from the site it came from."
+  },
+  {
+    "name": "no version",
+    "file": {
+      "kind": "project",
+      "stages": [{}]
+    },
+    "refuses": "This .jb file was saved in a format this site no longer reads. Export it again from the site it came from."
+  },
+  {
+    "name": "no stages",
+    "file": {
+      "v": 2,
+      "kind": "project"
+    },
+    "refuses": "That .jb file can't be read: draft.stages isn't valid."
+  },
+  {
+    "name": "an unknown key",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [{}],
+      "flavor": "simple"
+    },
+    "refuses": "That .jb file can't be read: draft.flavor isn't valid."
+  },
+  {
+    "name": "an unknown stage key",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [
+        {
+          "weight": "1"
+        }
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages[0].weight isn't valid."
+  },
+  {
+    "name": "a number where text belongs",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [
+        {
+          "issuance": 10000
+        }
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages[0].issuance isn't valid."
+  },
+  {
+    "name": "a revnet with payouts",
+    "file": {
+      "v": 2,
+      "kind": "revnet",
+      "stages": [
+        {
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "all"
+            }
+          ]
+        }
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages[0].payouts isn't valid."
+  },
+  {
+    "name": "a revnet cut without its interval",
+    "file": {
+      "v": 2,
+      "kind": "revnet",
+      "stages": [
+        {
+          "cutPercent": "5"
+        }
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages[0].cutDays isn't valid."
+  },
+  {
+    "name": "a project with a cut interval",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [
+        {
+          "cutDays": "30"
+        }
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages[0].cutDays isn't valid."
+  },
+  {
+    "name": "a custom token beside another",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "accepts": ["eth", "custom"],
+      "stages": [{}]
+    },
+    "refuses": "That .jb file can't be read: draft.accepts isn't valid."
+  },
+  {
+    "name": "a Sticky row without its group",
+    "file": {
+      "v": 2,
+      "kind": "revnet",
+      "stages": [
+        {
+          "reserved": [
+            {
+              "to": "sticky",
+              "share": "1"
+            }
+          ]
+        }
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages[0].reserved[0].sticky isn't valid."
+  },
+  {
+    "name": "a share on a payout by amount",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [
+        {
+          "payouts": [
+            {
+              "token": "eth",
+              "mode": "amounts",
+              "splits": [
+                {
+                  "share": "1",
+                  "amount": "1"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages[0].payouts[0].splits[0].share isn't valid."
+  },
+  {
+    "name": "a chain key that is not an id",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "ownerPerChain": {
+        "base": "a.eth"
+      },
+      "stages": [{}]
+    },
+    "refuses": "That .jb file can't be read: draft.ownerPerChain.base isn't valid."
+  },
+  {
+    "name": "too many stages",
+    "file": {
+      "v": 2,
+      "kind": "project",
+      "stages": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ]
+    },
+    "refuses": "That .jb file can't be read: draft.stages isn't valid."
+  }
+]
