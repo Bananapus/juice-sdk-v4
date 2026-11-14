@@ -9,6 +9,7 @@ import {
 } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  configureSafeServiceProxy,
   isSafeWalletPeer,
   SAFE_NONCE_GUIDANCE,
   SAFE_PREFIX,
@@ -59,11 +60,73 @@ const failingThenKnown = (failure: () => unknown, looks = 12) => {
 };
 
 afterEach(() => {
+  configureSafeServiceProxy(null);
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe("Safe transaction service boundaries", () => {
+  it.each([
+    "*",
+    "null",
+    "https://revnet.money/",
+    "https://user@revnet.money",
+    "https://revnet.money/path",
+    "file://revnet.money",
+  ])("refuses an inexact server Origin: %s", (origin) => {
+    expect(() =>
+      configureSafeServiceProxy("https://juicebox.center/v1/safe", { origin }),
+    ).toThrow();
+    expect(safeServiceBase(1)).toBe("https://api.safe.global/tx-service/eth");
+  });
+  it("opts into a proxy without changing chain support or explicit local overrides", () => {
+    configureSafeServiceProxy("https://juicebox.center/v1/safe/");
+    expect(safeServiceBase(8453)).toBe("https://juicebox.center/v1/safe/base");
+    expect(safeServiceBase(11155420)).toBeNull();
+    vi.stubGlobal("localStorage", {
+      getItem: () => JSON.stringify({ 10: "https://safe.test/" }),
+    });
+    expect(safeServiceBase(10)).toBe("https://safe.test");
+    configureSafeServiceProxy(null);
+    expect(safeServiceBase(8453)).toBe(
+      "https://api.safe.global/tx-service/base",
+    );
+  });
+
+  it.each([
+    "relative",
+    "file:///tmp/safe",
+    "https://key@center.test",
+    "https://center.test?key=secret",
+    "https://center.test/#fragment",
+  ])("refuses an ambiguous proxy root: %s", (value) => {
+    expect(() => configureSafeServiceProxy(value)).toThrow();
+    expect(safeServiceBase(1)).toBe("https://api.safe.global/tx-service/eth");
+  });
+
+  it("polls through the proxy without sending a browser-local Safe key", async () => {
+    configureSafeServiceProxy("https://juicebox.center/v1/safe");
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => (key === "jb-safe-api-key" ? "secret" : null),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        executed({
+          isExecuted: true,
+          isSuccessful: true,
+          transactionHash: EXECUTION,
+        }),
+      ),
+    );
+    await expect(waitForSafeExecutionHash(8453, PROPOSAL)).resolves.toBe(
+      EXECUTION,
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      `https://juicebox.center/v1/safe/base/api/v1/multisig-transactions/${PROPOSAL}/`,
+      { headers: { accept: "application/json" } },
+    );
+  });
   it("links the queue and explains the authoritative nonce selector", () => {
     expect(SAFE_NONCE_GUIDANCE).toMatch(/next available/i);
     expect(SAFE_NONCE_GUIDANCE).toMatch(/queued nonces/i);

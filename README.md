@@ -442,6 +442,20 @@ Safe on another chain:
 `@bananapus/nana-sdk-core/safe-service` handles Safe transactions and Safe's
 transaction service:
 
+Applications can opt into a trusted server proxy at startup with
+`configureSafeServiceProxy("https://juicebox.center/v1/safe")`. The SDK appends
+the chain prefix and service path. The proxy keeps its API key server-side;
+browser-local `jb-safe-api-key` credentials are sent only to Safe's own HTTPS
+API, never to the proxy or a custom host. Configuration is module-wide: set it
+once for the application, not per user or server request. `null` restores direct
+Safe API access, and explicit `jb-safe-tx-base` per-chain overrides take
+precedence. Monthly quota refusals are returned without transient-rate-limit
+retries; existing proposal observation and recovery behavior is unchanged.
+Server callers can pass `{ origin: "https://revnet.money" }` as the second
+argument for the proxy's trusted-site policy. The origin must be exact and is
+sent only to that proxy root, never to direct Safe requests or other overrides.
+Browser callers omit it because the browser supplies its own Origin header.
+
 ```ts
 import {
   canonicalSafeTxHash,

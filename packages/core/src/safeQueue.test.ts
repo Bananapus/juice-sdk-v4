@@ -21,6 +21,7 @@ import {
   SAFE_SERVICE_MAX_RETRY_WAIT_MS,
   SAFE_TX_TYPES,
   canonicalSafeTxHash,
+  configureSafeServiceProxy,
   fetchSafeCreation,
   fetchSafesOwnedBy,
   findPendingSafeTransaction,
@@ -93,6 +94,7 @@ const transaction = {
 } satisfies SafeQueuedTransaction;
 
 afterEach(() => {
+  configureSafeServiceProxy(null);
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -1008,6 +1010,140 @@ describe("Safe transaction service", () => {
     return { ...tx, safe: SAFE, safeTxHash: safeTransactionHash(1, SAFE, tx) };
   };
 
+  it("routes reads and signed submissions through the proxy, without forwarding the local key", async () => {
+    const proxy = "https://juicebox.center/v1/safe";
+    configureSafeServiceProxy(proxy, { origin: "https://revnet.money" });
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => (key === "jb-safe-api-key" ? "secret" : null),
+    });
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(json({ next: null, results: [row()] }));
+    await listPendingSafeTransactions(1, SAFE, 8, { fetch: fetcher });
+    fetcher.mockResolvedValue(json(row()));
+    await readSafeTransaction(1, SAFE, row().safeTxHash, { fetch: fetcher });
+    fetcher.mockResolvedValue(json({ safes: [SAFE] }));
+    await fetchSafesOwnedBy(LOW_OWNER, [1], { fetch: fetcher });
+    fetcher.mockResolvedValue(json({}));
+    await fetchSafeCreation(SAFE, 1, { fetch: fetcher });
+    await proposeSafeTransaction(
+      1,
+      SAFE,
+      transaction,
+      { sender: LOW_OWNER, signature: lowSignature, origin: "test" },
+      { fetch: fetcher },
+    );
+    await submitSafeConfirmation(1, SAFE, transaction, lowSignature, {
+      fetch: fetcher,
+    });
+    const calls = fetcher.mock.calls;
+    expect(calls).toHaveLength(6);
+    expect(calls.map(([url]) => String(url).split("?")[0])).toEqual([
+      `${proxy}/eth/api/v1/safes/${SAFE}/multisig-transactions/`,
+      `${proxy}/eth/api/v1/multisig-transactions/${row().safeTxHash}/`,
+      `${proxy}/eth/api/v1/owners/${LOW_OWNER}/safes/`,
+      `${proxy}/eth/api/v1/safes/${SAFE}/creation/`,
+      `${proxy}/eth/api/v1/safes/${SAFE}/multisig-transactions/`,
+      `${proxy}/eth/api/v1/multisig-transactions/${row().safeTxHash}/confirmations/`,
+    ]);
+    for (const [, init] of calls) {
+      expect(new Headers(init?.headers).has("authorization")).toBe(false);
+      expect(new Headers(init?.headers).get("origin")).toBe(
+        "https://revnet.money",
+      );
+    }
+    expect(JSON.parse(String(calls[4]![1]!.body))).toMatchObject({
+      contractTransactionHash: row().safeTxHash,
+      signature: lowSignature,
+    });
+  });
+
+  it.each([
+    "Monthly quota exceeded",
+    "The monthly quota of 50000 requests on the Builder plan is used.",
+    "Too many requests in time window",
+  ])(
+    "does not retry a monthly refusal and preserves its body: %s",
+    async (error_msg) => {
+      const fetcher = vi.fn(async () => json({ error_msg }, 429));
+      await expect(
+        listPendingSafeTransactions(1, SAFE, 0, { fetch: fetcher }),
+      ).rejects.toThrow(error_msg);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("still retries Safe's per-second error message", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        json({ error_msg: "Too many requests per second" }, 429),
+      )
+      .mockResolvedValueOnce(json({ next: null, results: [] }));
+    const waiting = listPendingSafeTransactions(1, SAFE, 0, { fetch: fetcher });
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(waiting).resolves.toEqual([]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the monthly quota detail for a single proposal without retrying", async () => {
+    const fetcher = vi.fn(async () =>
+      json({ error_msg: "Monthly quota exceeded" }, 429),
+    );
+    await expect(
+      readSafeTransaction(1, SAFE, row().safeTxHash, { fetch: fetcher }),
+    ).rejects.toThrow("Monthly quota exceeded");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not disclose a local Safe key to custom service hosts", async () => {
+    configureSafeServiceProxy("https://juicebox.center/v1/safe", {
+      origin: "https://revnet.money",
+    });
+    for (const customBase of [
+      "https://safe.test",
+      "/local-safe",
+      "https://juicebox.center/v1/safe-other",
+      "http://api.safe.global/tx-service/eth",
+      "https://api.safe.global.evil.test/tx-service/eth",
+    ]) {
+      vi.stubGlobal("localStorage", {
+        getItem: (key: string) =>
+          key === "jb-safe-api-key"
+            ? "secret"
+            : JSON.stringify({ 1: customBase }),
+      });
+      const fetcher = vi.fn<typeof fetch>(async () =>
+        json({ next: null, results: [] }),
+      );
+      await listPendingSafeTransactions(1, SAFE, 0, { fetch: fetcher });
+      expect(
+        new Headers(fetcher.mock.calls[0]?.[1]?.headers).has("authorization"),
+      ).toBe(false);
+      expect(
+        new Headers(fetcher.mock.calls[0]?.[1]?.headers).has("origin"),
+      ).toBe(false);
+    }
+  });
+
+  it("keeps server proxy Origin off explicit direct Safe requests", async () => {
+    configureSafeServiceProxy("https://juicebox.center/v1/safe", {
+      origin: "https://revnet.money",
+    });
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) =>
+        key === "jb-safe-api-key" ? "secret" : JSON.stringify({ 1: base }),
+    });
+    const fetcher = vi.fn<typeof fetch>(async () =>
+      json({ next: null, results: [] }),
+    );
+    await listPendingSafeTransactions(1, SAFE, 0, { fetch: fetcher });
+    expect(fetcher).toHaveBeenCalledWith(expect.stringContaining(base), {
+      headers: { accept: "application/json", authorization: "Bearer secret" },
+    });
+  });
+
   it("knows which chains host a service, and links one queued transaction", () => {
     expect(hasSafeService(1)).toBe(true);
     expect(hasSafeService(11155420)).toBe(false);
@@ -1353,7 +1489,7 @@ describe("Safe transaction service", () => {
       ],
       [
         (options) => readSafeTransaction(1, SAFE, hash, options),
-        `Safe's transaction service answered 429 for proposal ${hash} on chain 1. Try again when it is available.`,
+        `Safe's transaction service answered 429 for proposal ${hash} on chain 1: slow down. Try again when it is available.`,
       ],
       [
         (options) =>
