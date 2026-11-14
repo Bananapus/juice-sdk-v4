@@ -13,6 +13,7 @@ import {
   permit2AllowanceNeedsRefresh,
   permit2SignatureNeedsOnchainFallback,
   permit2TypedData,
+  permit2PayAuthorizationReusable,
   planErc20PayAuthorization,
   readPermit2Allowance,
   readPermit2PayAuthorization,
@@ -278,5 +279,40 @@ describe("Permit2 pay authorization", () => {
     await expect(plan({ code: "0x1234" })).resolves.toEqual(exact);
     await expect(plan({ code: "0xef0100aa" })).resolves.toEqual(exact);
     await expect(plan({}, true)).resolves.toEqual(exact);
+  });
+  test("permit2PayAuthorizationReusable keeps a signature only for the same unspent payment with time left", () => {
+    const fresh = {
+      chainId: 8453 as const,
+      token: TOKEN,
+      spender: ENTRY,
+      amount: 5_000_000n,
+      expiration: 10_000,
+      nonce: 3,
+      sigDeadline: 10_000n,
+    };
+    const signed = (change: Partial<typeof fresh> = {}) => ({
+      authorization: { ...fresh, ...change },
+      signature: "0x12" as const,
+    });
+    expect(permit2PayAuthorizationReusable(null, fresh)).toBe(false);
+    expect(permit2PayAuthorizationReusable(signed(), fresh)).toBe(true);
+    // Signed up to 28 minutes ago: 120 seconds are still left.
+    expect(
+      permit2PayAuthorizationReusable(
+        signed({ sigDeadline: 10_000n - 1_680n }),
+        fresh,
+      ),
+    ).toBe(true);
+    for (const change of [
+      { sigDeadline: 10_000n - 1_681n },
+      { nonce: 2 },
+      { amount: 5_000_001n },
+      { spender: OWNER },
+      { token: OWNER },
+      { chainId: 1 as const },
+    ])
+      expect(
+        permit2PayAuthorizationReusable(signed(change as never), fresh),
+      ).toBe(false);
   });
 });

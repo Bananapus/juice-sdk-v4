@@ -356,6 +356,46 @@ export function addPermit2PayMetadata({
   );
 }
 
+/** A pay authorization the payer signed, kept while its payment retries. */
+export interface SignedPermit2PayAuthorization {
+  authorization: Permit2SignatureAuthorization;
+  signature: Hex;
+}
+
+/** A signed pay authorization this close to its deadline is signed again. */
+const PERMIT2_PAY_REUSE_MARGIN_SECONDS = 120;
+
+/**
+ * Whether a signature from an earlier attempt still authorizes this exact
+ * payment: the same chain, token, entry, amount and Permit2 nonce as a freshly
+ * read authorization, with time left. Permit2 moves the nonce on when an
+ * allowance is used, so a spent signature is never reused.
+ *
+ * @param signed The kept signature, if any.
+ * @param fresh From {@link readPermit2PayAuthorization} or {@link planErc20PayAuthorization} now.
+ */
+export function permit2PayAuthorizationReusable(
+  signed: SignedPermit2PayAuthorization | null | undefined,
+  fresh: Permit2SignatureAuthorization,
+): signed is SignedPermit2PayAuthorization {
+  if (!signed) return false;
+  const was = signed.authorization;
+  return (
+    was.chainId === fresh.chainId &&
+    was.token.toLowerCase() === fresh.token.toLowerCase() &&
+    was.spender.toLowerCase() === fresh.spender.toLowerCase() &&
+    was.amount === fresh.amount &&
+    was.nonce === fresh.nonce &&
+    // A fresh authorization expires a fixed time after the chain's latest
+    // block, so this compares against chain time.
+    was.sigDeadline >=
+      fresh.sigDeadline -
+        BigInt(
+          PERMIT2_PAY_AUTHORIZATION_SECONDS - PERMIT2_PAY_REUSE_MARGIN_SECONDS,
+        )
+  );
+}
+
 /** How a payer authorizes an ERC-20 payment to a pay entry. */
 export type Erc20PayAuthorizationPlan =
   /** The entry's own allowance already covers the amount. */
