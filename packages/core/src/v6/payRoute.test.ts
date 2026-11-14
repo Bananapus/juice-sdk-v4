@@ -13,7 +13,7 @@ vi.mock("./pay.js", async (original) => ({
 }));
 
 import { PaySwapQuoteFailedError } from "./pay.js";
-import { prepareBestUserPay } from "./payRoute.js";
+import { isExecutionRevert, prepareBestUserPay } from "./payRoute.js";
 
 const MULTI = "0x00000000000000000000000000000000000000a1" as Address;
 const ROUTER = "0x00000000000000000000000000000000000000b2" as Address;
@@ -115,7 +115,17 @@ describe("prepareBestUserPay", () => {
       new BaseError("call failed", {
         cause: new ContractFunctionRevertedError({
           abi: [],
+          data: "0x",
           functionName: "pay",
+        }),
+      });
+    /** A node's own failure (JSON-RPC -32603), which viem also words as a revert. */
+    const nodeFailed = () =>
+      new BaseError("call failed", {
+        cause: new ContractFunctionRevertedError({
+          abi: [],
+          functionName: "pay",
+          message: "Internal error",
         }),
       });
     /** What running each terminal's payment returns; an Error is thrown. */
@@ -153,6 +163,20 @@ describe("prepareBestUserPay", () => {
           simulateFrom: PAYER,
         }),
       ).resolves.toMatchObject({ terminal: MULTI, simulatedTokenCount: 100n });
+    });
+
+    it("never drops a route for a node failure worded as a revert", async () => {
+      answers({ [MULTI]: quote(100n), [ROUTER]: quote(120n) });
+      const picked = await prepareBestUserPay(
+        runs({ [MULTI]: 100n, [ROUTER]: nodeFailed() }),
+        { ...args, simulateFrom: PAYER },
+      );
+      expect(picked).toMatchObject({ terminal: ROUTER });
+      expect(picked).not.toHaveProperty("simulatedTokenCount");
+      const coded = Object.assign(new BaseError("execution reverted"), { code: 3 });
+      expect(isExecutionRevert(new BaseError("x", { cause: coded }))).toBe(false);
+      expect(isExecutionRevert(nodeFailed())).toBe(false);
+      expect(isExecutionRevert(reverted())).toBe(true);
     });
 
     it("lets the previews decide when a route cannot be run, or every one reverts", async () => {

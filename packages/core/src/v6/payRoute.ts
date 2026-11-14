@@ -40,6 +40,21 @@ type Run = bigint | "reverted" | null;
  * estimate (a pool may not fill the order at the previewed price); the call
  * returns what the payment would deliver in this block.
  */
+/**
+ * Did the node run the call and have it revert? viem also words a node's own
+ * failure (JSON-RPC -32603, no revert data) as a contract revert, and a route
+ * is never dropped for that: only for revert data, or the node's revert code 3.
+ */
+export function isExecutionRevert(error: unknown): boolean {
+  if (!(error instanceof BaseError)) return false;
+  const revert = error.walk(
+    (cause) => cause instanceof ContractFunctionRevertedError,
+  ) as ContractFunctionRevertedError | null;
+  if (!revert) return false;
+  if (revert.raw !== undefined || revert.signature !== undefined) return true;
+  return !!error.walk((cause) => (cause as { code?: unknown }).code === 3);
+}
+
 async function runPay(
   client: PublicClient,
   args: {
@@ -66,10 +81,7 @@ async function runPay(
     });
     return typeof result === "bigint" ? result : null;
   } catch (error) {
-    const reverted =
-      error instanceof BaseError &&
-      error.walk((cause) => cause instanceof ContractFunctionRevertedError);
-    return reverted ? "reverted" : null;
+    return isExecutionRevert(error) ? "reverted" : null;
   }
 }
 
