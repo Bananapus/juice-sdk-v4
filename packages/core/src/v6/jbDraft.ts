@@ -520,6 +520,9 @@ function checkKind(value: JbDraft): void {
       return;
     }
     bad(index > 0 && entry.startAt > 0, `${at}.startAt`);
+    // A cut repeats on the stage's cycle, so it needs one. A cycle is at least a day.
+    bad(entry.cutDays !== "" && !(Number(entry.cutDays) > 0), `${at}.cutDays`);
+    bad(Number(entry.cutPercent) > 0 && entry.cutDays === "", `${at}.cutDays`);
     bad(entry.startAfterCycles !== "", `${at}.startAfterCycles`);
     bad(entry.duration !== 0, `${at}.duration`);
     bad(entry.payouts.length > 0, `${at}.payouts`);

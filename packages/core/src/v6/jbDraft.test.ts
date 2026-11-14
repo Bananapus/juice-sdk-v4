@@ -179,6 +179,9 @@ describe(".jb draft v2", () => {
     expect(
       refused(revnetStage({ powers: { ...sample().stages[0].powers, setTerminals: true } })),
     ).toContain("powers");
+    expect(refused(revnetStage({ cutPercent: "5", cutDays: "" }))).toContain("cutDays");
+    expect(refused(revnetStage({ cutPercent: "", cutDays: "0" }))).toContain("cutDays");
+    expect(checkJbDraft(revnetStage({ cutPercent: "", cutDays: "30" })).stages[0].cutDays).toBe("30");
     expect(refused({ ...sample(), afterMode: "cycle" })).toContain("afterMode");
     expect(refused({ ...sample(), approvalHook: "0x1" })).toContain("approvalHook");
 
