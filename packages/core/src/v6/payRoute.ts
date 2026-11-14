@@ -42,8 +42,9 @@ type Run = bigint | "reverted" | null;
  */
 /**
  * Did the node run the call and have it revert? viem also words a node's own
- * failure (JSON-RPC -32603, no revert data) as a contract revert, and a route
- * is never dropped for that: only for revert data, or the node's revert code 3.
+ * failure (JSON-RPC -32603 "Internal error", no revert data) as a contract
+ * revert and drops the node's error code, so a route is dropped only for
+ * revert data or a message that says the execution reverted.
  */
 export function isExecutionRevert(error: unknown): boolean {
   if (!(error instanceof BaseError)) return false;
@@ -52,7 +53,7 @@ export function isExecutionRevert(error: unknown): boolean {
   ) as ContractFunctionRevertedError | null;
   if (!revert) return false;
   if (revert.raw !== undefined || revert.signature !== undefined) return true;
-  return !!error.walk((cause) => (cause as { code?: unknown }).code === 3);
+  return /revert/i.test(revert.reason ?? "");
 }
 
 async function runPay(
@@ -77,7 +78,9 @@ async function runPay(
       }),
       account: payer,
       // The payer may not hold the amount yet: the balance is lent to this call alone.
-      stateOverride: [{ address: payer, balance: args.amount * 2n + 10n ** 18n }],
+      stateOverride: [
+        { address: payer, balance: args.amount * 2n + 10n ** 18n },
+      ],
     });
     return typeof result === "bigint" ? result : null;
   } catch (error) {
@@ -117,7 +120,9 @@ function isBetter(candidate: BestUserPay, current: BestUserPay): boolean {
  *
  * With `simulateFrom` on a native-token payment, each prepared candidate is
  * also run as a call from that account. A candidate whose call reverts is
- * dropped when another runs. When every remaining candidate ran, the one
+ * dropped while another is left; when every one reverts there is nothing better
+ * to pick, the previews decide, and sending the payment reports the revert.
+ * When every remaining candidate ran, the one
  * delivering the most tokens wins and carries `simulatedTokenCount`; when one
  * could not be run (an RPC without call overrides), the previews decide as
  * before. ERC-20 payments are not run: they need the payer's approval first.
@@ -167,17 +172,17 @@ export async function prepareBestUserPay(
     const runs = await Promise.all(
       routes.map((route) => runPay(client, args, route, simulateFrom)),
     );
-    const ran = routes.filter((_, index) => typeof runs[index] === "bigint");
-    if (ran.length) {
-      const live = routes.filter((_, index) => runs[index] !== "reverted");
-      // Exact figures decide only when every candidate left has one.
-      if (live.length === ran.length) {
-        routes = ran.map((route) => ({
-          ...route,
-          simulatedTokenCount: runs[routes.indexOf(route)] as bigint,
-        }));
-      } else routes = live;
-    }
+    const count = new Map(routes.map((route, index) => [route, runs[index]]));
+    const live = routes.filter((route) => count.get(route) !== "reverted");
+    // A reverting route is dropped while another is left. Exact figures decide
+    // only when every route left has one.
+    if (live.length)
+      routes = live.every((route) => typeof count.get(route) === "bigint")
+        ? live.map((route) => ({
+            ...route,
+            simulatedTokenCount: count.get(route) as bigint,
+          }))
+        : live;
   }
   let best: BestUserPay | null = null;
   for (const route of routes) {

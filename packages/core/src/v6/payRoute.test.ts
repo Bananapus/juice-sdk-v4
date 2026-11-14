@@ -150,7 +150,9 @@ describe("prepareBestUserPay", () => {
         account: PAYER,
         value: args.amount,
         functionName: "pay",
-        stateOverride: [{ address: PAYER, balance: args.amount * 2n + 10n ** 18n }],
+        stateOverride: [
+          { address: PAYER, balance: args.amount * 2n + 10n ** 18n },
+        ],
       });
       expect(mocks.prepare.mock.calls[0][1]).not.toHaveProperty("simulateFrom");
     });
@@ -173,8 +175,18 @@ describe("prepareBestUserPay", () => {
       );
       expect(picked).toMatchObject({ terminal: ROUTER });
       expect(picked).not.toHaveProperty("simulatedTokenCount");
-      const coded = Object.assign(new BaseError("execution reverted"), { code: 3 });
-      expect(isExecutionRevert(new BaseError("x", { cause: coded }))).toBe(false);
+      // A node that reports an empty revert without data (code 3, "execution reverted").
+      const bare = new BaseError("call failed", {
+        cause: new ContractFunctionRevertedError({
+          abi: [],
+          functionName: "pay",
+          message: "execution reverted",
+        }),
+      });
+      expect(isExecutionRevert(bare)).toBe(true);
+      expect(isExecutionRevert(new BaseError("execution reverted"))).toBe(
+        false,
+      );
       expect(isExecutionRevert(nodeFailed())).toBe(false);
       expect(isExecutionRevert(reverted())).toBe(true);
     });
@@ -187,6 +199,13 @@ describe("prepareBestUserPay", () => {
       );
       expect(unknown).toMatchObject({ terminal: ROUTER });
       expect(unknown).not.toHaveProperty("simulatedTokenCount");
+      // A reverting route is dropped even when the other could not be run.
+      await expect(
+        prepareBestUserPay(
+          runs({ [MULTI]: new Error("no overrides"), [ROUTER]: reverted() }),
+          { ...args, simulateFrom: PAYER },
+        ),
+      ).resolves.toMatchObject({ terminal: MULTI });
       const none = await prepareBestUserPay(
         runs({ [MULTI]: reverted(), [ROUTER]: reverted() }),
         { ...args, simulateFrom: PAYER },
