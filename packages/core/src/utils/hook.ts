@@ -101,3 +101,40 @@ export function createHookMetadata(ids: string[], metadatas: string[]): Hex {
 
   return `0x${"0".repeat(WORD_CHARS)}${paddedTable}${payloads.join("")}` as Hex;
 }
+
+/**
+ * Add one `{id: data}` entry to packed hook metadata, as
+ * `JBMetadataResolver.addToMetadata` does: the existing entries keep their
+ * order and payloads, and the lookup table is rebuilt with the new one last.
+ *
+ * @param metadata Packed metadata from {@link createHookMetadata}, or `0x`.
+ * @param id The 4-byte lookup id, from {@link hookMetadataId}.
+ * @param data The payload for `id`.
+ * @link https://github.com/Bananapus/nana-core-v6/blob/main/src/libraries/JBMetadataResolver.sol (`addToMetadata`)
+ */
+export function addToHookMetadata(
+  metadata: string | undefined,
+  id: string,
+  data: string,
+): Hex {
+  const body = hexBody(metadata ?? "0x", "metadata");
+  const ids: string[] = [];
+  const offsets: number[] = [];
+  // The first entry's offset is where the lookup table ends.
+  const idChars = TOTAL_ID_SIZE * 2;
+  const tableEnd = body.length
+    ? parseInt(body.slice(WORD_CHARS + 8, WORD_CHARS + idChars), 16) *
+      WORD_CHARS
+    : 0;
+  for (let i = WORD_CHARS; i + idChars <= tableEnd; i += idChars) {
+    const offset = parseInt(body.slice(i + 8, i + idChars), 16);
+    // A zero offset is the table's padding.
+    if (!offset) break;
+    ids.push(`0x${body.slice(i, i + 8)}`);
+    offsets.push(offset * WORD_CHARS);
+  }
+  const payloads = offsets.map(
+    (start, i) => `0x${body.slice(start, offsets[i + 1] ?? body.length)}`,
+  );
+  return createHookMetadata([...ids, id], [...payloads, data]);
+}

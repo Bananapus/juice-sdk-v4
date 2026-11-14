@@ -1,6 +1,16 @@
-import { Address, ContractFunctionArgs, PublicClient } from "viem";
-import { revDeployerAbi, revOwnerAbi } from "../generated/juicebox.js";
+import {
+  Address,
+  ContractFunctionArgs,
+  PublicClient,
+  zeroAddress,
+} from "viem";
+import {
+  jbDirectoryAbi,
+  revDeployerAbi,
+  revOwnerAbi,
+} from "../generated/juicebox.js";
 import { JBChainId } from "../types.js";
+import { amountAfterFee } from "./fees.js";
 import {
   buildRevnet721Config,
   resolve721PricingContext,
@@ -364,4 +374,77 @@ export async function getRevnetTiered721Hook(
     functionName: "tiered721HookOf",
     args: [args.revnetId],
   });
+}
+
+/**
+ * Whether a revnet takes its 2.5% fee from a cash out, as
+ * `REVOwner.beforeCashOutRecordedWith` decides it. The fee is skipped when the
+ * ruleset's cash out tax rate is zero, when the fee revnet has no primary
+ * terminal for the reclaimed token, when the beneficiary is feeless, and for a
+ * sucker moving tokens between chains.
+ *
+ * `undefined` while the tax rate is unknown: an unknown fee is not shown as
+ * either extreme. This answers for revnets only; a project whose data hook is
+ * not a `REVOwner` pays no such fee.
+ *
+ * @param args.feeTerminalExists From {@link revnetCashOutFeeTerminalExists}.
+ * Defaults to true, the deployed fee revnet's state for the tokens it accepts.
+ * @link https://github.com/rev-net/revnet-core-v6/blob/main/src/REVOwner.sol (`beforeCashOutRecordedWith`)
+ */
+export function revnetCashOutFeeApplies({
+  cashOutTaxRate,
+  feeTerminalExists = true,
+  beneficiaryIsFeeless = false,
+  holderIsSucker = false,
+}: {
+  cashOutTaxRate: bigint | number | undefined;
+  feeTerminalExists?: boolean;
+  beneficiaryIsFeeless?: boolean;
+  holderIsSucker?: boolean;
+}): boolean | undefined {
+  if (holderIsSucker || beneficiaryIsFeeless || !feeTerminalExists) {
+    return false;
+  }
+  if (cashOutTaxRate === undefined) return undefined;
+  return BigInt(cashOutTaxRate) !== 0n;
+}
+
+/**
+ * The token count a revnet cash out reclaims against once its fee is taken:
+ * `count - count / 40`, the contract's own rounding. The other fortieth is
+ * cashed out for the fee revnet. The terminal's protocol fee then comes out of
+ * what this count reclaims (see `cashOutProtocolFee`).
+ *
+ * @param applies From {@link revnetCashOutFeeApplies}; false returns the count unchanged.
+ */
+export function cashOutCountAfterRevnetFee(
+  cashOutCount: bigint,
+  applies = true,
+): bigint {
+  return applies ? amountAfterFee(cashOutCount) : cashOutCount;
+}
+
+/**
+ * Whether the fee revnet can be paid in `token`: `REVOwner` charges its cash
+ * out fee only when `JBDirectory.primaryTerminalOf(FEE_REVNET_ID, token)` is set.
+ *
+ * @param args.revOwner The revnet's data hook. Defaults to the current `REVOwner`.
+ * @param args.token The token the cash out reclaims.
+ */
+export async function revnetCashOutFeeTerminalExists(
+  client: PublicClient,
+  args: { chainId: JBChainId; token: Address; revOwner?: Address },
+): Promise<boolean> {
+  const feeRevnetId = await client.readContract({
+    address: args.revOwner ?? v6Address("REVOwner", args.chainId),
+    abi: revOwnerAbi,
+    functionName: "FEE_REVNET_ID",
+  });
+  const terminal = await client.readContract({
+    address: v6Address("JBDirectory", args.chainId),
+    abi: jbDirectoryAbi,
+    functionName: "primaryTerminalOf",
+    args: [feeRevnetId, args.token],
+  });
+  return terminal !== zeroAddress;
 }

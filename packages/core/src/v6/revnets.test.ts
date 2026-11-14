@@ -16,6 +16,9 @@ import {
   REVSuckerDeploymentConfig,
   REV_METADATA_ALLOW_SUCKER_DEPLOYMENT,
   buildAutoIssueTx,
+  cashOutCountAfterRevnetFee,
+  revnetCashOutFeeApplies,
+  revnetCashOutFeeTerminalExists,
   buildDeployRevnetTx,
   buildRevnetStageConfig,
   getAmountToAutoIssue,
@@ -489,5 +492,63 @@ describe("REVOwner actions", () => {
       functionName: "tiered721HookOf",
       args: [4n],
     });
+  });
+
+  test("revnetCashOutFeeApplies follows REVOwner's skip conditions", () => {
+    expect(revnetCashOutFeeApplies({ cashOutTaxRate: 1n })).toBe(true);
+    expect(revnetCashOutFeeApplies({ cashOutTaxRate: 0n })).toBe(false);
+    expect(revnetCashOutFeeApplies({ cashOutTaxRate: 0 })).toBe(false);
+    // An unknown rate is unknown, never a guess.
+    expect(revnetCashOutFeeApplies({ cashOutTaxRate: undefined })).toBe(
+      undefined,
+    );
+    for (const skip of [
+      { feeTerminalExists: false },
+      { beneficiaryIsFeeless: true },
+      { holderIsSucker: true },
+    ]) {
+      expect(revnetCashOutFeeApplies({ cashOutTaxRate: 5_000n, ...skip })).toBe(
+        false,
+      );
+      // These skips hold whatever the rate turns out to be.
+      expect(
+        revnetCashOutFeeApplies({ cashOutTaxRate: undefined, ...skip }),
+      ).toBe(false);
+    }
+  });
+
+  test("cashOutCountAfterRevnetFee rounds as the contract does: count - count / 40", () => {
+    expect(cashOutCountAfterRevnetFee(1n)).toBe(1n);
+    expect(cashOutCountAfterRevnetFee(39n)).toBe(39n);
+    expect(cashOutCountAfterRevnetFee(40n)).toBe(39n);
+    expect(cashOutCountAfterRevnetFee(41n)).toBe(40n);
+    expect(cashOutCountAfterRevnetFee(1_000n)).toBe(975n);
+    expect(cashOutCountAfterRevnetFee(1_000n, false)).toBe(1_000n);
+  });
+
+  test("revnetCashOutFeeTerminalExists asks the directory for the fee revnet's terminal", async () => {
+    const TOKEN = "0x00000000000000000000000000000000000000aa" as const;
+    for (const [terminal, expected] of [
+      [OPERATOR, true],
+      [zeroAddress, false],
+    ] as const) {
+      const calls: any[] = [];
+      const client = {
+        async readContract(params: any) {
+          calls.push(params);
+          return params.functionName === "FEE_REVNET_ID" ? 3n : terminal;
+        },
+      } as any;
+      await expect(
+        revnetCashOutFeeTerminalExists(client, {
+          chainId: sepolia.id,
+          token: TOKEN,
+        }),
+      ).resolves.toBe(expected);
+      expect(calls[1]).toMatchObject({
+        functionName: "primaryTerminalOf",
+        args: [3n, TOKEN],
+      });
+    }
   });
 });

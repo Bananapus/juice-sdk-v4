@@ -11,6 +11,7 @@ import {
 import {
   getAccountingContexts,
   resolvePaymentTerminal,
+  resolveProjectRouterTerminal,
   resolveRouterPath,
 } from "./terminals.js";
 import { v6Address } from "./types.js";
@@ -218,5 +219,82 @@ describe("terminals", () => {
     expect(calls[0].abi).toBe(jbMultiTerminalAbi);
     expect(calls[0].functionName).toEqual("accountingContextsOf");
     expect(calls[0].args).toEqual([projectId]);
+  });
+});
+
+describe("resolveProjectRouterTerminal", () => {
+  const registry = v6Address("JBRouterTerminalRegistry", chainId);
+  const gateway = v6Address("JBRouterTerminalGateway", chainId);
+  const router = v6Address("JBRouterTerminal", chainId);
+  const multi = v6Address("JBMultiTerminal", chainId);
+
+  /** A directory listing `terminals`; the registry and the gateway answer their own reads. */
+  function clientListing(terminals: Address[], registryTerminal: Address) {
+    const readContract = vi.fn(
+      async ({ functionName }: { functionName: string }) => {
+        if (functionName === "terminalsOf") return terminals;
+        if (functionName === "terminalOf") return registryTerminal;
+        if (functionName === "ROUTER") return router;
+        throw new Error(`unexpected read ${functionName}`);
+      },
+    );
+    return {
+      client: { readContract } as unknown as PublicClient,
+      reads: () => readContract.mock.calls.map(([call]) => call.functionName),
+    };
+  }
+
+  test("a project that lists the registry gets the registry's route", async () => {
+    const { client } = clientListing([multi, registry], gateway);
+    expect(
+      await resolveProjectRouterTerminal(client, { chainId, projectId }),
+    ).toEqual({
+      status: "gateway",
+      registry,
+      terminal: gateway,
+      gateway,
+      router,
+      via: "registry",
+    });
+  });
+
+  test("a project that never listed the registry has no route, whatever default the registry names", async () => {
+    const { client, reads } = clientListing([multi], gateway);
+    expect(
+      await resolveProjectRouterTerminal(client, { chainId, projectId }),
+    ).toEqual({
+      status: "unresolved",
+      registry,
+      terminal: null,
+      gateway: null,
+      router: null,
+      via: "none",
+    });
+    expect(reads()).toEqual(["terminalsOf"]);
+  });
+
+  test("a project that lists a gateway or router itself uses that terminal", async () => {
+    const viaGateway = clientListing([multi, gateway], zeroAddress);
+    expect(
+      await resolveProjectRouterTerminal(viaGateway.client, {
+        chainId,
+        projectId,
+      }),
+    ).toMatchObject({ status: "gateway", terminal: gateway, router, via: "direct" });
+    expect(viaGateway.reads()).not.toContain("terminalOf");
+    const viaRouter = clientListing([router], zeroAddress);
+    expect(
+      await resolveProjectRouterTerminal(viaRouter.client, {
+        chainId,
+        projectId,
+      }),
+    ).toMatchObject({ status: "direct", terminal: router, router, via: "direct" });
+  });
+
+  test("a listed registry with nothing resolved stays unresolved through the registry", async () => {
+    const { client } = clientListing([registry], zeroAddress);
+    expect(
+      await resolveProjectRouterTerminal(client, { chainId, projectId }),
+    ).toMatchObject({ status: "unresolved", via: "registry" });
   });
 });

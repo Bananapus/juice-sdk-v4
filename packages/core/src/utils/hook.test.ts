@@ -1,6 +1,10 @@
 import { encodeAbiParameters, keccak256, toBytes } from "viem";
 import { describe, expect, test } from "vitest";
-import { createHookMetadata, hookMetadataId } from "./hook.js";
+import {
+  addToHookMetadata,
+  createHookMetadata,
+  hookMetadataId,
+} from "./hook.js";
 
 /**
  * Expected bytes captured from `JBMetadataResolver.createMetadata` in
@@ -147,5 +151,42 @@ describe("hookMetadataId", () => {
     ).join("");
 
     expect(hookMetadataId(target, "cashOut")).toBe(`0x${expected}`);
+  });
+});
+
+describe("addToHookMetadata", () => {
+  const word = (n: number) => `0x${n.toString(16).padStart(64, "0")}`;
+  const ids = ["0x11111111", "0x22222222", "0x33333333"];
+  const datas = [word(1), `${word(2)}${word(3).slice(2)}`, word(4)];
+
+  test("appends an entry exactly as packing them together would", () => {
+    let metadata: string | undefined;
+    ids.forEach((id, i) => {
+      metadata = addToHookMetadata(metadata, id, datas[i]);
+      expect(metadata).toBe(
+        createHookMetadata(ids.slice(0, i + 1), datas.slice(0, i + 1)),
+      );
+    });
+  });
+
+  test("keeps earlier entries when the lookup table grows into a second word", () => {
+    // Six entries fill 30 bytes of table; the seventh spills into a new word.
+    const many = Array.from({ length: 7 }, (_, i) => `0x0000000${i + 1}`);
+    const payloads = many.map((_, i) => word(i + 10));
+    const built = many
+      .slice(0, 6)
+      .reduce<string | undefined>(
+        (metadata, id, i) => addToHookMetadata(metadata, id, payloads[i]),
+        undefined,
+      );
+    expect(addToHookMetadata(built, many[6], payloads[6])).toBe(
+      createHookMetadata(many, payloads),
+    );
+  });
+
+  test("starts from empty metadata", () => {
+    expect(addToHookMetadata("0x", ids[0], datas[0])).toBe(
+      createHookMetadata([ids[0]], [datas[0]]),
+    );
   });
 });
