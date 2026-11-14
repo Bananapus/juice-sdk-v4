@@ -377,9 +377,12 @@ const budgets = {
     // the reader. The same small margin for release notes is kept.
     // The best-route pay preparation (`v6/payRoute`) is one more module, 8 files:
     // measured 1,961,706 B packed, 25,322,520 B unpacked, 1,955 entries.
-    packed: 1_966_000,
-    unpacked: 25_330_000,
-    entries: 1_955,
+    // The project contract audit (`review/contractAudit`, its own entry point) is one
+    // more module, 8 files, and the shop item details edit a few lines in `v6/nft`:
+    // measured 1,966,395 B packed, 25,352,540 B unpacked, 1,963 entries.
+    packed: 1_971_000,
+    unpacked: 25_360_000,
+    entries: 1_963,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
