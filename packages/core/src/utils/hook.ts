@@ -141,7 +141,10 @@ export function addToHookMetadata(
     // A zero offset is the table's padding.
     if (!offset) break;
     // Each payload starts after the one before it and inside the metadata.
-    if (offset <= (offsets.at(-1) ?? tableEnd - 1) || offset >= body.length)
+    if (
+      offset <= (offsets[offsets.length - 1] ?? tableEnd - 1) ||
+      offset >= body.length
+    )
       throw malformed();
     ids.push(`0x${body.slice(i, i + 8)}`);
     offsets.push(offset);
