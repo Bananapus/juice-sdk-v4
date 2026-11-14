@@ -106,6 +106,8 @@ export function createHookMetadata(ids: string[], metadatas: string[]): Hex {
  * Add one `{id: data}` entry to packed hook metadata, as
  * `JBMetadataResolver.addToMetadata` does: the existing entries keep their
  * order and payloads, and the lookup table is rebuilt with the new one last.
+ * Every payload must be whole words, as {@link createHookMetadata} packs them:
+ * a last payload that is not cannot be told from one that was cut off.
  *
  * @param metadata Packed metadata from {@link createHookMetadata}, or `0x`.
  * @param id The 4-byte lookup id, from {@link hookMetadataId}.
@@ -122,7 +124,10 @@ export function addToHookMetadata(
   const offsets: number[] = [];
   // The first entry's offset is where the lookup table ends.
   const idChars = TOTAL_ID_SIZE * 2;
-  const tableEnd = body.length
+  // Up to one word is the reserved word alone, which is kept, as the contract keeps it.
+  const reserved = body.slice(0, WORD_CHARS).padEnd(WORD_CHARS, "0");
+  const hasTable = body.length > WORD_CHARS;
+  const tableEnd = hasTable
     ? parseInt(body.slice(WORD_CHARS + 8, WORD_CHARS + idChars), 16) *
       WORD_CHARS
     : 0;
@@ -131,7 +136,7 @@ export function addToHookMetadata(
   const malformed = () =>
     new Error("metadata is not well-formed packed hook metadata.");
   if (
-    body.length &&
+    hasTable &&
     (body.length % WORD_CHARS !== 0 ||
       !(tableEnd >= 2 * WORD_CHARS && tableEnd < body.length))
   )
@@ -152,5 +157,6 @@ export function addToHookMetadata(
   const payloads = offsets.map(
     (start, i) => `0x${body.slice(start, offsets[i + 1] ?? body.length)}`,
   );
-  return createHookMetadata([...ids, id], [...payloads, data]);
+  const packed = createHookMetadata([...ids, id], [...payloads, data]);
+  return `0x${reserved}${packed.slice(2 + WORD_CHARS)}` as Hex;
 }

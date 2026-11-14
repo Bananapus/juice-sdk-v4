@@ -192,8 +192,6 @@ describe("addToHookMetadata", () => {
       good.slice(0, -2),
       // Cut inside the lookup table.
       good.slice(0, 2 + 64 + 20),
-      // The reserved word alone.
-      `0x${"0".repeat(64)}`,
       // An offset pointing past the end.
       table("1111111109"),
       // An offset pointing into the table.
@@ -204,6 +202,28 @@ describe("addToHookMetadata", () => {
       expect(() => addToHookMetadata(bad, ids[1], datas[1])).toThrow(
         "not well-formed",
       );
+  });
+
+  test("keeps the reserved word, alone or ahead of entries, as the contract does", () => {
+    const reserved = "ab".repeat(32);
+    const fresh = createHookMetadata([ids[0]], [datas[0]]).slice(66);
+    // JBMetadataResolver.addToMetadata's short path: bytes32(original), then the one entry.
+    expect(addToHookMetadata(`0x${reserved}`, ids[0], datas[0])).toBe(
+      `0x${reserved}${fresh}`,
+    );
+    expect(addToHookMetadata(`0x${"0".repeat(64)}`, ids[0], datas[0])).toBe(
+      `0x${"0".repeat(64)}${fresh}`,
+    );
+    // A shorter one is left-aligned in its word, as bytes32(bytes) is.
+    expect(addToHookMetadata("0xabcd", ids[0], datas[0])).toBe(
+      `0xabcd${"0".repeat(60)}${fresh}`,
+    );
+    const two = createHookMetadata(ids.slice(0, 2), datas.slice(0, 2)).slice(
+      66,
+    );
+    expect(addToHookMetadata(`0x${reserved}${fresh}`, ids[1], datas[1])).toBe(
+      `0x${reserved}${two}`,
+    );
   });
 
   test("starts from empty metadata", () => {
