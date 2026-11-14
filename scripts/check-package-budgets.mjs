@@ -380,9 +380,12 @@ const budgets = {
     // The project contract audit (`review/contractAudit`, its own entry point) is one
     // more module, 8 files, and the shop item details edit a few lines in `v6/nft`:
     // measured 1,966,395 B packed, 25,352,540 B unpacked, 1,963 entries.
-    packed: 1_971_000,
-    unpacked: 25_360_000,
-    entries: 1_963,
+    // The payment notice rule (`v6/payNotice`, one more module, 8 files) and the exact
+    // pay route choice by simulated payment in `v6/payRoute`:
+    // measured 1,970,551 B packed, 25,377,839 B unpacked, 1,971 entries.
+    packed: 1_975_000,
+    unpacked: 25_385_000,
+    entries: 1_971,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
