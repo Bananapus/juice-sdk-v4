@@ -13,6 +13,7 @@ import { JBChainId } from "../types.js";
 import { createHookMetadata, hookMetadataId } from "../utils/hook.js";
 import { NATIVE_TOKEN_CURRENCY_ID } from "./currency.js";
 import { matchKnownRevert } from "./executionErrors.js";
+import { cashOutCountAfterRevnetFee } from "./revnets.js";
 import { v6Address, v6Deployments } from "./types.js";
 import {
   buildUniswapV4ExactInputSwapTx,
@@ -177,6 +178,9 @@ export interface CashOutQuote {
  * token. Required to resolve the fee when `cashOutTaxRate` is zero.
  * @param args.beneficiaryIsFeeless Whether the beneficiary is feeless (pays no
  * protocol fee). Defaults to false.
+ * @param args.revnetFeeApplies Whether the project is a revnet that takes its
+ * cash out fee here (`revnetCashOutFeeApplies`). The quote is then for the
+ * count left after that fee. Defaults to false.
  * @returns The raw reclaim amount and, when the fee inputs are resolved, the
  * amount net of the conditional 2.5% protocol fee.
  *
@@ -214,6 +218,7 @@ export async function getCashOutQuote(
     cashOutTaxRate,
     feeFreeSurplus,
     beneficiaryIsFeeless = false,
+    revnetFeeApplies = false,
   }: {
     chainId: JBChainId;
     projectId: bigint;
@@ -223,13 +228,22 @@ export async function getCashOutQuote(
     cashOutTaxRate?: bigint;
     feeFreeSurplus?: bigint;
     beneficiaryIsFeeless?: boolean;
+    revnetFeeApplies?: boolean;
   },
 ): Promise<CashOutQuote> {
   const reclaimAmount = await client.readContract({
     address: v6Address("JBTerminalStore", chainId),
     abi: jbTerminalStoreAbi,
     functionName: "currentReclaimableSurplusOf",
-    args: [projectId, cashOutCount, [], [], decimals, currency],
+    args: [
+      projectId,
+      // The store does not run the revnet's hook, so its fee is taken here.
+      cashOutCountAfterRevnetFee(cashOutCount, revnetFeeApplies),
+      [],
+      [],
+      decimals,
+      currency,
+    ],
   });
 
   return {

@@ -1,6 +1,13 @@
-import type { Address, Hex, PublicClient } from "viem";
+import {
+  encodeAbiParameters,
+  erc20Abi,
+  type Address,
+  type Hex,
+  type PublicClient,
+} from "viem";
 import { NATIVE_TOKEN } from "../constants.js";
 import type { JBChainId } from "../types.js";
+import { addToHookMetadata, hookMetadataId } from "../utils/hook.js";
 import {
   UNISWAP_PERMIT2_ADDRESS,
   uniswapV4Deployment,
@@ -214,4 +221,246 @@ export function permit2SignatureNeedsOnchainFallback(error: unknown): boolean {
   return /(^|\s)-32602(\s|$)|(^|\s)-32601(\s|$)|(^|\s)4200(\s|$)|invalid parameters|method .*not supported|unsupported method|typed data.*not supported/.test(
     text,
   );
+}
+
+/** How long a signed pay authorization stays usable, matching the swap flows. */
+export const PERMIT2_PAY_AUTHORIZATION_SECONDS = 1_800;
+
+const MAX_UINT160 = (1n << 160n) - 1n;
+
+/** What an ERC-20 payment to a pay entry still needs from the payer. */
+export interface Permit2PayAuthorization {
+  /** The entry's own ERC-20 allowance covers the amount: pay with no authorization. */
+  direct: boolean;
+  /** The token's allowance for Permit2 is short: one approval of Permit2 comes first. */
+  needsTokenApproval: boolean;
+  /** The exact, expiring allowance to sign with `signReviewed({ kind: "permit2" })`. */
+  authorization: Permit2SignatureAuthorization;
+}
+
+/**
+ * Read what paying `amount` of an ERC-20 into a pay entry needs. The entry is
+ * the contract the payer calls: JBMultiTerminal, JBRouterTerminal, its registry
+ * or its gateway. Each pulls through its own ERC-20 allowance when that covers
+ * the amount, and otherwise through Permit2 with the allowance its pay
+ * metadata carries (see {@link addPermit2PayMetadata}).
+ *
+ * The authorization is for exactly `amount`, to `entry` only, and expires
+ * {@link PERMIT2_PAY_AUTHORIZATION_SECONDS} after the chain's latest block.
+ */
+export async function readPermit2PayAuthorization(
+  client: PublicClient,
+  {
+    chainId,
+    owner,
+    token,
+    entry,
+    amount,
+    blockNumber,
+  }: {
+    chainId: JBChainId;
+    owner: Address;
+    token: Address;
+    entry: Address;
+    amount: bigint;
+    /** Read allowances at this block, so an approval just mined is seen on a lagging backend. */
+    blockNumber?: bigint;
+  },
+): Promise<Permit2PayAuthorization> {
+  if (amount <= 0n || amount > MAX_UINT160) {
+    throw new Error("The payment amount is outside Permit2's uint160 range.");
+  }
+  const allowanceFor = (spender: Address) =>
+    client.readContract({
+      address: token,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [owner, spender],
+      blockNumber,
+    });
+  const [direct, permit2Token, [, , nonce], block] = await Promise.all([
+    allowanceFor(entry),
+    allowanceFor(PERMIT2_ADDRESS),
+    client.readContract({
+      address: PERMIT2_ADDRESS,
+      abi: permit2Abi,
+      functionName: "allowance",
+      args: [owner, token, entry],
+      blockNumber,
+    }),
+    client.getBlock({ blockTag: "latest" }),
+  ]);
+  const now = Number(block.timestamp);
+  if (!Number.isSafeInteger(now) || now <= 0) {
+    throw new Error("Could not read the chain's time for the authorization.");
+  }
+  const deadline = now + PERMIT2_PAY_AUTHORIZATION_SECONDS;
+  return {
+    direct: direct >= amount,
+    needsTokenApproval: permit2Token < amount,
+    authorization: {
+      chainId,
+      token,
+      spender: entry,
+      amount,
+      expiration: deadline,
+      nonce,
+      sigDeadline: BigInt(deadline),
+    },
+  };
+}
+
+/**
+ * Add a signed Permit2 allowance to pay metadata, keyed to the entry that
+ * spends it. The entry decodes one `JBSingleAllowance` tuple
+ * (`sigDeadline, amount, expiration, nonce, signature`), so the payload is a
+ * single dynamic tuple, not flat fields.
+ *
+ * @link https://github.com/Bananapus/nana-core-v6/blob/main/src/structs/JBSingleAllowance.sol
+ */
+export function addPermit2PayMetadata({
+  metadata,
+  authorization,
+  signature,
+}: {
+  metadata?: Hex;
+  authorization: Permit2SignatureAuthorization;
+  signature: Hex;
+}): Hex {
+  return addToHookMetadata(
+    metadata,
+    hookMetadataId(authorization.spender, "permit2"),
+    encodeAbiParameters(
+      [
+        {
+          type: "tuple",
+          components: [
+            { name: "sigDeadline", type: "uint256" },
+            { name: "amount", type: "uint160" },
+            { name: "expiration", type: "uint48" },
+            { name: "nonce", type: "uint48" },
+            { name: "signature", type: "bytes" },
+          ],
+        },
+      ],
+      [
+        {
+          sigDeadline: authorization.sigDeadline,
+          amount: authorization.amount,
+          expiration: authorization.expiration,
+          nonce: authorization.nonce,
+          signature,
+        },
+      ],
+    ),
+  );
+}
+
+/** A pay authorization the payer signed, kept while its payment retries. */
+export interface SignedPermit2PayAuthorization {
+  /** The account that signed. Permit2 checks the signature against the payer. */
+  owner: Address;
+  authorization: Permit2SignatureAuthorization;
+  signature: Hex;
+}
+
+/** A signed pay authorization this close to its deadline is signed again. */
+const PERMIT2_PAY_REUSE_MARGIN_SECONDS = 120;
+
+/**
+ * Whether a signature from an earlier attempt still authorizes this exact
+ * payment: the same payer, chain, token, entry, amount and Permit2 nonce as a freshly
+ * read authorization, with time left. Permit2 moves the nonce on when an
+ * allowance is used, so a spent signature is never reused.
+ *
+ * @param signed The kept signature, if any.
+ * @param fresh From {@link readPermit2PayAuthorization} or {@link planErc20PayAuthorization} now.
+ * @param owner The account `fresh` was read for, which pays.
+ */
+export function permit2PayAuthorizationReusable(
+  signed: SignedPermit2PayAuthorization | null | undefined,
+  fresh: Permit2SignatureAuthorization,
+  owner: Address,
+): signed is SignedPermit2PayAuthorization {
+  if (!signed) return false;
+  const was = signed.authorization;
+  return (
+    signed.owner.toLowerCase() === owner.toLowerCase() &&
+    was.chainId === fresh.chainId &&
+    was.token.toLowerCase() === fresh.token.toLowerCase() &&
+    was.spender.toLowerCase() === fresh.spender.toLowerCase() &&
+    was.amount === fresh.amount &&
+    was.nonce === fresh.nonce &&
+    // A fresh authorization expires a fixed time after the chain's latest
+    // block, so this compares against chain time.
+    was.sigDeadline >=
+      fresh.sigDeadline -
+        BigInt(
+          PERMIT2_PAY_AUTHORIZATION_SECONDS - PERMIT2_PAY_REUSE_MARGIN_SECONDS,
+        )
+  );
+}
+
+/** How a payer authorizes an ERC-20 payment to a pay entry. */
+export type Erc20PayAuthorizationPlan =
+  /** The entry's own allowance already covers the amount. */
+  | { kind: "none" }
+  /**
+   * A contract wallet (a Safe, or any account with code) approves the entry
+   * for the exact amount: it cannot produce the signature Permit2 checks, and
+   * its signers can outlast the authorization's deadline.
+   */
+  | { kind: "approve"; spender: Address; amount: bigint }
+  /**
+   * An EOA signs an exact, expiring Permit2 allowance for the entry. When
+   * `needsTokenApproval`, one approval of Permit2 itself comes first.
+   */
+  | {
+      kind: "permit2";
+      needsTokenApproval: boolean;
+      authorization: Permit2SignatureAuthorization;
+    };
+
+/**
+ * Decide how `owner` authorizes paying `amount` of an ERC-20 into a pay entry.
+ * One rule for every client: nothing when the entry is already approved, an
+ * exact approval of the entry for contract wallets, a Permit2 signature for
+ * EOAs. The native token needs no authorization and has no plan; do not call
+ * this for it.
+ *
+ * @param args.isSafe The connected wallet is a Safe (a Safe app or a Safe
+ * reached through WalletConnect), whatever its code reads as here.
+ */
+export async function planErc20PayAuthorization(
+  client: PublicClient,
+  {
+    isSafe,
+    ...args
+  }: {
+    chainId: JBChainId;
+    owner: Address;
+    token: Address;
+    entry: Address;
+    amount: bigint;
+    blockNumber?: bigint;
+    isSafe: boolean;
+  },
+): Promise<Erc20PayAuthorizationPlan> {
+  const [read, walletBytecode] = await Promise.all([
+    readPermit2PayAuthorization(client, args),
+    client.getCode({ address: args.owner }),
+  ]);
+  if (read.direct) return { kind: "none" };
+  return shouldUsePermit2Signature({
+    needsApproval: true,
+    walletLookupSettled: true,
+    walletBytecode,
+    isSafe,
+  })
+    ? {
+        kind: "permit2",
+        needsTokenApproval: read.needsTokenApproval,
+        authorization: read.authorization,
+      }
+    : { kind: "approve", spender: args.entry, amount: args.amount };
 }

@@ -111,6 +111,32 @@ describe("cashOut", () => {
     expect(calls[0].args).toEqual([projectId, ONE_ETHER, [], [], 18n, 61166n]);
   });
 
+  test("getCashOutQuote quotes a revnet's count after its fee, and other projects' counts unchanged", async () => {
+    const counts: bigint[] = [];
+    const client = {
+      async readContract(params: { args: readonly unknown[] }) {
+        counts.push(params.args[1] as bigint);
+        return ONE_ETHER;
+      },
+    } as unknown as PublicClient;
+    const quote = (revnetFeeApplies?: boolean) =>
+      getCashOutQuote(client, {
+        chainId,
+        projectId,
+        cashOutCount: 1_000n,
+        cashOutTaxRate: 5_000n,
+        revnetFeeApplies,
+      });
+
+    // The terminal's protocol fee still comes out of what the netted count reclaims.
+    expect((await quote(true)).reclaimAmountAfterFee).toEqual(
+      ONE_ETHER - ONE_ETHER / 40n,
+    );
+    await quote(false);
+    await quote();
+    expect(counts).toEqual([975n, 1_000n, 1_000n]);
+  });
+
   test("getCashOutQuote applies the full x/40 fee with a non-zero tax rate", async () => {
     const client = {
       async readContract() {

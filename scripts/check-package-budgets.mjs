@@ -364,9 +364,12 @@ const budgets = {
     // Shared V6 outcome interpretation replaces Center/Signa copies with one
     // module/eight artifacts, with no dependencies: measured 1,920,350 B packed,
     // 25,043,455 B unpacked, 1,931 entries. Existing browser-import limits stay.
-    packed: 1_925_000,
-    unpacked: 25_060_000,
-    entries: 1_931,
+    // Permit2 pay authorization and the project hook resolvers (v6/projectHooks,
+    // one module/eight artifacts), with no dependencies: measured 1,933,892 B
+    // packed, 25,142,930 B unpacked, 1,939 entries.
+    packed: 1_940_000,
+    unpacked: 25_160_000,
+    entries: 1_939,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
