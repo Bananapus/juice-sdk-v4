@@ -173,10 +173,15 @@ export async function resolveProjectBuybackHook(
       functionName,
       args,
     } as never) as Promise<unknown>;
-  const used = (hook: { useDataHookForPay: boolean; useDataHookForCashOut: boolean }) =>
+  const used = (hook: {
+    useDataHookForPay: boolean;
+    useDataHookForCashOut: boolean;
+  }) =>
     direction === "pay" ? hook.useDataHookForPay : hook.useDataHookForCashOut;
-  const is = (address: Address, contract: Parameters<typeof isV6Deployment>[1]) =>
-    isV6Deployment(address, contract, chainId);
+  const is = (
+    address: Address,
+    contract: Parameters<typeof isV6Deployment>[1],
+  ) => isV6Deployment(address, contract, chainId);
 
   const controller = (await read(
     v6Address("JBDirectory", chainId),
@@ -195,7 +200,11 @@ export async function resolveProjectBuybackHook(
     projectId,
   ])) as [
     { id: number | bigint },
-    { dataHook: Address; useDataHookForPay: boolean; useDataHookForCashOut: boolean },
+    {
+      dataHook: Address;
+      useDataHookForPay: boolean;
+      useDataHookForCashOut: boolean;
+    },
   ];
   const rulesetId = BigInt(ruleset.id);
   const dataHook = getAddress(metadata.dataHook);
@@ -240,7 +249,11 @@ export async function resolveProjectBuybackHook(
   const extra = (await read(dataHook, "extraDataHookOf", [
     projectId,
     rulesetId,
-  ])) as { dataHook: Address; useDataHookForPay: boolean; useDataHookForCashOut: boolean };
+  ])) as {
+    dataHook: Address;
+    useDataHookForPay: boolean;
+    useDataHookForCashOut: boolean;
+  };
   if (extra.dataHook === zeroAddress || !used(extra)) {
     return none(dataHook, rulesetId);
   }

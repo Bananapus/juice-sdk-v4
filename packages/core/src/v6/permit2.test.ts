@@ -13,6 +13,7 @@ import {
   permit2AllowanceNeedsRefresh,
   permit2SignatureNeedsOnchainFallback,
   permit2TypedData,
+  planErc20PayAuthorization,
   readPermit2Allowance,
   readPermit2PayAuthorization,
   shouldUsePermit2Signature,
@@ -114,22 +115,23 @@ describe("Permit2 pay authorization", () => {
     direct = 0n,
     permit2Token = 0n,
     nonce = 4,
-  }: { direct?: bigint; permit2Token?: bigint; nonce?: number } = {}) {
+    code,
+  }: {
+    direct?: bigint;
+    permit2Token?: bigint;
+    nonce?: number;
+    code?: Hex;
+  } = {}) {
     const readContract = vi.fn(
-      async ({
-        abi,
-        args,
-      }: {
-        abi: unknown;
-        args: readonly unknown[];
-      }) => {
+      async ({ abi, args }: { abi: unknown; args: readonly unknown[] }) => {
         if (abi !== erc20Abi) return [0n, 0, nonce];
         return args[1] === ENTRY ? direct : permit2Token;
       },
     );
     const getBlock = vi.fn().mockResolvedValue({ timestamp: BigInt(NOW) });
+    const getCode = vi.fn().mockResolvedValue(code);
     return {
-      client: { readContract, getBlock } as unknown as PublicClient,
+      client: { readContract, getBlock, getCode } as unknown as PublicClient,
       readContract,
     };
   }
@@ -180,6 +182,22 @@ describe("Permit2 pay authorization", () => {
     expect(short.needsTokenApproval).toBe(true);
   });
 
+  test("reads every allowance at the given block", async () => {
+    const { client, readContract } = clientWith();
+    await readPermit2PayAuthorization(client, {
+      chainId: 8453,
+      owner: OWNER,
+      token: TOKEN,
+      entry: ENTRY,
+      amount: 1n,
+      blockNumber: 99n,
+    });
+    expect(readContract).toHaveBeenCalledTimes(3);
+    for (const [call] of readContract.mock.calls) {
+      expect(call).toMatchObject({ blockNumber: 99n });
+    }
+  });
+
   test("refuses an amount Permit2 cannot carry", async () => {
     const { client } = clientWith();
     await expect(read(client, 0n)).rejects.toThrow(/uint160/);
@@ -228,5 +246,37 @@ describe("Permit2 pay authorization", () => {
     expect(
       addPermit2PayMetadata({ authorization, signature }).slice(66, 74),
     ).toBe(hookMetadataId(ENTRY, "permit2").slice(2));
+  });
+
+  test("plans nothing, an exact approval, or a Permit2 signature by allowance and wallet kind", async () => {
+    const plan = (setup: Parameters<typeof clientWith>[0], isSafe = false) =>
+      planErc20PayAuthorization(clientWith(setup).client, {
+        chainId: 8453,
+        owner: OWNER,
+        token: TOKEN,
+        entry: ENTRY,
+        amount: 5_000_000n,
+        isSafe,
+      });
+
+    // An entry that is already approved needs nothing, whatever the wallet.
+    await expect(plan({ direct: 5_000_000n, code: "0x1234" })).resolves.toEqual(
+      { kind: "none" },
+    );
+    // An EOA signs; the Permit2 token approval is asked for only when short.
+    await expect(plan({})).resolves.toMatchObject({
+      kind: "permit2",
+      needsTokenApproval: true,
+      authorization: { spender: ENTRY, amount: 5_000_000n },
+    });
+    await expect(plan({ permit2Token: 5_000_000n })).resolves.toMatchObject({
+      kind: "permit2",
+      needsTokenApproval: false,
+    });
+    // A contract wallet approves the entry for the exact amount, never Permit2.
+    const exact = { kind: "approve", spender: ENTRY, amount: 5_000_000n };
+    await expect(plan({ code: "0x1234" })).resolves.toEqual(exact);
+    await expect(plan({ code: "0xef0100aa" })).resolves.toEqual(exact);
+    await expect(plan({}, true)).resolves.toEqual(exact);
   });
 });

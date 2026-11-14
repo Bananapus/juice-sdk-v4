@@ -280,7 +280,12 @@ describe("resolveProjectRouterTerminal", () => {
         chainId,
         projectId,
       }),
-    ).toMatchObject({ status: "gateway", terminal: gateway, router, via: "direct" });
+    ).toMatchObject({
+      status: "gateway",
+      terminal: gateway,
+      router,
+      via: "direct",
+    });
     expect(viaGateway.reads()).not.toContain("terminalOf");
     const viaRouter = clientListing([router], zeroAddress);
     expect(
@@ -288,7 +293,37 @@ describe("resolveProjectRouterTerminal", () => {
         chainId,
         projectId,
       }),
-    ).toMatchObject({ status: "direct", terminal: router, router, via: "direct" });
+    ).toMatchObject({
+      status: "direct",
+      terminal: router,
+      router,
+      via: "direct",
+    });
+  });
+
+  test("a failed read is an error, never a missing route", async () => {
+    const cases: [string, Address[], Address][] = [
+      ["terminalsOf", [multi, registry], gateway],
+      ["terminalOf", [multi, registry], gateway],
+      ["ROUTER", [multi, registry], gateway],
+      ["ROUTER", [gateway], zeroAddress],
+    ];
+    for (const [failing, terminals, registryTerminal] of cases) {
+      const readContract = vi.fn(
+        async ({ functionName }: { functionName: string }) => {
+          if (functionName === failing) throw new Error("rpc down");
+          if (functionName === "terminalsOf") return terminals;
+          if (functionName === "terminalOf") return registryTerminal;
+          return router;
+        },
+      );
+      await expect(
+        resolveProjectRouterTerminal(
+          { readContract } as unknown as PublicClient,
+          { chainId, projectId },
+        ),
+      ).rejects.toThrow("rpc down");
+    }
   });
 
   test("a listed registry with nothing resolved stays unresolved through the registry", async () => {

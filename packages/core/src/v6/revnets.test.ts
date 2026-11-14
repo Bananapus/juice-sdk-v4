@@ -518,11 +518,11 @@ describe("REVOwner actions", () => {
   });
 
   test("cashOutCountAfterRevnetFee rounds as the contract does: count - count / 40", () => {
-    expect(cashOutCountAfterRevnetFee(1n)).toBe(1n);
-    expect(cashOutCountAfterRevnetFee(39n)).toBe(39n);
-    expect(cashOutCountAfterRevnetFee(40n)).toBe(39n);
-    expect(cashOutCountAfterRevnetFee(41n)).toBe(40n);
-    expect(cashOutCountAfterRevnetFee(1_000n)).toBe(975n);
+    expect(cashOutCountAfterRevnetFee(1n, true)).toBe(1n);
+    expect(cashOutCountAfterRevnetFee(39n, true)).toBe(39n);
+    expect(cashOutCountAfterRevnetFee(40n, true)).toBe(39n);
+    expect(cashOutCountAfterRevnetFee(41n, true)).toBe(40n);
+    expect(cashOutCountAfterRevnetFee(1_000n, true)).toBe(975n);
     expect(cashOutCountAfterRevnetFee(1_000n, false)).toBe(1_000n);
   });
 

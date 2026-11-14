@@ -126,12 +126,25 @@ export function addToHookMetadata(
     ? parseInt(body.slice(WORD_CHARS + 8, WORD_CHARS + idChars), 16) *
       WORD_CHARS
     : 0;
+  // Repacking pads whatever it is given, which would turn a cut-off payload
+  // into a valid one with different values: malformed metadata is refused.
+  const malformed = () =>
+    new Error("metadata is not well-formed packed hook metadata.");
+  if (
+    body.length &&
+    (body.length % WORD_CHARS !== 0 ||
+      !(tableEnd >= 2 * WORD_CHARS && tableEnd < body.length))
+  )
+    throw malformed();
   for (let i = WORD_CHARS; i + idChars <= tableEnd; i += idChars) {
-    const offset = parseInt(body.slice(i + 8, i + idChars), 16);
+    const offset = parseInt(body.slice(i + 8, i + idChars), 16) * WORD_CHARS;
     // A zero offset is the table's padding.
     if (!offset) break;
+    // Each payload starts after the one before it and inside the metadata.
+    if (offset <= (offsets.at(-1) ?? tableEnd - 1) || offset >= body.length)
+      throw malformed();
     ids.push(`0x${body.slice(i, i + 8)}`);
-    offsets.push(offset * WORD_CHARS);
+    offsets.push(offset);
   }
   const payloads = offsets.map(
     (start, i) => `0x${body.slice(start, offsets[i + 1] ?? body.length)}`,

@@ -175,13 +175,35 @@ describe("addToHookMetadata", () => {
     const payloads = many.map((_, i) => word(i + 10));
     const built = many
       .slice(0, 6)
-      .reduce<string | undefined>(
-        (metadata, id, i) => addToHookMetadata(metadata, id, payloads[i]),
-        undefined,
-      );
+      .reduce<
+        string | undefined
+      >((metadata, id, i) => addToHookMetadata(metadata, id, payloads[i]), undefined);
     expect(addToHookMetadata(built, many[6], payloads[6])).toBe(
       createHookMetadata(many, payloads),
     );
+  });
+
+  test("refuses malformed metadata instead of padding it into something valid", () => {
+    const good = createHookMetadata([ids[0]], [TWO_WORDS]);
+    const table = (entries: string) =>
+      `0x${"0".repeat(64)}${entries.padEnd(64, "0")}${word(1).slice(2)}`;
+    for (const bad of [
+      // A payload cut mid-word: padding it would flip `true` to `false`.
+      good.slice(0, -2),
+      // Cut inside the lookup table.
+      good.slice(0, 2 + 64 + 20),
+      // The reserved word alone.
+      `0x${"0".repeat(64)}`,
+      // An offset pointing past the end.
+      table("1111111109"),
+      // An offset pointing into the table.
+      table("1111111101"),
+      // Offsets out of order.
+      `${table("11111111022222222202")}${word(2).slice(2)}`,
+    ])
+      expect(() => addToHookMetadata(bad, ids[1], datas[1])).toThrow(
+        "not well-formed",
+      );
   });
 
   test("starts from empty metadata", () => {

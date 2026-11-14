@@ -1,9 +1,4 @@
-import {
-  Address,
-  ContractFunctionArgs,
-  PublicClient,
-  zeroAddress,
-} from "viem";
+import { Address, ContractFunctionArgs, PublicClient, zeroAddress } from "viem";
 import {
   jbDirectoryAbi,
   revDeployerAbi,
@@ -415,11 +410,11 @@ export function revnetCashOutFeeApplies({
  * cashed out for the fee revnet. The terminal's protocol fee then comes out of
  * what this count reclaims (see `cashOutProtocolFee`).
  *
- * @param applies From {@link revnetCashOutFeeApplies}; false returns the count unchanged.
+ * @param applies From {@link revnetCashOutFeeApplies}, once it is known; false returns the count unchanged.
  */
 export function cashOutCountAfterRevnetFee(
   cashOutCount: bigint,
-  applies = true,
+  applies: boolean,
 ): bigint {
   return applies ? amountAfterFee(cashOutCount) : cashOutCount;
 }

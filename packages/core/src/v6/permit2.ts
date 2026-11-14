@@ -256,12 +256,15 @@ export async function readPermit2PayAuthorization(
     token,
     entry,
     amount,
+    blockNumber,
   }: {
     chainId: JBChainId;
     owner: Address;
     token: Address;
     entry: Address;
     amount: bigint;
+    /** Read allowances at this block, so an approval just mined is seen on a lagging backend. */
+    blockNumber?: bigint;
   },
 ): Promise<Permit2PayAuthorization> {
   if (amount <= 0n || amount > MAX_UINT160) {
@@ -273,11 +276,18 @@ export async function readPermit2PayAuthorization(
       abi: erc20Abi,
       functionName: "allowance",
       args: [owner, spender],
+      blockNumber,
     });
-  const [direct, permit2Token, permit2, block] = await Promise.all([
+  const [direct, permit2Token, [, , nonce], block] = await Promise.all([
     allowanceFor(entry),
     allowanceFor(PERMIT2_ADDRESS),
-    readPermit2Allowance(client, { chainId, owner, token, spender: entry }),
+    client.readContract({
+      address: PERMIT2_ADDRESS,
+      abi: permit2Abi,
+      functionName: "allowance",
+      args: [owner, token, entry],
+      blockNumber,
+    }),
     client.getBlock({ blockTag: "latest" }),
   ]);
   const now = Number(block.timestamp);
@@ -294,7 +304,7 @@ export async function readPermit2PayAuthorization(
       spender: entry,
       amount,
       expiration: deadline,
-      nonce: permit2.nonce,
+      nonce,
       sigDeadline: BigInt(deadline),
     },
   };
@@ -344,4 +354,68 @@ export function addPermit2PayMetadata({
       ],
     ),
   );
+}
+
+/** How a payer authorizes an ERC-20 payment to a pay entry. */
+export type Erc20PayAuthorizationPlan =
+  /** The entry's own allowance already covers the amount. */
+  | { kind: "none" }
+  /**
+   * A contract wallet (a Safe, or any account with code) approves the entry
+   * for the exact amount: it cannot produce the signature Permit2 checks, and
+   * its signers can outlast the authorization's deadline.
+   */
+  | { kind: "approve"; spender: Address; amount: bigint }
+  /**
+   * An EOA signs an exact, expiring Permit2 allowance for the entry. When
+   * `needsTokenApproval`, one approval of Permit2 itself comes first.
+   */
+  | {
+      kind: "permit2";
+      needsTokenApproval: boolean;
+      authorization: Permit2SignatureAuthorization;
+    };
+
+/**
+ * Decide how `owner` authorizes paying `amount` of an ERC-20 into a pay entry.
+ * One rule for every client: nothing when the entry is already approved, an
+ * exact approval of the entry for contract wallets, a Permit2 signature for
+ * EOAs. The native token needs no authorization and has no plan; do not call
+ * this for it.
+ *
+ * @param args.isSafe The connected wallet is a Safe (a Safe app or a Safe
+ * reached through WalletConnect), whatever its code reads as here.
+ */
+export async function planErc20PayAuthorization(
+  client: PublicClient,
+  {
+    isSafe,
+    ...args
+  }: {
+    chainId: JBChainId;
+    owner: Address;
+    token: Address;
+    entry: Address;
+    amount: bigint;
+    blockNumber?: bigint;
+    isSafe: boolean;
+  },
+): Promise<Erc20PayAuthorizationPlan> {
+  const [read, walletBytecode] = await Promise.all([
+    readPermit2PayAuthorization(client, args),
+    client.getCode({ address: args.owner }),
+  ]);
+  if (read.direct) return { kind: "none" };
+  return shouldUsePermit2Signature({
+    needsApproval: true,
+    walletLookupSettled: true,
+    walletBytecode,
+    isSafe,
+  })
+    ? {
+        kind: "permit2",
+        needsTokenApproval: read.needsTokenApproval,
+        authorization: read.authorization,
+      }
+    : { kind: "approve", spender: args.entry, amount: args.amount };
 }

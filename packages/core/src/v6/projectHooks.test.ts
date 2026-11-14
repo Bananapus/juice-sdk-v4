@@ -1,27 +1,14 @@
-import {
-  type Address,
-  type PublicClient,
-  getAddress,
-  zeroAddress,
-} from "viem";
+import { type Address, type PublicClient, getAddress, zeroAddress } from "viem";
 import { describe, expect, test, vi } from "vitest";
 import { resolveProjectBuybackHook } from "./projectHooks.js";
 import { v6Address, v6Deployments } from "./types.js";
 
 const chainId = 8453;
 const projectId = 7n;
-const CONTROLLER = getAddress(
-  "0x00000000000000000000000000000000000000C1",
-);
-const PINNED = getAddress(
-  "0x00000000000000000000000000000000000000B1",
-);
-const OTHER = getAddress(
-  "0x00000000000000000000000000000000000000D1",
-);
-const HOOK_721 = getAddress(
-  "0x0000000000000000000000000000000000000721",
-);
+const CONTROLLER = getAddress("0x00000000000000000000000000000000000000C1");
+const PINNED = getAddress("0x00000000000000000000000000000000000000B1");
+const OTHER = getAddress("0x00000000000000000000000000000000000000D1");
+const HOOK_721 = getAddress("0x0000000000000000000000000000000000000721");
 
 const REGISTRY = getAddress(v6Address("JBBuybackHookRegistry", chainId));
 const REV_OWNER = getAddress(v6Address("REVOwner", chainId));
@@ -62,11 +49,27 @@ function chain({
     async ({
       address,
       functionName,
+      args,
     }: {
       address: Address;
       functionName: string;
+      args: readonly bigint[];
     }) => {
       if (functionName === fail) throw new Error("rpc down");
+      // Each read names the contract and the exact arguments it is for.
+      const expected: Record<string, [Address, readonly bigint[]]> = {
+        controllerOf: [v6Address("JBDirectory", chainId), [projectId]],
+        currentRulesetOf: [controller, [projectId]],
+        extraDataHookOf: [OMNICHAIN, [projectId, 42n]],
+        tiered721HookOf: [OMNICHAIN, [projectId, 42n]],
+        BUYBACK_HOOK: [REV_OWNER, []],
+        hookOf: [address, [projectId]],
+      };
+      const [at, withArgs] = expected[functionName] ?? [address, args];
+      if (at.toLowerCase() !== address.toLowerCase())
+        throw new Error(functionName + " read at " + address);
+      if (args.join() !== withArgs.join())
+        throw new Error(functionName + " read with " + args.join());
       switch (functionName) {
         case "controllerOf":
           return controller;
@@ -130,7 +133,11 @@ describe("resolveProjectBuybackHook", () => {
         chainId,
         projectId,
       });
-      expect(resolved).toMatchObject({ hook: null, via: "none", registry: null });
+      expect(resolved).toMatchObject({
+        hook: null,
+        via: "none",
+        registry: null,
+      });
       // The registry's cohort default is never asked.
       expect(reads()).not.toContain("hookOf");
     }
@@ -157,12 +164,16 @@ describe("resolveProjectBuybackHook", () => {
         registry: null,
       });
     }
-    expect(v6Deployments("JBBuybackHook", chainId).map((a) => getAddress(a))).toContain(HOOK);
+    expect(
+      v6Deployments("JBBuybackHook", chainId).map((a) => getAddress(a)),
+    ).toContain(HOOK);
   });
 
   test("the direction's use flag decides whether the hook is called", async () => {
     const setup = { dataHook: REGISTRY, flags: { pay: true, cashOut: false } };
-    await expect(resolve(setup, "pay")).resolves.toMatchObject({ hook: PINNED });
+    await expect(resolve(setup, "pay")).resolves.toMatchObject({
+      hook: PINNED,
+    });
     await expect(resolve(setup, "cashOut")).resolves.toMatchObject({
       hook: null,
       via: "none",
@@ -222,7 +233,11 @@ describe("resolveProjectBuybackHook", () => {
   test("a registry with nothing resolved, or a project with no controller, has no hook", async () => {
     await expect(
       resolve({ dataHook: REGISTRY, hookOf: { [REGISTRY]: zeroAddress } }),
-    ).resolves.toMatchObject({ hook: null, via: "registry", registry: REGISTRY });
+    ).resolves.toMatchObject({
+      hook: null,
+      via: "registry",
+      registry: REGISTRY,
+    });
     await expect(resolve({ controller: zeroAddress })).resolves.toEqual({
       hook: null,
       via: "none",
