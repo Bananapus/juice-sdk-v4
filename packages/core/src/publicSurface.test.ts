@@ -480,6 +480,7 @@ describe("published core SDK surfaces", () => {
       "atOnceExecution",
       "canonicalSafeTxHash",
       "chainAnswer",
+      "configureSafeServiceProxy",
       "fetchSafeCreation",
       "fetchSafesOwnedBy",
       "findPendingSafeAppProposal",

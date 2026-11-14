@@ -62,8 +62,58 @@ export const SAFE_SERVICE_PREFIX: Partial<Record<number, string>> = {
   84532: "basesep",
 };
 
+let safeServiceProxy: { baseUrl: string; origin?: string } | null = null;
+
+/**
+ * Route Safe service requests through a trusted proxy root, for example
+ * `https://juicebox.center/v1/safe`. Configure once at application startup;
+ * the chain prefix is appended here. Null restores direct Safe API access.
+ * This configuration is module-wide, not per request or per user. Explicit
+ * `jb-safe-tx-base` local overrides still take precedence.
+ * Server callers can supply their application's exact HTTP(S) `origin` for
+ * the proxy's allowlist. Browsers supply Origin themselves. This header is
+ * never forwarded to direct Safe requests or overrides outside the proxy.
+ */
+export function configureSafeServiceProxy(
+  baseUrl: string | null,
+  { origin }: { origin?: string } = {},
+): void {
+  if (baseUrl === null) {
+    safeServiceProxy = null;
+    return;
+  }
+  const url = new URL(baseUrl);
+  if (
+    !["https:", "http:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      "Safe service proxy must be an HTTP(S) URL without credentials, query or fragment.",
+    );
+  }
+  if (origin !== undefined) {
+    const source = new URL(origin);
+    if (
+      !["https:", "http:"].includes(source.protocol) ||
+      source.origin !== origin
+    ) {
+      throw new Error(
+        "Safe service proxy origin must be an exact HTTP(S) origin.",
+      );
+    }
+  }
+  safeServiceProxy = {
+    baseUrl: url.href.replace(/\/+$/, ""),
+    ...(origin ? { origin } : {}),
+  };
+}
+
 /** The Safe Transaction Service base URL for a chain, honoring the
- *  `jb-safe-tx-base` localStorage override; null when the chain has none. */
+ *  `jb-safe-tx-base` localStorage override and configured proxy; null when
+ *  the chain has no hosted service. */
 export function safeServiceBase(chainId: number): string | null {
   try {
     const custom = JSON.parse(
@@ -74,7 +124,9 @@ export function safeServiceBase(chainId: number): string | null {
     // Local overrides are optional.
   }
   const prefix = SAFE_SERVICE_PREFIX[chainId];
-  return prefix ? `https://api.safe.global/tx-service/${prefix}` : null;
+  return prefix
+    ? `${safeServiceProxy?.baseUrl ?? "https://api.safe.global/tx-service"}/${prefix}`
+    : null;
 }
 
 export const SAFE_NONCE_GUIDANCE =
@@ -1895,6 +1947,7 @@ export function onchainApprovalStep({
  * cannot be read, is handed back at once: retrying before the service allows
  * works against its rate limit. `retryRateLimited: false` hands back the first
  * 429 instead, for a caller that must not wait, such as a server render.
+ * A monthly quota refusal is always handed back without retrying.
  */
 export type SafeServiceOptions = {
   fetch?: typeof fetch;
@@ -1937,22 +1990,31 @@ function serviceOrThrow(chainId: number): string {
   return base;
 }
 
-/** The optional `jb-safe-api-key` from local storage, as a bearer token. */
 function serviceHeaders(json = false): Record<string, string> {
   const headers: Record<string, string> = { accept: "application/json" };
   if (json) headers["content-type"] = "application/json";
-  try {
-    const key = globalThis.localStorage?.getItem("jb-safe-api-key");
-    if (key) headers.authorization = `Bearer ${key}`;
-  } catch {
-    // The key is optional.
-  }
   return headers;
+}
+
+/** A monthly refusal is not a burst limit; preserve its body for the caller. */
+async function monthlyQuotaExceeded(response: Response): Promise<boolean> {
+  try {
+    const body = (await response.clone().json()) as { error_msg?: unknown };
+    return (
+      typeof body?.error_msg === "string" &&
+      /monthly.*quota|quota.*exceeded|too many requests in time window/i.test(
+        body.error_msg,
+      )
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
  * One service request, as {@link SafeServiceOptions} describes: a 429 is
- * refused before processing, so it waits and repeats, up to three times.
+ * refused before processing, so a transient rate limit waits and repeats,
+ * up to three times. Monthly quota exhaustion is returned immediately.
  */
 async function serviceFetch(
   url: string,
@@ -1960,12 +2022,48 @@ async function serviceFetch(
   { fetch: custom, signal, retryRateLimited }: SafeServiceOptions,
 ): Promise<Response> {
   const request = custom ?? fetch;
+  // A browser's optional Safe key belongs only to Safe, never to an app proxy
+  // or another service selected by a local endpoint override.
+  // Relative local overrides remain valid browser endpoints, without a key.
+  const target = new URL(url, "https://safe-local.invalid");
+  const usingProxy =
+    safeServiceProxy !== null &&
+    target.href.startsWith(`${safeServiceProxy.baseUrl}/`);
+  if (safeServiceProxy?.origin && usingProxy) {
+    init = {
+      ...init,
+      headers: {
+        ...Object.fromEntries(new Headers(init.headers)),
+        origin: safeServiceProxy.origin,
+      },
+    };
+  }
+  if (
+    !usingProxy &&
+    target.origin === "https://api.safe.global" &&
+    target.pathname.startsWith("/tx-service/")
+  ) {
+    try {
+      const key = globalThis.localStorage?.getItem("jb-safe-api-key");
+      if (key)
+        init = {
+          ...init,
+          headers: {
+            ...Object.fromEntries(new Headers(init.headers)),
+            authorization: `Bearer ${key}`,
+          },
+        };
+    } catch {
+      // The key is optional.
+    }
+  }
   for (let attempt = 0; ; attempt += 1) {
     signal?.throwIfAborted();
     const response = await request(url, signal ? { ...init, signal } : init);
     if (response.status !== 429 || attempt >= 3 || retryRateLimited === false) {
       return response;
     }
+    if (await monthlyQuotaExceeded(response)) return response;
     const retryAfter = response.headers.get("retry-after");
     const wait =
       retryAfter === null ? 1000 * (attempt + 1) : retryAfterMs(retryAfter);
@@ -2128,7 +2226,7 @@ export async function readSafeTransaction(
   );
   if (!response.ok) {
     throw new Error(
-      `Safe's transaction service answered ${response.status} for proposal ${safeTxHash} on chain ${chainId}. Try again when it is available.`,
+      `Safe's transaction service answered ${response.status} for proposal ${safeTxHash} on chain ${chainId}${await serviceDetail(response)}. Try again when it is available.`,
     );
   }
   const record = (await response.json()) as SafeQueuedTransaction;
