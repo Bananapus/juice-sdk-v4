@@ -375,9 +375,11 @@ const budgets = {
     // measured 1,958,794 B packed, 25,306,060 B unpacked, 1,947 entries once the
     // rules a launch enforces (precision, field widths, revnet limits) moved into
     // the reader. The same small margin for release notes is kept.
+    // The best-route pay preparation (`v6/payRoute`) is one more module, 8 files:
+    // measured 1,961,706 B packed, 25,322,520 B unpacked, 1,955 entries.
     packed: 1_966_000,
     unpacked: 25_330_000,
-    entries: 1_947,
+    entries: 1_955,
   },
   "@bananapus/nana-sdk-react": {
     directory: "packages/react",
