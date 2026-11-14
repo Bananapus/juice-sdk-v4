@@ -316,10 +316,10 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 
 The diff changes eight files: private tooling pins, both workflow npm assertions, current contributor docs and this record. JSON comparison confirms every dependency resolution and non-root lock entry is unchanged; all published package manifests, source, generated bindings, tests and changesets are unchanged. Node 26.13.1 reports bundled npm 11.20.0. Formatting and whitespace checks pass after normalizing one extra blank line in this plan. Independent read-only review found no issues. Normal exact-head CI remains the release gate; no local install or heavy build was started.
 
-
 ## 2026-11-13: Trusted-site Safe API through Center
 
 ## Plan refinement
+
 - **Objective:** Center keeps SAFE_API_KEY server-side and proxies Safe Transaction Service requests from its existing trusted sites; revnet and juicebox.money use the proxy, eliminating browser-key setup. Success includes authenticated upstream calls, exact response/status propagation and no key exposure.
 - **System fit:** Existing Center /v1 origin policy and Store budgets govern the new narrow proxy; SDK owns Safe endpoint selection and retry behavior; both client roots opt into their existing Center environment. Signing, Safe hash verification and execution stay in existing owners. Deployment/key configuration are separate from tested local code; user supplies key via server environment.
 - **Reuse and simplicity:** Reuse fixed Safe chain prefixes and existing origin/rate-limit/body/fetch patterns. Add a narrow SDK configuration point rather than app-local Safe transports or persisted localStorage mutations. No arbitrary target URLs, no new dependency, no server-side transaction signing.
@@ -333,13 +333,30 @@ The diff changes eight files: private tooling pins, both workflow npm assertions
 - [ ] Review changes and document exact deployment/key activation steps and outstanding authorization.
 
 ### SDK implementation and preliminary verification
+
 - Added `configureSafeServiceProxy(baseUrl, { origin? })` to the safe-service export. Explicit proxy root is configured once per app; per-chain local overrides stay authoritative. Optional server Origin is exact and only forwarded within configured proxy root. Browser-local API key is sent only to direct Safe HTTPS API requests.
 - Monthly-quota429 bodies are returned without transient retries; single-proposal reads expose existing bounded service detail. Execution observation/recovery behavior is unchanged.
 - Node26.13.1, clean exact-lock dependency tree copied from node26131-sdk (identical lockfile and zero installed package-version mismatches). Failed sandbox npm download changed no manifests. Production+test typecheck passed; ESM/CJS build passed;125 focused Safe tests passed.
 - Candidate: /tmp/sdk-safe-api-candidate/bananapus-nana-sdk-core-6.5.0.tgz SHA256 d3c8e74b7ce4a13f2ebd299a9f493f5ba85efcd285ac47a1ae7f379c1d68e90f. Parent handles paired consumer checks; no release/push performed.
 
 ### SDK final verification
+
 - Complete core suite passed:123 files,3868 tests,134.19seconds on Node26.13.1, with local-network permission and `--maxWorkers=2`; no test deadlines changed. Log /tmp/sdk-safe-api-core-suite-final.log. This final run supersedes sandbox port failures and default-worker CLI/worker-update timeouts under host load.
 - Final test-only TypeScript check passed after adding the public export allowlist and quota-message assertions. Production typecheck, ESM/CJS build,125 focused Safe tests, formatting and diff checks passed. Parent integration of SDK -> Center -> mocked Safe passed and both client routing suites passed before their full gates.
 - API/source/candidate frozen. No push, publication, deployment or key configuration performed by this agent. Execution observers retain their existing pending/recovery polling policy; only per-request monthly retries were removed.
 - Dependency layout: APFS-cloned `node_modules`, `packages/core/node_modules`, `packages/connect/node_modules`, `packages/react/node_modules` from clean `.worktrees/node26131-sdk`; relative workspace symlinks retained, lockfiles byte-identical, installed package versions checked against the lock (zero mismatches). No npm install changed consumer dependency versions.
+
+## 2026-11-14: Combine Safe proxy with SDK main before release
+
+## Plan refinement
+
+- **Objective:** Merge current SDK main a6b690f into PR308, preserving both Safe proxy and Permit2/project-hook/router/cash-out helpers; deliver a tested combined candidate for root's authorized merge and automated release.
+- **System fit:** Existing SDK export, formatting, type, build and package gates own acceptance; root coordinates all consumer checks and owns PR/version-PR merges and publishing. This agent only integrates, verifies and pushes the reviewed PR branch.
+- **Reuse and simplicity:** Use an ordinary merge, preserve both changesets and existing helpers, resolve only actual conflicts, and format the existing journal instead of weakening the formatting gate.
+- **Evidence and unknowns:** origin/main a6b690f adds PR307 helpers after prior candidate641e385; prior consumer evidence must be rerun against the combined artifact. PR308 failed only journal formatting according to root.
+- **Verification:** Run root format:ratchet, focused affected tests, full core tests with2workers and unchanged deadlines, types, builds and relevant root gates. Repack core and report exact hash; root validates every required consumer before publishing.
+- **Resource budget:** Reuse unchanged exact-lock dependency tree, return combined artifact promptly after build, and coordinate heavy tests with root to avoid concurrent host-load failures.
+
+- [ ] Merge current origin/main without rebase or force.
+- [ ] Format journal, run gates and build combined candidate.
+- [ ] Commit and push PR fixes; root owns merge and release.
