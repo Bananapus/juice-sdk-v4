@@ -42,3 +42,4 @@ export * from "./revnet721.js";
 export * from "./deploymentDiagnostics.js";
 export * from "./deploymentAbi.js";
 export * from "./operationEvidence.js";
+export * from "./jbDraft.js";
