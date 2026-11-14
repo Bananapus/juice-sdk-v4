@@ -15,6 +15,8 @@ import {
   jbOmnichainDeployerAbi,
 } from "../generated/juicebox.js";
 import {
+  editShopMetadataDetails,
+  SHOP_ITEM_NAME_MAX,
   DISCOUNT_DENOMINATOR,
   JB721_RULESET_METADATA_PAUSE_MINT_PENDING_RESERVES,
   JB721_RULESET_METADATA_PAUSE_TRANSFERS,
@@ -655,5 +657,35 @@ describe("getProject721Shop", () => {
         isRevnet: false,
       }),
     ).toBeNull();
+  });
+});
+
+describe("editShopMetadataDetails", () => {
+  const original = {
+    name: "Hat",
+    description: "",
+    image: "ipfs://x",
+    productName: "Hat",
+    extra: 1,
+  };
+  test("renames and redescribes, keeping every other field and the older keys in step", () => {
+    expect(editShopMetadataDetails(original, " Cap ", " Warm ")).toEqual({
+      name: "Cap",
+      description: "Warm",
+      image: "ipfs://x",
+      productName: "Cap",
+      extra: 1,
+    });
+  });
+  test("refuses an empty, unnamed or oversized edit", () => {
+    expect(() => editShopMetadataDetails(original, "Hat", "")).toThrow(
+      "Change the name",
+    );
+    expect(() => editShopMetadataDetails(original, " ", "x")).toThrow(
+      "Name the item.",
+    );
+    expect(() =>
+      editShopMetadataDetails(original, "a".repeat(SHOP_ITEM_NAME_MAX + 1), ""),
+    ).toThrow("within 200");
   });
 });
