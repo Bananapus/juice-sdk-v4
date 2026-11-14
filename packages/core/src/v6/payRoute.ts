@@ -20,6 +20,10 @@ function isBetter(candidate: BestUserPay, current: BestUserPay): boolean {
   const ours = candidate.preview.beneficiaryTokenCount;
   const theirs = current.preview.beneficiaryTokenCount;
   if (ours !== theirs) return ours > theirs;
+  // Equal previews can hide unequal fallbacks: the same market estimate over different
+  // mint entitlements. The larger floor is the larger guaranteed delivery.
+  if (candidate.minReturnedTokens !== current.minReturnedTokens)
+    return candidate.minReturnedTokens > current.minReturnedTokens;
   const ourTotal = ours + candidate.preview.reservedTokenCount;
   const theirTotal = theirs + current.preview.reservedTokenCount;
   if (ourTotal !== theirTotal) return ourTotal > theirTotal;
@@ -30,7 +34,8 @@ function isBetter(candidate: BestUserPay, current: BestUserPay): boolean {
 /**
  * Prepare one payment on every candidate terminal with {@link prepareUserPay}
  * and keep the one that gives the beneficiary the most project tokens. A tie
- * goes to the larger total issuance, then to the direct terminal.
+ * goes to the larger guaranteed minimum, then the larger total issuance, then
+ * the direct terminal.
  *
  * The caller names the candidates: only terminals the project's directory
  * actually lists, since a quote from an unlisted terminal is not a route. A

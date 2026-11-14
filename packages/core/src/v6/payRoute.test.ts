@@ -92,4 +92,15 @@ describe("prepareBestUserPay", () => {
     ]);
     expect(mocks.prepare.mock.calls[0][1]).not.toHaveProperty("candidates");
   });
+
+  it("breaks an equal preview by the larger guaranteed minimum", async () => {
+    answers({
+      [ROUTER]: { ...quote(900n), minReturnedTokens: 97n },
+      [MULTI]: { ...quote(900n), minReturnedTokens: 47n },
+    });
+    await expect(prepareBestUserPay(client, args)).resolves.toMatchObject({
+      terminal: ROUTER,
+      minReturnedTokens: 97n,
+    });
+  });
 });
