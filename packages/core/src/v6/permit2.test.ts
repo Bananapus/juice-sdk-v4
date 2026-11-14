@@ -295,8 +295,10 @@ describe("Permit2 pay authorization", () => {
       authorization: { ...fresh, ...change },
       signature: "0x12" as const,
     });
-    const reusable = (kept: ReturnType<typeof signed> | null, owner = OWNER) =>
-      permit2PayAuthorizationReusable(kept, fresh, owner);
+    const reusable = (
+      kept: ReturnType<typeof signed> | null,
+      owner: `0x${string}` = OWNER,
+    ) => permit2PayAuthorizationReusable(kept, fresh, owner);
     expect(reusable(null)).toBe(false);
     expect(reusable(signed())).toBe(true);
     // Another account with the same nonce and payment: Permit2 would reject the signature.
