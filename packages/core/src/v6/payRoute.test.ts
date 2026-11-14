@@ -1,5 +1,7 @@
 import {
   BaseError,
+  createPublicClient,
+  custom,
   ContractFunctionRevertedError,
   type Address,
   type PublicClient,
@@ -184,11 +186,65 @@ describe("prepareBestUserPay", () => {
         }),
       });
       expect(isExecutionRevert(bare)).toBe(true);
-      expect(isExecutionRevert(new BaseError("execution reverted"))).toBe(
-        false,
-      );
+      expect(isExecutionRevert(new BaseError("unrelated"))).toBe(false);
       expect(isExecutionRevert(nodeFailed())).toBe(false);
       expect(isExecutionRevert(reverted())).toBe(true);
+    });
+
+    it("reads each node's way of reporting a revert, through viem's own error handling", async () => {
+      /** How viem words one JSON-RPC error answer to an eth_call. */
+      const worded = async (rpcError: {
+        code: number;
+        message: string;
+        data?: string;
+      }) => {
+        const node = createPublicClient({
+          transport: custom({
+            request: async () => {
+              throw Object.assign(new Error(rpcError.message), rpcError);
+            },
+          }),
+        });
+        return node
+          .simulateContract({
+            address: MULTI,
+            abi: [
+              {
+                type: "function",
+                name: "pay",
+                inputs: [],
+                outputs: [],
+                stateMutability: "payable",
+              },
+            ],
+            functionName: "pay",
+          })
+          .then(
+            () => null,
+            (error: unknown) => error,
+          );
+      };
+      const reverts = [
+        { code: 3, message: "execution reverted", data: "0x" },
+        { code: 3, message: "execution reverted" },
+        { code: -32000, message: "execution reverted", data: "0x" },
+        { code: -32000, message: "execution reverted: sold out" },
+      ];
+      for (const rpcError of reverts)
+        expect(
+          isExecutionRevert(await worded(rpcError)),
+          JSON.stringify(rpcError),
+        ).toBe(true);
+      const failures = [
+        { code: -32603, message: "Internal error" },
+        { code: -32005, message: "rate limited" },
+        { code: -32000, message: "header not found" },
+      ];
+      for (const rpcError of failures)
+        expect(
+          isExecutionRevert(await worded(rpcError)),
+          JSON.stringify(rpcError),
+        ).toBe(false);
     });
 
     it("lets the previews decide when a route cannot be run, or every one reverts", async () => {

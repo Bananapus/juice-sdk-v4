@@ -43,17 +43,25 @@ type Run = bigint | "reverted" | null;
 /**
  * Did the node run the call and have it revert? viem also words a node's own
  * failure (JSON-RPC -32603 "Internal error", no revert data) as a contract
- * revert and drops the node's error code, so a route is dropped only for
- * revert data or a message that says the execution reverted.
+ * revert and drops the node's error code, and words some reverts (-32000
+ * "execution reverted") without that class. So a route is dropped only on
+ * evidence: revert data, or a node message that says the execution reverted.
  */
 export function isExecutionRevert(error: unknown): boolean {
   if (!(error instanceof BaseError)) return false;
-  const revert = error.walk(
-    (cause) => cause instanceof ContractFunctionRevertedError,
-  ) as ContractFunctionRevertedError | null;
-  if (!revert) return false;
-  if (revert.raw !== undefined || revert.signature !== undefined) return true;
-  return /revert/i.test(revert.reason ?? "");
+  return !!error.walk((cause) => {
+    if (cause instanceof ContractFunctionRevertedError)
+      return (
+        cause.raw !== undefined ||
+        cause.signature !== undefined ||
+        /revert/i.test(cause.reason ?? "")
+      );
+    const { name, details } = cause as { name?: string; details?: string };
+    return (
+      name === "ExecutionRevertedError" ||
+      /execution reverted/i.test(details ?? "")
+    );
+  });
 }
 
 async function runPay(
