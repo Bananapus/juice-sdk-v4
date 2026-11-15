@@ -579,6 +579,13 @@ describe("Uniswap V4 position plans", () => {
     // 0 settles the whole open debt and 2^255 the manager's own balance.
     expect(describeV4UnlockData(plan("0x0b", [settle(0n)]))).toBeNull();
     expect(describeV4UnlockData(plan("0x0b", [settle(1n << 255n)]))).toBeNull();
+    // Permit2 would pull only the low 160 bits of this: 500, not what the bytes say.
+    expect(
+      describeV4UnlockData(plan("0x0b", [settle((1n << 160n) + 500n)])),
+    ).toBeNull();
+    expect(
+      describeV4UnlockData(plan("0x0b", [settle((1n << 160n) - 1n, false)])),
+    ).not.toBeNull();
   });
 
   it("refuses hook data it would not show", () => {

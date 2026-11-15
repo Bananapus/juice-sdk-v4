@@ -477,7 +477,10 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
             [{ type: "address" }, { type: "uint256" }, { type: "bool" }],
             data,
           );
-          if (amount === 0n || amount === 1n << 255n) return null;
+          // 0 and 2^255 are sentinels for amounts this review cannot state. The position
+          // manager also hands Permit2 only the low 160 bits of a caller-paid amount, so a
+          // larger one would be shown as more than is pulled.
+          if (amount === 0n || amount >= 1n << 160n) return null;
           steps.push({ action: "SETTLE", currency, amount, payerIsCaller });
           break;
         }
