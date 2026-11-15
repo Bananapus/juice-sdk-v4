@@ -1,4 +1,11 @@
-import type { Address, PublicClient } from "viem";
+import {
+  BaseError,
+  createPublicClient,
+  custom,
+  ContractFunctionRevertedError,
+  type Address,
+  type PublicClient,
+} from "viem";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ prepare: vi.fn() }));
@@ -8,7 +15,7 @@ vi.mock("./pay.js", async (original) => ({
 }));
 
 import { PaySwapQuoteFailedError } from "./pay.js";
-import { prepareBestUserPay } from "./payRoute.js";
+import { isExecutionRevert, prepareBestUserPay } from "./payRoute.js";
 
 const MULTI = "0x00000000000000000000000000000000000000a1" as Address;
 const ROUTER = "0x00000000000000000000000000000000000000b2" as Address;
@@ -101,6 +108,181 @@ describe("prepareBestUserPay", () => {
     await expect(prepareBestUserPay(client, args)).resolves.toMatchObject({
       terminal: ROUTER,
       minReturnedTokens: 97n,
+    });
+  });
+
+  describe("with simulateFrom", () => {
+    const PAYER = "0x2222222222222222222222222222222222222222" as Address;
+    const reverted = () =>
+      new BaseError("call failed", {
+        cause: new ContractFunctionRevertedError({
+          abi: [],
+          data: "0x",
+          functionName: "pay",
+        }),
+      });
+    /** A node's own failure (JSON-RPC -32603), which viem also words as a revert. */
+    const nodeFailed = () =>
+      new BaseError("call failed", {
+        cause: new ContractFunctionRevertedError({
+          abi: [],
+          functionName: "pay",
+          message: "Internal error",
+        }),
+      });
+    /** What running each terminal's payment returns; an Error is thrown. */
+    const runs = (byTerminal: Record<string, unknown>) =>
+      ({
+        simulateContract: vi.fn(async ({ address }: { address: Address }) => {
+          const run = byTerminal[address];
+          if (run instanceof Error) throw run;
+          return { result: run };
+        }),
+      }) as unknown as PublicClient & {
+        simulateContract: ReturnType<typeof vi.fn>;
+      };
+
+    it("picks by what each payment delivers when run, over the previews", async () => {
+      answers({ [MULTI]: quote(100n), [ROUTER]: quote(120n) });
+      const chain = runs({ [MULTI]: 100n, [ROUTER]: 90n });
+      await expect(
+        prepareBestUserPay(chain, { ...args, simulateFrom: PAYER }),
+      ).resolves.toMatchObject({ terminal: MULTI, simulatedTokenCount: 100n });
+      expect(chain.simulateContract.mock.calls[0][0]).toMatchObject({
+        account: PAYER,
+        value: args.amount,
+        functionName: "pay",
+        stateOverride: [
+          { address: PAYER, balance: args.amount * 2n + 10n ** 18n },
+        ],
+      });
+      expect(mocks.prepare.mock.calls[0][1]).not.toHaveProperty("simulateFrom");
+    });
+
+    it("drops a route whose payment reverts when another runs", async () => {
+      answers({ [MULTI]: quote(100n), [ROUTER]: quote(120n) });
+      await expect(
+        prepareBestUserPay(runs({ [MULTI]: 100n, [ROUTER]: reverted() }), {
+          ...args,
+          simulateFrom: PAYER,
+        }),
+      ).resolves.toMatchObject({ terminal: MULTI, simulatedTokenCount: 100n });
+    });
+
+    it("never drops a route for a node failure worded as a revert", async () => {
+      answers({ [MULTI]: quote(100n), [ROUTER]: quote(120n) });
+      const picked = await prepareBestUserPay(
+        runs({ [MULTI]: 100n, [ROUTER]: nodeFailed() }),
+        { ...args, simulateFrom: PAYER },
+      );
+      expect(picked).toMatchObject({ terminal: ROUTER });
+      expect(picked).not.toHaveProperty("simulatedTokenCount");
+      // A node that reports an empty revert without data (code 3, "execution reverted").
+      const bare = new BaseError("call failed", {
+        cause: new ContractFunctionRevertedError({
+          abi: [],
+          functionName: "pay",
+          message: "execution reverted",
+        }),
+      });
+      expect(isExecutionRevert(bare)).toBe(true);
+      expect(isExecutionRevert(new BaseError("unrelated"))).toBe(false);
+      expect(isExecutionRevert(nodeFailed())).toBe(false);
+      expect(isExecutionRevert(reverted())).toBe(true);
+    });
+
+    it("reads each node's way of reporting a revert, through viem's own error handling", async () => {
+      /** How viem words one JSON-RPC error answer to an eth_call. */
+      const worded = async (rpcError: {
+        code: number;
+        message: string;
+        data?: string;
+      }) => {
+        const node = createPublicClient({
+          transport: custom({
+            request: async () => {
+              throw Object.assign(new Error(rpcError.message), rpcError);
+            },
+          }),
+        });
+        return node
+          .simulateContract({
+            address: MULTI,
+            abi: [
+              {
+                type: "function",
+                name: "pay",
+                inputs: [],
+                outputs: [],
+                stateMutability: "payable",
+              },
+            ],
+            functionName: "pay",
+          })
+          .then(
+            () => null,
+            (error: unknown) => error,
+          );
+      };
+      const reverts = [
+        { code: 3, message: "execution reverted", data: "0x" },
+        { code: 3, message: "execution reverted" },
+        { code: -32000, message: "execution reverted", data: "0x" },
+        { code: -32000, message: "execution reverted: sold out" },
+      ];
+      for (const rpcError of reverts)
+        expect(
+          isExecutionRevert(await worded(rpcError)),
+          JSON.stringify(rpcError),
+        ).toBe(true);
+      const failures = [
+        { code: -32603, message: "Internal error" },
+        { code: -32005, message: "rate limited" },
+        { code: -32000, message: "header not found" },
+      ];
+      for (const rpcError of failures)
+        expect(
+          isExecutionRevert(await worded(rpcError)),
+          JSON.stringify(rpcError),
+        ).toBe(false);
+    });
+
+    it("lets the previews decide when a route cannot be run, or every one reverts", async () => {
+      answers({ [MULTI]: quote(100n), [ROUTER]: quote(120n) });
+      const unknown = await prepareBestUserPay(
+        runs({ [MULTI]: 100n, [ROUTER]: new Error("no overrides") }),
+        { ...args, simulateFrom: PAYER },
+      );
+      expect(unknown).toMatchObject({ terminal: ROUTER });
+      expect(unknown).not.toHaveProperty("simulatedTokenCount");
+      // A reverting route is dropped even when the other could not be run.
+      await expect(
+        prepareBestUserPay(
+          runs({ [MULTI]: new Error("no overrides"), [ROUTER]: reverted() }),
+          { ...args, simulateFrom: PAYER },
+        ),
+      ).resolves.toMatchObject({ terminal: MULTI });
+      const none = await prepareBestUserPay(
+        runs({ [MULTI]: reverted(), [ROUTER]: reverted() }),
+        { ...args, simulateFrom: PAYER },
+      );
+      expect(none).toMatchObject({ terminal: ROUTER });
+    });
+
+    it("runs nothing for an ERC-20 payment or a single candidate", async () => {
+      answers({ [MULTI]: quote(100n), [ROUTER]: quote(120n) });
+      const chain = runs({});
+      await prepareBestUserPay(chain, {
+        ...args,
+        token: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        simulateFrom: PAYER,
+      });
+      await prepareBestUserPay(chain, {
+        ...args,
+        candidates: [args.candidates[1]],
+        simulateFrom: PAYER,
+      });
+      expect(chain.simulateContract).not.toHaveBeenCalled();
     });
   });
 });

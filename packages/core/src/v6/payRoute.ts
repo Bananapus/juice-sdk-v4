@@ -1,6 +1,13 @@
-import type { Address, PublicClient } from "viem";
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  type Address,
+  type PublicClient,
+} from "viem";
+import { NATIVE_TOKEN } from "../constants.js";
 import type { JBChainId } from "../types.js";
 import {
+  buildPayTx,
   PaySwapQuoteFailedError,
   prepareUserPay,
   type PreparedUserPay,
@@ -14,7 +21,80 @@ import {
 export type PayRouteCandidate = { terminal: Address; type: "multi" | "router" };
 
 /** The prepared payment of the winning candidate. */
-export type BestUserPay = PreparedUserPay & PayRouteCandidate;
+export type BestUserPay = PreparedUserPay &
+  PayRouteCandidate & {
+    /**
+     * The project tokens the beneficiary received when this exact payment was
+     * run as a call from `simulateFrom`. Set only when every surviving
+     * candidate could be run, so the choice was made on these figures.
+     */
+    simulatedTokenCount?: bigint;
+  };
+
+/** A candidate's run: the tokens delivered, a revert, or null when it could not be run. */
+type Run = bigint | "reverted" | null;
+
+/**
+ * Run one prepared native-token payment as a call from `payer`, with its own
+ * metadata and minimum, funded for the call only. A terminal's preview is an
+ * estimate (a pool may not fill the order at the previewed price); the call
+ * returns what the payment would deliver in this block.
+ */
+/**
+ * Did the node run the call and have it revert? viem also words a node's own
+ * failure (JSON-RPC -32603 "Internal error", no revert data) as a contract
+ * revert and drops the node's error code, and words some reverts (-32000
+ * "execution reverted") without that class. So a route is dropped only on
+ * evidence: revert data, or a node message that says the execution reverted.
+ */
+export function isExecutionRevert(error: unknown): boolean {
+  if (!(error instanceof BaseError)) return false;
+  return !!error.walk((cause) => {
+    if (cause instanceof ContractFunctionRevertedError)
+      return (
+        cause.raw !== undefined ||
+        cause.signature !== undefined ||
+        /revert/i.test(cause.reason ?? "")
+      );
+    const { name, details } = cause as { name?: string; details?: string };
+    return (
+      name === "ExecutionRevertedError" ||
+      /execution reverted/i.test(details ?? "")
+    );
+  });
+}
+
+async function runPay(
+  client: PublicClient,
+  args: {
+    chainId: JBChainId;
+    projectId: bigint;
+    token: Address;
+    amount: bigint;
+    beneficiary: Address;
+  },
+  route: BestUserPay,
+  payer: Address,
+): Promise<Run> {
+  try {
+    const { result } = await client.simulateContract({
+      ...buildPayTx({
+        ...args,
+        terminal: route.terminal,
+        minReturnedTokens: route.minReturnedTokens,
+        metadata: route.metadata,
+      }),
+      account: payer,
+      // The payer may not hold the amount yet: the balance is lent to this call alone.
+      stateOverride: [
+        { address: payer, balance: args.amount * 2n + 10n ** 18n },
+      ],
+    });
+    return typeof result === "bigint" ? result : null;
+  } catch (error) {
+    return isExecutionRevert(error) ? "reverted" : null;
+  }
+}
 
 function isBetter(candidate: BestUserPay, current: BestUserPay): boolean {
   const ours = candidate.preview.beneficiaryTokenCount;
@@ -45,11 +125,21 @@ function isBetter(candidate: BestUserPay, current: BestUserPay): boolean {
  * can retry it instead of reading "no route".
  *
  * Send the payment to the returned `terminal`, with the ABI its `type` names.
+ *
+ * With `simulateFrom` on a native-token payment, each prepared candidate is
+ * also run as a call from that account. A candidate whose call reverts is
+ * dropped while another is left; when every one reverts there is nothing better
+ * to pick, the previews decide, and sending the payment reports the revert.
+ * When every remaining candidate ran, the one
+ * delivering the most tokens wins and carries `simulatedTokenCount`; when one
+ * could not be run (an RPC without call overrides), the previews decide as
+ * before. ERC-20 payments are not run: they need the payer's approval first.
  */
 export async function prepareBestUserPay(
   client: PublicClient,
   {
     candidates,
+    simulateFrom,
     ...args
   }: {
     chainId: JBChainId;
@@ -61,6 +151,7 @@ export async function prepareBestUserPay(
     tiers?: UserPayTiers;
     slippageBps?: bigint;
     skipSplits?: boolean;
+    simulateFrom?: Address;
   },
 ): Promise<BestUserPay | null> {
   let swapQuoteFailure: PaySwapQuoteFailedError | undefined;
@@ -80,9 +171,37 @@ export async function prepareBestUserPay(
       }
     }),
   );
+  let routes = prepared.filter((route): route is BestUserPay => !!route);
+  if (
+    simulateFrom &&
+    routes.length > 1 &&
+    args.token.toLowerCase() === NATIVE_TOKEN.toLowerCase()
+  ) {
+    const runs = await Promise.all(
+      routes.map((route) => runPay(client, args, route, simulateFrom)),
+    );
+    const count = new Map(routes.map((route, index) => [route, runs[index]]));
+    const live = routes.filter((route) => count.get(route) !== "reverted");
+    // A reverting route is dropped while another is left. Exact figures decide
+    // only when every route left has one.
+    if (live.length)
+      routes = live.every((route) => typeof count.get(route) === "bigint")
+        ? live.map((route) => ({
+            ...route,
+            simulatedTokenCount: count.get(route) as bigint,
+          }))
+        : live;
+  }
   let best: BestUserPay | null = null;
-  for (const route of prepared) {
-    if (route && (!best || isBetter(route, best))) best = route;
+  for (const route of routes) {
+    if (!best) best = route;
+    else if (
+      route.simulatedTokenCount !== undefined &&
+      best.simulatedTokenCount !== undefined &&
+      route.simulatedTokenCount !== best.simulatedTokenCount
+    ) {
+      if (route.simulatedTokenCount > best.simulatedTokenCount) best = route;
+    } else if (isBetter(route, best)) best = route;
   }
   if (!best && swapQuoteFailure) throw swapQuoteFailure;
   return best;
