@@ -338,6 +338,12 @@ export type V4PlanStep =
       currency1: string;
       recipient: string;
     }
+  | {
+      action: "SETTLE";
+      currency: string;
+      amount: bigint;
+      payerIsCaller: boolean;
+    }
   | { action: "CLOSE_CURRENCY"; currency: string }
   | { action: "SWEEP"; currency: string; recipient: string };
 
@@ -366,9 +372,11 @@ const ACTION_PLAN = [{ type: "bytes" }, { type: "bytes[]" }] as const;
 
 /**
  * Decode a Uniswap V4 PositionManager `unlockData` plan into typed steps.
- * It covers the actions the apps build (increase, decrease, mint, burn, take
- * pair, close, sweep) with empty hook data and canonical encodings; anything
- * else is null. Amounts stay in raw token units and addresses stay raw, since
+ * It covers the actions the apps build (increase, decrease, mint, burn, settle
+ * a stated amount, take pair, close, sweep) with empty hook data and canonical
+ * encodings; anything else is null. A SETTLE whose amount is one of the
+ * PositionManager's sentinels (0, the open debt; 2^255, its own balance) pays
+ * something other than the number in the payload, so it is null too. Amounts stay in raw token units and addresses stay raw, since
  * the dialog shows the exact payload.
  */
 export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
@@ -462,6 +470,18 @@ export function describeV4UnlockData(value: unknown): V4PlanStep[] | null {
             position: `#${tokenId}`,
             minimumOut: { currency0: amount0Min, currency1: amount1Min },
           });
+          break;
+        }
+        case 0x0b: {
+          const [currency, amount, payerIsCaller] = decodeExact(
+            [{ type: "address" }, { type: "uint256" }, { type: "bool" }],
+            data,
+          );
+          // 0 and 2^255 are sentinels for amounts this review cannot state. The position
+          // manager also hands Permit2 only the low 160 bits of a caller-paid amount, so a
+          // larger one would be shown as more than is pulled.
+          if (amount === 0n || amount >= 1n << 160n) return null;
+          steps.push({ action: "SETTLE", currency, amount, payerIsCaller });
           break;
         }
         case 0x11: {
