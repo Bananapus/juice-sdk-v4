@@ -554,6 +554,33 @@ describe("Uniswap V4 position plans", () => {
     ]);
   });
 
+  it("decodes a settle of a stated amount and refuses the sentinel amounts", () => {
+    const settle = (amount: bigint, payer = true) =>
+      encodeAbiParameters(
+        [{ type: "address" }, { type: "uint256" }, { type: "bool" }],
+        [TOKEN, amount, payer],
+      );
+    expect(
+      describeV4UnlockData(
+        plan("0x0b11", [settle(500n), addresses(zeroAddress, TOKEN, ALICE)]),
+      ),
+    ).toEqual([
+      { action: "SETTLE", currency: TOKEN, amount: 500n, payerIsCaller: true },
+      {
+        action: "TAKE_PAIR",
+        currency0: zeroAddress,
+        currency1: TOKEN,
+        recipient: ALICE,
+      },
+    ]);
+    expect(describeV4UnlockData(plan("0x0b", [settle(500n, false)]))).toEqual([
+      { action: "SETTLE", currency: TOKEN, amount: 500n, payerIsCaller: false },
+    ]);
+    // 0 settles the whole open debt and 2^255 the manager's own balance.
+    expect(describeV4UnlockData(plan("0x0b", [settle(0n)]))).toBeNull();
+    expect(describeV4UnlockData(plan("0x0b", [settle(1n << 255n)]))).toBeNull();
+  });
+
   it("refuses hook data it would not show", () => {
     expect(
       describeV4UnlockData(plan("0x00", [modify(7n, 1n, 1n, 1n, "0x01")])),
