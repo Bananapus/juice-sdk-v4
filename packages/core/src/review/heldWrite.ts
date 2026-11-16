@@ -82,6 +82,10 @@ const MAX_POLL_MS = 60_000;
 /** A follower's first looks, a few seconds apart, before it slows to the poll. */
 const FAST_MS = 4_000;
 const FAST_LOOKS = 15;
+/** A Safe proposal sent longer ago than this is followed at the slow pace from its first look. */
+const FRESH_MS = 60_000;
+/** How often Safe's service is asked for a proposal's execution once the fast looks are over. */
+const SAFE_FOLLOW_MS = 60_000;
 /** How long a settled step waits before its completion reads its receipt again. */
 export const RECEIPT_RETRY_MS = 4_000;
 
@@ -112,6 +116,11 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
  * loss ends it unproven (`onUnproven`). It ends only when the hold is clear
  * (an authenticated settlement or an exit) or `signal` aborts: never on its
  * own reading of a receipt, a replacement or an expiry. The hold decides.
+ *
+ * A Safe proposal gets the fast looks only within a minute of being sent:
+ * one found held on a later visit (awaiting its signers for days) is asked
+ * at the slow pace from the start, so many of them never spend a service's
+ * rate limit. A direct write keeps its fast looks, whenever it was sent.
  */
 export async function followHeldWrite(
   handle: WriteHoldHandle,
@@ -136,6 +145,13 @@ export async function followHeldWrite(
   },
 ): Promise<WriteHoldState | null> {
   const now = handle.peek();
+  const since =
+    now.status !== "clear" && now.record.safe
+      ? Number(now.record.submittedAt ?? now.record.firstSeenAt)
+      : NaN;
+  // A direct write, and a clock that can't be read, count as fresh.
+  const fast = (look: number) =>
+    look < FAST_LOOKS && !(Date.now() - since >= FRESH_MS);
   if (
     now.status !== "clear" &&
     now.record.safe &&
@@ -147,6 +163,9 @@ export async function followHeldWrite(
     void waitForSafeExecutionHash(now.record.chainId, proposal, {
       signal,
       client: client as never,
+      // A proposal the service no longer has is counted out at the fast pace.
+      pollingIntervalMs: (poll, notFound) =>
+        fast(poll) || notFound > 0 ? 5_000 : SAFE_FOLLOW_MS,
     })
       .then(
         (execution) => handle.onExecuted(client, execution),
@@ -161,7 +180,7 @@ export async function followHeldWrite(
     const own = reservation && handle.settlementOf(reservation);
     if (own) return { status: "clear", settled: own, reservation };
     if (state?.status === "clear") return state;
-    await pause(look < FAST_LOOKS ? fastMs : pollOf(pollMs), signal);
+    await pause(fast(look) ? fastMs : pollOf(pollMs), signal);
   }
   return null;
 }

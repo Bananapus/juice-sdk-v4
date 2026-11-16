@@ -269,6 +269,42 @@ describe("Safe transaction service boundaries", () => {
     }
   });
 
+  it("pauses what a polling interval function says for each poll", async () => {
+    vi.useFakeTimers();
+    const responses = [
+      executed({ isExecuted: false }),
+      executed({ isExecuted: false }),
+      // A 404 is counted before the pause it shortens.
+      { ok: false, status: 404 },
+      executed({
+        isExecuted: true,
+        isSuccessful: true,
+        transactionHash: EXECUTION,
+      }),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => responses.shift()!),
+    );
+    const waiting = waitForSafeExecutionHash(8453, PROPOSAL, {
+      pollingIntervalMs: (poll, notFound) =>
+        notFound > 0 ? 1_000 : poll === 0 ? 5_000 : 60_000,
+    });
+    for (const [elapsed, polls] of [
+      [0, 1],
+      [4_999, 1],
+      [1, 2],
+      [59_999, 2],
+      [1, 3],
+      [999, 3],
+      [1, 4],
+    ]) {
+      await vi.advanceTimersByTimeAsync(elapsed);
+      expect(fetch).toHaveBeenCalledTimes(polls);
+    }
+    await expect(waiting).resolves.toBe(EXECUTION);
+  });
+
   it("after a 429, waits the longer of the poll interval and its Retry-After before polling again", async () => {
     vi.useFakeTimers();
     const limited = (headers: Record<string, string> = {}) =>

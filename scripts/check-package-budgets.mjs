@@ -383,8 +383,11 @@ const budgets = {
     // The payment notice rule (`v6/payNotice`, one more module, 8 files) and the exact
     // pay route choice by simulated payment in `v6/payRoute`:
     // measured 1,970,551 B packed, 25,377,839 B unpacked, 1,971 entries.
+    // The slow pace for held writes sent over a minute ago and the spread 429
+    // retries edit `review/heldWrite` and `safeService`, no new file:
+    // measured 1,972,061 B packed, 25,386,250 B unpacked, 1,971 entries.
     packed: 1_975_000,
-    unpacked: 25_385_000,
+    unpacked: 25_395_000,
     entries: 1_971,
   },
   "@bananapus/nana-sdk-react": {
