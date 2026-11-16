@@ -287,8 +287,12 @@ export async function waitForSafeExecutionHash(
   chainId: number,
   safeTxHash: Hex,
   options: {
-    /** The pause after each poll: one number, or a function of the poll's index (from 0). */
-    pollingIntervalMs?: number | ((poll: number) => number);
+    /**
+     * The pause after each poll: one number, or a function of the poll's index
+     * (from 0) and of the not-found answers counted so far, so a caller that
+     * polls slowly can still count a lost proposal's 404s quickly.
+     */
+    pollingIntervalMs?: number | ((poll: number, notFound: number) => number);
     signal?: AbortSignal;
     client?: SafeExecutionClient;
   } = {},
@@ -307,8 +311,7 @@ export async function waitForSafeExecutionHash(
   let poll = 0;
   for (;;) {
     if (options.signal?.aborted) throw waitAborted();
-    const interval = typeof every === "function" ? every(poll++) : every;
-    let wait = interval;
+    let asked: number | null = null;
     const look =
       client &&
       (await abortable(
@@ -361,9 +364,8 @@ export async function waitForSafeExecutionHash(
             );
           }
         } else if (response.status === 429) {
-          const asked = retryAfterMs(response.headers.get("retry-after"));
           // Without a readable Retry-After the poll keeps its interval.
-          if (asked !== null && asked > interval) wait = asked;
+          asked = retryAfterMs(response.headers.get("retry-after"));
         }
       } catch (error) {
         if (error instanceof SafeExecutionRecordError) throw error;
@@ -371,7 +373,13 @@ export async function waitForSafeExecutionHash(
         // proposal pending instead of inviting a duplicate submission.
       }
     }
-    await pause(wait, options.signal, waitAborted);
+    const interval =
+      typeof every === "function" ? every(poll++, notFoundAnswers) : every;
+    await pause(
+      asked !== null && asked > interval ? asked : interval,
+      options.signal,
+      waitAborted,
+    );
   }
 }
 
@@ -1946,8 +1954,8 @@ export function onchainApprovalStep({
  * {@link fetchSafeCreation}). A 429 is retried up to three times after the
  * wait its Retry-After asks for, in delay-seconds or as an HTTP-date, when that
  * is at most {@link SAFE_SERVICE_MAX_RETRY_WAIT_MS}, or after 1, 2 and 3
- * seconds when it sends none, plus up to a second chosen at random so
- * requests refused together don't retry together. A 429 that asks for longer, or whose Retry-After
+ * seconds when it sends none, plus up to a second chosen at random (never
+ * past that longest wait) so requests refused together don't retry together. A 429 that asks for longer, or whose Retry-After
  * cannot be read, is handed back at once: retrying before the service allows
  * works against its rate limit. `retryRateLimited: false` hands back the first
  * 429 instead, for a caller that must not wait, such as a server render.
@@ -2076,9 +2084,15 @@ async function serviceFetch(
       retryAfter === null ? 1000 * (attempt + 1) : retryAfterMs(retryAfter);
     // An unreadable Retry-After (null) is handed back as well.
     if (wait === null || wait > SAFE_SERVICE_MAX_RETRY_WAIT_MS) return response;
-    // Up to a second more, so requests refused together don't return together.
+    // Up to a second more, never past the longest wait, so requests refused
+    // together don't return together.
     await pause(
-      wait + Math.random() * SAFE_SERVICE_RETRY_JITTER_MS,
+      wait +
+        Math.random() *
+          Math.min(
+            SAFE_SERVICE_RETRY_JITTER_MS,
+            SAFE_SERVICE_MAX_RETRY_WAIT_MS - wait,
+          ),
       signal,
       () => signal!.reason,
     );

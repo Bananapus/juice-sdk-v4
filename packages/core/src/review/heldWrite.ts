@@ -163,7 +163,9 @@ export async function followHeldWrite(
     void waitForSafeExecutionHash(now.record.chainId, proposal, {
       signal,
       client: client as never,
-      pollingIntervalMs: (poll) => (fast(poll) ? 5_000 : SAFE_FOLLOW_MS),
+      // A proposal the service no longer has is counted out at the fast pace.
+      pollingIntervalMs: (poll, notFound) =>
+        fast(poll) || notFound > 0 ? 5_000 : SAFE_FOLLOW_MS,
     })
       .then(
         (execution) => handle.onExecuted(client, execution),

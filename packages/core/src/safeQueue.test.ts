@@ -1459,6 +1459,17 @@ describe("Safe transaction service", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(fetcher).toHaveBeenCalledTimes(2);
     await expect(pending).resolves.toEqual([]);
+    // At the longest wait the service may ask for, nothing is added.
+    const capped = vi
+      .fn()
+      .mockResolvedValueOnce(limited("10"))
+      .mockResolvedValue(Response.json({ results: [] }));
+    const atCap = listPendingSafeTransactions(1, SAFE, 8, { fetch: capped });
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(capped).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(capped).toHaveBeenCalledTimes(2);
+    await expect(atCap).resolves.toEqual([]);
   });
 
   it("waits 1, 2 and 3 seconds after a 429 without a Retry-After, and does not list the page again", async () => {

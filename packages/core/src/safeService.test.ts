@@ -274,6 +274,8 @@ describe("Safe transaction service boundaries", () => {
     const responses = [
       executed({ isExecuted: false }),
       executed({ isExecuted: false }),
+      // A 404 is counted before the pause it shortens.
+      { ok: false, status: 404 },
       executed({
         isExecuted: true,
         isSuccessful: true,
@@ -285,7 +287,8 @@ describe("Safe transaction service boundaries", () => {
       vi.fn(async () => responses.shift()!),
     );
     const waiting = waitForSafeExecutionHash(8453, PROPOSAL, {
-      pollingIntervalMs: (poll) => (poll === 0 ? 5_000 : 60_000),
+      pollingIntervalMs: (poll, notFound) =>
+        notFound > 0 ? 1_000 : poll === 0 ? 5_000 : 60_000,
     });
     for (const [elapsed, polls] of [
       [0, 1],
@@ -293,6 +296,8 @@ describe("Safe transaction service boundaries", () => {
       [1, 2],
       [59_999, 2],
       [1, 3],
+      [999, 3],
+      [1, 4],
     ]) {
       await vi.advanceTimersByTimeAsync(elapsed);
       expect(fetch).toHaveBeenCalledTimes(polls);

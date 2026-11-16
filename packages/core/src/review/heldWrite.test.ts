@@ -249,7 +249,7 @@ describe("following a held write", () => {
     const interval = () =>
       (
         safeService.wait.mock.lastCall![2] as {
-          pollingIntervalMs: (poll: number) => number;
+          pollingIntervalMs: (poll: number, notFound?: number) => number;
         }
       ).pollingIntervalMs;
     // Sent two minutes ago: one service poll a minute, and no fast looks.
@@ -262,9 +262,11 @@ describe("following a held write", () => {
     let stop = new AbortController();
     void followHeldWrite(stale.handle, client, { signal: stop.signal });
     await vi.advanceTimersByTimeAsync(0);
-    expect([0, 1, 14, 15].map(interval())).toEqual([
+    expect([0, 1, 14, 15].map((poll) => interval()(poll, 0))).toEqual([
       60_000, 60_000, 60_000, 60_000,
     ]);
+    // The service lost it: its 404s are counted out 5 s apart.
+    expect(interval()(20, 1)).toBe(5_000);
     expect(stale.handle.state).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(29_999);
     expect(stale.handle.state).toHaveBeenCalledTimes(1);
@@ -278,12 +280,14 @@ describe("following a held write", () => {
     stop = new AbortController();
     void followHeldWrite(fresh.handle, client, { signal: stop.signal });
     await vi.advanceTimersByTimeAsync(0);
-    expect([0, 14, 15].map(interval())).toEqual([5_000, 5_000, 60_000]);
+    expect([0, 14, 15].map((poll) => interval()(poll, 0))).toEqual([
+      5_000, 5_000, 60_000,
+    ]);
     await vi.advanceTimersByTimeAsync(4_000);
     expect(fresh.handle.state).toHaveBeenCalledTimes(2);
     // A minute on, it is no longer fresh, whatever its look count.
     await vi.advanceTimersByTimeAsync(56_000);
-    expect(interval()(3)).toBe(60_000);
+    expect(interval()(3, 0)).toBe(60_000);
     stop.abort();
     // A direct write keeps its fast looks, however long ago it was sent.
     const slow = pending({ submittedAt: String(Date.now() - 600_000) });
