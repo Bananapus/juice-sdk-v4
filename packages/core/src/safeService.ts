@@ -304,9 +304,10 @@ export async function waitForSafeExecutionHash(
     base && `${base}/api/v1/multisig-transactions/${safeTxHash}/`;
   let notFoundAnswers = 0;
 
-  for (let poll = 0; ; poll += 1) {
+  let poll = 0;
+  for (;;) {
     if (options.signal?.aborted) throw waitAborted();
-    const interval = typeof every === "function" ? every(poll) : every;
+    const interval = typeof every === "function" ? every(poll++) : every;
     let wait = interval;
     const look =
       client &&

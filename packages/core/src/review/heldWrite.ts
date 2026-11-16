@@ -82,7 +82,7 @@ const MAX_POLL_MS = 60_000;
 /** A follower's first looks, a few seconds apart, before it slows to the poll. */
 const FAST_MS = 4_000;
 const FAST_LOOKS = 15;
-/** A write sent longer ago than this is followed at the slow pace from its first look. */
+/** A Safe proposal sent longer ago than this is followed at the slow pace from its first look. */
 const FRESH_MS = 60_000;
 /** How often Safe's service is asked for a proposal's execution once the fast looks are over. */
 const SAFE_FOLLOW_MS = 60_000;
@@ -117,10 +117,10 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
  * (an authenticated settlement or an exit) or `signal` aborts: never on its
  * own reading of a receipt, a replacement or an expiry. The hold decides.
  *
- * Only a write sent within the last minute gets the fast looks: one found
- * held on a later visit (a proposal awaiting its signers for days) is asked
+ * A Safe proposal gets the fast looks only within a minute of being sent:
+ * one found held on a later visit (awaiting its signers for days) is asked
  * at the slow pace from the start, so many of them never spend a service's
- * rate limit.
+ * rate limit. A direct write keeps its fast looks, whenever it was sent.
  */
 export async function followHeldWrite(
   handle: WriteHoldHandle,
@@ -146,10 +146,10 @@ export async function followHeldWrite(
 ): Promise<WriteHoldState | null> {
   const now = handle.peek();
   const since =
-    now.status === "clear"
-      ? NaN
-      : Number(now.record.submittedAt ?? now.record.firstSeenAt);
-  // A clock that can't be read counts as fresh.
+    now.status !== "clear" && now.record.safe
+      ? Number(now.record.submittedAt ?? now.record.firstSeenAt)
+      : NaN;
+  // A direct write, and a clock that can't be read, count as fresh.
   const fast = (look: number) =>
     look < FAST_LOOKS && !(Date.now() - since >= FRESH_MS);
   if (

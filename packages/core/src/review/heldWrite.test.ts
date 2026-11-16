@@ -244,7 +244,7 @@ describe("following a held write", () => {
     expect(handle.onUnproven).not.toHaveBeenCalled();
   });
 
-  it("follows a write sent over a minute ago at the slow pace from its first look, a fresh one fast", async () => {
+  it("follows a Safe proposal sent over a minute ago at the slow pace from its first look, a fresh one and a direct write fast", async () => {
     vi.useFakeTimers();
     const interval = () =>
       (
@@ -284,6 +284,15 @@ describe("following a held write", () => {
     // A minute on, it is no longer fresh, whatever its look count.
     await vi.advanceTimersByTimeAsync(56_000);
     expect(interval()(3)).toBe(60_000);
+    stop.abort();
+    // A direct write keeps its fast looks, however long ago it was sent.
+    const slow = pending({ submittedAt: String(Date.now() - 600_000) });
+    const direct = fakeHandle(slow);
+    direct.fake.answer = slow;
+    stop = new AbortController();
+    void followHeldWrite(direct.handle, client, { signal: stop.signal });
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(direct.handle.state).toHaveBeenCalledTimes(2);
     stop.abort();
   });
 

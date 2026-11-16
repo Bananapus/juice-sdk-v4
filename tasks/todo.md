@@ -13,7 +13,8 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 
 - [x] cadence in `followHeldWrite`, function interval in `waitForSafeExecutionHash`, jitter in `serviceFetch`
 - [x] tests, changeset, `npm run check` (exit 0)
-- [ ] PR; release and client bumps on jango's word
+- [x] PR #317. revnet's `pay-submission-boundary` suite on the packed tarball caught a regression: a direct payment still confirming after a minute went slow too. The slow pace now applies to Safe proposals only.
+- [ ] release and client bumps (jango said go ahead, 2026-11-16)
 
 # Client parity rules into the SDK (2026-11-13)
 
