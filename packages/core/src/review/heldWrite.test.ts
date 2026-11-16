@@ -244,6 +244,49 @@ describe("following a held write", () => {
     expect(handle.onUnproven).not.toHaveBeenCalled();
   });
 
+  it("follows a write sent over a minute ago at the slow pace from its first look, a fresh one fast", async () => {
+    vi.useFakeTimers();
+    const interval = () =>
+      (
+        safeService.wait.mock.lastCall![2] as {
+          pollingIntervalMs: (poll: number) => number;
+        }
+      ).pollingIntervalMs;
+    // Sent two minutes ago: one service poll a minute, and no fast looks.
+    const old = pending({
+      safe: true,
+      submittedAt: String(Date.now() - 120_000),
+    });
+    const stale = fakeHandle(old);
+    stale.fake.answer = old;
+    let stop = new AbortController();
+    void followHeldWrite(stale.handle, client, { signal: stop.signal });
+    await vi.advanceTimersByTimeAsync(0);
+    expect([0, 1, 14, 15].map(interval())).toEqual([
+      60_000, 60_000, 60_000, 60_000,
+    ]);
+    expect(stale.handle.state).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(stale.handle.state).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(stale.handle.state).toHaveBeenCalledTimes(2);
+    stop.abort();
+    // Just sent: 15 polls 5 s apart, looks 4 s apart, then the slow pace.
+    const sent = pending({ safe: true, submittedAt: String(Date.now()) });
+    const fresh = fakeHandle(sent);
+    fresh.fake.answer = sent;
+    stop = new AbortController();
+    void followHeldWrite(fresh.handle, client, { signal: stop.signal });
+    await vi.advanceTimersByTimeAsync(0);
+    expect([0, 14, 15].map(interval())).toEqual([5_000, 5_000, 60_000]);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(fresh.handle.state).toHaveBeenCalledTimes(2);
+    // A minute on, it is no longer fresh, whatever its look count.
+    await vi.advanceTimersByTimeAsync(56_000);
+    expect(interval()(3)).toBe(60_000);
+    stop.abort();
+  });
+
   it("asks no service for an executed record, a chain without one, or a failing read", async () => {
     const { fake, handle } = fakeHandle(
       pending({ safe: true, executed: true }),

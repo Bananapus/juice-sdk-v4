@@ -82,6 +82,10 @@ const MAX_POLL_MS = 60_000;
 /** A follower's first looks, a few seconds apart, before it slows to the poll. */
 const FAST_MS = 4_000;
 const FAST_LOOKS = 15;
+/** A write sent longer ago than this is followed at the slow pace from its first look. */
+const FRESH_MS = 60_000;
+/** How often Safe's service is asked for a proposal's execution once the fast looks are over. */
+const SAFE_FOLLOW_MS = 60_000;
 /** How long a settled step waits before its completion reads its receipt again. */
 export const RECEIPT_RETRY_MS = 4_000;
 
@@ -112,6 +116,11 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
  * loss ends it unproven (`onUnproven`). It ends only when the hold is clear
  * (an authenticated settlement or an exit) or `signal` aborts: never on its
  * own reading of a receipt, a replacement or an expiry. The hold decides.
+ *
+ * Only a write sent within the last minute gets the fast looks: one found
+ * held on a later visit (a proposal awaiting its signers for days) is asked
+ * at the slow pace from the start, so many of them never spend a service's
+ * rate limit.
  */
 export async function followHeldWrite(
   handle: WriteHoldHandle,
@@ -136,6 +145,13 @@ export async function followHeldWrite(
   },
 ): Promise<WriteHoldState | null> {
   const now = handle.peek();
+  const since =
+    now.status === "clear"
+      ? NaN
+      : Number(now.record.submittedAt ?? now.record.firstSeenAt);
+  // A clock that can't be read counts as fresh.
+  const fast = (look: number) =>
+    look < FAST_LOOKS && !(Date.now() - since >= FRESH_MS);
   if (
     now.status !== "clear" &&
     now.record.safe &&
@@ -147,6 +163,7 @@ export async function followHeldWrite(
     void waitForSafeExecutionHash(now.record.chainId, proposal, {
       signal,
       client: client as never,
+      pollingIntervalMs: (poll) => (fast(poll) ? 5_000 : SAFE_FOLLOW_MS),
     })
       .then(
         (execution) => handle.onExecuted(client, execution),
@@ -161,7 +178,7 @@ export async function followHeldWrite(
     const own = reservation && handle.settlementOf(reservation);
     if (own) return { status: "clear", settled: own, reservation };
     if (state?.status === "clear") return state;
-    await pause(look < FAST_LOOKS ? fastMs : pollOf(pollMs), signal);
+    await pause(fast(look) ? fastMs : pollOf(pollMs), signal);
   }
   return null;
 }

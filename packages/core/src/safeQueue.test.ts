@@ -9,7 +9,7 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MULTI_SEND_CALL_ONLY,
   RECOGNIZED_SAFE_RELEASES,
@@ -93,10 +93,15 @@ const transaction = {
   ],
 } satisfies SafeQueuedTransaction;
 
+// A 429 retry adds a random part to its wait: none here, except where a test sets one.
+beforeEach(() => {
+  vi.spyOn(Math, "random").mockReturnValue(0);
+});
 afterEach(() => {
   configureSafeServiceProxy(null);
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("Safe transaction hashing", () => {
@@ -1438,6 +1443,23 @@ describe("Safe transaction service", () => {
       expect(settledAt).toBe(RATE_LIMITED_AT);
     },
   );
+
+  it("adds a random part of up to a second to a 429 retry's wait, so requests refused together spread out", async () => {
+    vi.useFakeTimers();
+    vi.mocked(Math.random).mockReturnValue(0.5);
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(limited("1"))
+      .mockResolvedValue(Response.json({ results: [] }));
+    const pending = listPendingSafeTransactions(1, SAFE, 8, {
+      fetch: fetcher,
+    });
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    await expect(pending).resolves.toEqual([]);
+  });
 
   it("waits 1, 2 and 3 seconds after a 429 without a Retry-After, and does not list the page again", async () => {
     vi.useFakeTimers();

@@ -1,3 +1,20 @@
+# Held Safe proposals stop spending the service rate limit (2026-11-16)
+
+Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. Reported by jango on revnet.money: the Safe queue card never loads, Center answers 429 on `multisig-transactions/<hash>/`.
+
+## Plan refinement
+
+- **Objective:** A tab with many Safe proposals in its activity list no longer exhausts Center's Safe budget (120 per minute per caller, 5 per second shared), so the queue card loads. Success: a held proposal sent more than a minute ago costs one execution poll a minute instead of twelve and gets no fast looks; 429 retries of requests refused together spread out.
+- **System fit:** Owner is `review/heldWrite.ts` `followHeldWrite` (cadence of the follower every client mounts per held write) and `safeService.ts` (`waitForSafeExecutionHash` interval, `serviceFetch` 429 retry). Consumers revnet.money, juicebox.money and the other SDK clients get it by a version bump; Juicescan has no SDK. What the hold proves, settles or releases is unchanged: only when it asks.
+- **Reuse and simplicity:** Freshness reads the record's existing `submittedAt ?? firstSeenAt` clock, so no caller passes anything new and a reload shortly after a send stays fast. `pollingIntervalMs` also takes a function of the poll index; no new export. The second service read inside one hold state read is left as is: removing it touches the proof path.
+- **Evidence and unknowns:** Read at origin/main (6.10.0): `followHeldWrite` starts a 5 s `waitForSafeExecutionHash` per held proposal plus 15 looks 4 s apart, each look reading the service up to twice; Center `app.ts` limits; jango's screenshot (about 10 distinct hashes repeating, `X-RateLimit-Remaining: 37` of 120 with `Retry-After: 1`, so the shared budget refused). Unknown: jango's actual activity list, and whether the page-load burst alone still trips 5 per second with many proposals.
+- **Verification:** New tests that fail on main: a stale held proposal passes a 60 s interval for every poll and pauses the slow pace after its first look; a fresh one keeps 5 s for 15 polls; a 429 retry waits Retry-After plus the random part. `npm run check` in the SDK, then both Next clients' checks on the packed tarball before release.
+- **Resource budget:** One writer in `.worktrees/sdk-safe-polling`, one patch release. Replan if a test shows a caller depends on the 5 s poll for an old proposal.
+
+- [x] cadence in `followHeldWrite`, function interval in `waitForSafeExecutionHash`, jitter in `serviceFetch`
+- [x] tests, changeset, `npm run check` (exit 0)
+- [ ] PR; release and client bumps on jango's word
+
 # Client parity rules into the SDK (2026-11-13)
 
 Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. jango's rulings of 2026-11-13: rules that lived in one client move here as the full general version (Juicescan ports inline), ERC-20 pays authorize through Permit2, one `.jb` draft format for the three clients.
