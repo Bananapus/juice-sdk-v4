@@ -739,6 +739,52 @@ describe("one held write's view", () => {
     expect(view.get().phase).toBe("held");
   });
 
+  it("leaves the reads to its follower: views add none, and each shows its checked answers", async () => {
+    vi.useFakeTimers();
+    const { fake, handle } = fakeHandle(pending());
+    fake.answer = pending();
+    const first = createHeldWriteView(handle, { client, pollMs: 15_000 });
+    const second = createHeldWriteView(handle, { client, pollMs: 15_000 });
+    const stopFirst = first.start();
+    const stopSecond = second.start();
+    // The fast looks pass.
+    await vi.advanceTimersByTimeAsync(120_000);
+    handle.state.mockClear();
+    await vi.advanceTimersByTimeAsync(60_000);
+    // One follower, one read a poll: neither view's timer asks beside it.
+    expect(handle.state).toHaveBeenCalledTimes(4);
+    // An exit only a checked answer may hide: the follower's read is one.
+    fake.answer = unproven();
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(second.get().phase).toBe("held");
+    // Hidden, at the slow pace, the follower asks nothing.
+    handle.state.mockClear();
+    vi.stubGlobal("document", { visibilityState: "hidden" });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(handle.state).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(handle.state).toHaveBeenCalledTimes(1);
+    stopSecond();
+    stopFirst();
+  });
+
+  it("ends on a follower's contended clear read, which no view was told", async () => {
+    vi.useFakeTimers();
+    const { fake, handle } = fakeHandle(pending());
+    fake.answer = pending();
+    const view = createHeldWriteView(handle, { client });
+    const stop = view.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(view.get().phase).toBe("confirming");
+    handle.state.mockResolvedValue(
+      clear({ settled: { result: "success", hash: HASH } }),
+    );
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(view.get().phase).not.toBe("confirming");
+    stop();
+  });
+
   it("shares one follower per reservation across views, and delivers its end", async () => {
     vi.useFakeTimers();
     const onSettled = vi.fn();

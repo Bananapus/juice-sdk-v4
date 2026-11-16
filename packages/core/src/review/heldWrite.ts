@@ -136,7 +136,7 @@ export async function followHeldWrite(
     pollMs?: number;
     fastMs?: number;
     /** Each read of the hold as it starts, while it holds the call's lock. */
-    onRead?: (read: Promise<unknown>) => void;
+    onRead?: (read: Promise<WriteHoldState | null>) => void;
     /**
      * Follow this reservation's own write: it ends with its saved
      * settlement, even once a later reservation of the call replaced it.
@@ -174,6 +174,11 @@ export async function followHeldWrite(
       .catch(() => null);
   }
   for (let look = 0; !signal.aborted; look += 1) {
+    // A hidden tab asks nothing at the slow pace: the view reads again on focus.
+    if (!fast(look) && globalThis.document?.visibilityState === "hidden") {
+      await pause(pollOf(pollMs), signal);
+      continue;
+    }
     const read = handle.state(client).catch(() => null);
     onRead?.(read);
     const state = await read;
@@ -197,6 +202,8 @@ const followers = new Map<
     ended: Promise<WriteHoldState | null>;
     /** Its read under way, if any: a send of a view it follows for waits for it. */
     reads: Set<Promise<unknown>>;
+    /** Its views, told each checked answer it reads. */
+    told: Set<(state: WriteHoldState) => void>;
   }
 >();
 
@@ -205,6 +212,7 @@ function followShared(
   handle: WriteHoldHandle,
   client: WriteHoldClient,
   pollMs: number | undefined,
+  tell: (state: WriteHoldState) => void,
 ): {
   ended: Promise<WriteHoldState | null>;
   leave: () => void;
@@ -215,27 +223,33 @@ function followShared(
   if (!shared || shared.stop.signal.aborted) {
     const stop = new AbortController();
     const reads = new Set<Promise<unknown>>();
+    const told = new Set<(state: WriteHoldState) => void>();
     const ended = followHeldWrite(handle, client, {
       signal: stop.signal,
       pollMs,
       onRead(read) {
         reads.add(read);
-        void read.finally(() => reads.delete(read));
+        void read.then((state) => {
+          reads.delete(read);
+          if (state?.checked) for (const each of told) each(state);
+        });
       },
     }).finally(() => {
       if (followers.get(reservation)?.stop === stop)
         followers.delete(reservation);
     });
-    shared = { views: 0, stop, ended, reads };
+    shared = { views: 0, stop, ended, reads, told };
     followers.set(reservation, shared);
   }
   shared.views += 1;
+  shared.told.add(tell);
   const joined = shared;
   return {
     ended: joined.ended,
     reads: joined.reads,
     leave() {
       joined.views -= 1;
+      joined.told.delete(tell);
       if (joined.views === 0) joined.stop.abort();
     },
   };
@@ -355,10 +369,18 @@ export function createHeldWriteView(
     )
       return;
     stopFollowing();
-    const shared = followShared(reservation, handle, client, options.pollMs);
+    const at = epoch;
+    const shared = followShared(
+      reservation,
+      handle,
+      client,
+      options.pollMs,
+      (state) => {
+        if (at === epoch) apply(state);
+      },
+    );
     const mine = { reservation, leave: shared.leave, reads: shared.reads };
     following = mine;
-    const at = epoch;
     void shared.ended.then((end) => {
       if (following === mine) following = undefined;
       if (end && at === epoch) apply(end);
@@ -680,7 +702,8 @@ export function createHeldWriteView(
           view.phase === "confirming" ||
           view.phase === "held";
         const hidden = globalThis.document?.visibilityState === "hidden";
-        if (held && !hidden) void check();
+        // The follower's checked reads reach this view as they are made.
+        if (held && !hidden && !following) void check();
       }, pollOf(options.pollMs));
       const onFocus = () => void check();
       globalThis.addEventListener?.("focus", onFocus);

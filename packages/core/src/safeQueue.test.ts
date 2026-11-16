@@ -1078,6 +1078,22 @@ describe("Safe transaction service", () => {
     },
   );
 
+  it("retries a page the service failed once, and never one it refused", async () => {
+    vi.useFakeTimers();
+    const failed = vi.fn(async () => json({}, 503));
+    const listing = expect(
+      listPendingSafeTransactions(1, SAFE, 0, { fetch: failed }),
+    ).rejects.toThrow("503");
+    await vi.advanceTimersByTimeAsync(500);
+    await listing;
+    expect(failed).toHaveBeenCalledTimes(2);
+    const refused = vi.fn(async () => json({}, 404));
+    await expect(
+      listPendingSafeTransactions(1, SAFE, 0, { fetch: refused }),
+    ).rejects.toThrow("404");
+    expect(refused).toHaveBeenCalledTimes(1);
+  });
+
   it("still retries Safe's per-second error message", async () => {
     vi.useFakeTimers();
     const fetcher = vi

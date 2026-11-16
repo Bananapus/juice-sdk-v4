@@ -325,6 +325,27 @@ describe("requestBendystraw", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  test("retries a rate-limited request once, no sooner than it was told", async () => {
+    vi.useFakeTimers();
+    const limited = () =>
+      jsonResponse({}, { status: 429, headers: { "Retry-After": "2" } });
+    const fetchMock = vi.fn().mockImplementation(async () => limited());
+    const asked = expect(
+      requestBendystraw(
+        "https://bendystraw.example/graphql",
+        "query { ok }",
+        {},
+        { fetch: fetchMock, retryDelaysMs: [0, 0] },
+      ),
+    ).rejects.toMatchObject({ status: 429 });
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await asked;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
   test("does not retry terminal HTTP, GraphQL, or envelope failures", async () => {
     const cases: Array<[Response, string]> = [
       [jsonResponse({}, { status: 400 }), "request failed (400)"],

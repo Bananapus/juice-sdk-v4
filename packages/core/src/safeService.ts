@@ -1450,6 +1450,8 @@ export async function lookAtSafeProposal(
  * found ({@link SafeProposalExecution}). Where Safe's service already lists
  * the proposal executed, the chain's proof is still read once the nonce
  * passed it, so a stale or unreachable report never stands in for the chain.
+ * `known` is the service's record a caller read just before: it is not asked
+ * for again.
  */
 export async function lookAtSafeProposalEnd(
   client: SafeQueueClient,
@@ -1457,6 +1459,7 @@ export async function lookAtSafeProposalEnd(
   safe: Address,
   proposalHash: Hex,
   service?: SafeServiceOptions,
+  known?: SafeQueuedTransaction,
 ): Promise<SafeProposalEnd> {
   const live: SafeProposalEnd = { look: "live" };
   try {
@@ -1466,12 +1469,9 @@ export async function lookAtSafeProposalEnd(
     const nonce = await readBoundedSafeNonce(client, safe, {
       blockNumber: block.number,
     });
-    const record = await readSafeTransaction(
-      chainId,
-      safe,
-      proposalHash,
-      service,
-    );
+    const record =
+      known ??
+      (await readSafeTransaction(chainId, safe, proposalHash, service));
     if (nonce === null) return live;
     const proposalNonce = safeTransactionMessage(record).nonce;
     if (record.isExecuted)
@@ -2172,9 +2172,10 @@ export async function listPendingSafeTransactions(
       { headers: serviceHeaders() },
       options,
     );
-    if (!response.ok && response.status !== 429) {
-      // A failed page is retried once before the listing gives up. A 429 has
-      // already had the retries serviceFetch allows.
+    if (response.status >= 500) {
+      // A page the service failed is retried once before the listing gives
+      // up. A refusal is final, and a 429 has already had the retries
+      // serviceFetch allows.
       await pause(500, options.signal, () => options.signal!.reason);
       response = await serviceFetch(
         url,
