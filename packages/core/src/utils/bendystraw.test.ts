@@ -344,6 +344,20 @@ describe("requestBendystraw", () => {
     await asked;
     expect(fetchMock).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+    // An earlier failure of another kind doesn't spend the one retry.
+    const recovering = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}, { status: 503 }))
+      .mockResolvedValueOnce(jsonResponse({}, { status: 429 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { ok: true } }));
+    await expect(
+      requestBendystraw(
+        "https://bendystraw.example/graphql",
+        "query { ok }",
+        {},
+        { fetch: recovering, retryDelaysMs: [0, 0] },
+      ),
+    ).resolves.toEqual({ ok: true });
   });
 
   test("does not retry terminal HTTP, GraphQL, or envelope failures", async () => {

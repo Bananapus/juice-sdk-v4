@@ -1080,10 +1080,10 @@ describe("Safe transaction service", () => {
 
   it("retries a page the service failed once, and never one it refused", async () => {
     vi.useFakeTimers();
-    const failed = vi.fn(async () => json({}, 503));
+    const failed = vi.fn(async () => json({}, 408));
     const listing = expect(
       listPendingSafeTransactions(1, SAFE, 0, { fetch: failed }),
-    ).rejects.toThrow("503");
+    ).rejects.toThrow("408");
     await vi.advanceTimersByTimeAsync(500);
     await listing;
     expect(failed).toHaveBeenCalledTimes(2);

@@ -174,8 +174,13 @@ export async function followHeldWrite(
       .catch(() => null);
   }
   for (let look = 0; !signal.aborted; look += 1) {
-    // A hidden tab asks nothing at the slow pace: the view reads again on focus.
-    if (!fast(look) && globalThis.document?.visibilityState === "hidden") {
+    // A hidden tab asks nothing of a proposal at the slow pace: its view
+    // reads again on focus. A direct write is followed to its end.
+    if (
+      !Number.isNaN(since) &&
+      !fast(look) &&
+      globalThis.document?.visibilityState === "hidden"
+    ) {
       await pause(pollOf(pollMs), signal);
       continue;
     }

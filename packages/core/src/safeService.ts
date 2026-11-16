@@ -2172,7 +2172,7 @@ export async function listPendingSafeTransactions(
       { headers: serviceHeaders() },
       options,
     );
-    if (response.status >= 500) {
+    if (response.status >= 500 || response.status === 408) {
       // A page the service failed is retried once before the listing gives
       // up. A refusal is final, and a 429 has already had the retries
       // serviceFetch allows.

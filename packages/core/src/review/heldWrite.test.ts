@@ -741,8 +741,13 @@ describe("one held write's view", () => {
 
   it("leaves the reads to its follower: views add none, and each shows its checked answers", async () => {
     vi.useFakeTimers();
-    const { fake, handle } = fakeHandle(pending());
-    fake.answer = pending();
+    const proposal = pending({
+      safe: true,
+      executed: true,
+      submittedAt: String(Date.now() - 600_000),
+    });
+    const { fake, handle } = fakeHandle(proposal);
+    fake.answer = proposal;
     const first = createHeldWriteView(handle, { client, pollMs: 15_000 });
     const second = createHeldWriteView(handle, { client, pollMs: 15_000 });
     const stopFirst = first.start();
@@ -757,7 +762,7 @@ describe("one held write's view", () => {
     fake.answer = unproven();
     await vi.advanceTimersByTimeAsync(15_000);
     expect(second.get().phase).toBe("held");
-    // Hidden, at the slow pace, the follower asks nothing.
+    // Hidden, at the slow pace, a proposal's follower asks nothing.
     handle.state.mockClear();
     vi.stubGlobal("document", { visibilityState: "hidden" });
     await vi.advanceTimersByTimeAsync(60_000);
@@ -767,6 +772,21 @@ describe("one held write's view", () => {
     expect(handle.state).toHaveBeenCalledTimes(1);
     stopSecond();
     stopFirst();
+    // A direct write is followed to its end, hidden or not.
+    const direct = fakeHandle(pending());
+    direct.fake.answer = pending();
+    const third = createHeldWriteView(direct.handle, {
+      client,
+      pollMs: 15_000,
+    });
+    const stopThird = third.start();
+    await vi.advanceTimersByTimeAsync(120_000);
+    direct.handle.state.mockClear();
+    vi.stubGlobal("document", { visibilityState: "hidden" });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(direct.handle.state).toHaveBeenCalledTimes(4);
+    vi.unstubAllGlobals();
+    stopThird();
   });
 
   it("ends on a follower's contended clear read, which no view was told", async () => {

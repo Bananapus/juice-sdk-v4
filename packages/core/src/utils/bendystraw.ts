@@ -470,6 +470,7 @@ export async function requestBendystraw<
     );
   }
 
+  let limited = false;
   for (let attempt = 0; ; attempt += 1) {
     let wait: number | undefined;
     const controller = new AbortController();
@@ -502,9 +503,10 @@ export async function requestBendystraw<
         RETRYABLE_STATUSES.has(response.status) &&
         attempt < retryDelaysMs.length &&
         // A rate-limited request is asked again once, no sooner than it was told.
-        !(response.status === 429 && attempt > 0)
+        !(response.status === 429 && limited)
       ) {
         if (response.status === 429) {
+          limited = true;
           const asked = Number(response.headers?.get("retry-after")) * 1_000;
           wait = Math.min(
             MAX_RATE_LIMIT_WAIT_MS,
