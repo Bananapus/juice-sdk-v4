@@ -12,8 +12,9 @@ Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango
 - **Resource budget:** One writer in `.worktrees/sdk-safe-polling`, one patch release. Replan if a consumer suite shows a view depending on its own timer while a follower runs.
 
 - [x] source changes and tests
-- [ ] changeset, `npm run check`
-- [ ] Codex passes, consumers on the packed tarball
+- [x] changeset, `npm run check` (exit 0, against a Sticky checkout at the commit the fixture pins)
+- [x] Codex passes: pass 1 six findings (four fixed: a null record is read again, the hidden pause never applies to a direct write, the 429 retry is counted apart, a 408 page retries; two left as contrived: views of one reservation with different clients, HTTP-date `Retry-After`), pass 2 one fixed (the hidden pause applies only to a proposal not yet executed), pass 3 clean
+- [ ] consumers on the packed tarball
 - [ ] release (jango's word)
 
 # Held Safe proposals stop spending the service rate limit (2026-11-16)
