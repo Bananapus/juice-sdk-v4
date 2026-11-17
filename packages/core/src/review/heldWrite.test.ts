@@ -748,6 +748,11 @@ describe("one held write's view", () => {
     });
     const { fake, handle } = fakeHandle(proposal);
     fake.answer = proposal;
+    const awaiting = pending({
+      safe: true,
+      hash: undefined,
+      submittedAt: String(Date.now() - 600_000),
+    });
     const first = createHeldWriteView(handle, { client, pollMs: 15_000 });
     const second = createHeldWriteView(handle, { client, pollMs: 15_000 });
     const stopFirst = first.start();
@@ -765,6 +770,11 @@ describe("one held write's view", () => {
     // Hidden, at the slow pace, a proposal's follower asks nothing.
     handle.state.mockClear();
     vi.stubGlobal("document", { visibilityState: "hidden" });
+    // One that ran is followed to its end, hidden or not.
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(handle.state).toHaveBeenCalledTimes(1);
+    fake.peeked = awaiting;
+    handle.state.mockClear();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(handle.state).not.toHaveBeenCalled();
     vi.unstubAllGlobals();

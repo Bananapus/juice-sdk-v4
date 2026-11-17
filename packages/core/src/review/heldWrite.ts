@@ -174,10 +174,14 @@ export async function followHeldWrite(
       .catch(() => null);
   }
   for (let look = 0; !signal.aborted; look += 1) {
-    // A hidden tab asks nothing of a proposal at the slow pace: its view
-    // reads again on focus. A direct write is followed to its end.
+    // A hidden tab asks nothing of a proposal awaiting its signers at the
+    // slow pace: its view reads again on focus. A direct write, and a
+    // proposal that ran, are followed to their end.
+    const held = handle.peek();
     if (
-      !Number.isNaN(since) &&
+      held.status !== "clear" &&
+      held.record.safe &&
+      !held.record.executed &&
       !fast(look) &&
       globalThis.document?.visibilityState === "hidden"
     ) {
