@@ -386,8 +386,11 @@ const budgets = {
     // The slow pace for held writes sent over a minute ago and the spread 429
     // retries edit `review/heldWrite` and `safeService`, no new file:
     // measured 1,972,061 B packed, 25,386,250 B unpacked, 1,971 entries.
+    // A refusal's own status and wait in `utils/bendystraw`, and the fee review's pause
+    // while its tab is hidden in `v6/feeBuyback`, no new file:
+    // measured 1,973,993 B packed, 25,400,753 B unpacked, 1,971 entries.
     packed: 1_975_000,
-    unpacked: 25_395_000,
+    unpacked: 25_410_000,
     entries: 1_971,
   },
   "@bananapus/nana-sdk-react": {

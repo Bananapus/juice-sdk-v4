@@ -345,6 +345,24 @@ describe("requestBendystraw", () => {
     expect(retryAfterOf(failure)).toBe(7);
   });
 
+  test("reads a refusal's wait given as a date", async () => {
+    const at = new Date(Date.now() + 60_000).toUTCString();
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        jsonResponse({}, { status: 429, headers: { "Retry-After": at } }),
+      );
+    const failure = await requestBendystraw(
+      "https://bendystraw.example/graphql",
+      "query { ok }",
+      {},
+      { fetch: fetchMock, retryDelaysMs: [] },
+    ).catch((error: unknown) => error);
+    const wait = retryAfterOf(failure);
+    expect(wait).toBeGreaterThan(55);
+    expect(wait).toBeLessThanOrEqual(60);
+  });
+
   test("retries a rate-limited request once, no sooner than it was told", async () => {
     vi.useFakeTimers();
     const limited = () =>

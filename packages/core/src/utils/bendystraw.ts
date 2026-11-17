@@ -1,4 +1,5 @@
 import { JB_CHAINS } from "../constants.js";
+import { retryAfterMs } from "../untrusted.js";
 
 export const BENDYSTRAW_TIMEOUT_MS = 15_000;
 export const MAX_BENDYSTRAW_RESPONSE_BYTES = 5 * 1024 * 1024;
@@ -57,11 +58,11 @@ export class BendystrawRequestError extends Error {
 
 /** A response that is not a success, as its own status and the wait it named. */
 function refusalOf(response: Response): BendystrawRequestError {
-  const asked = Number(response.headers?.get("retry-after"));
+  const asked = retryAfterMs(response.headers?.get("retry-after"));
   return new BendystrawRequestError(
     `Bendystraw request failed (${response.status})`,
     response.status,
-    Number.isFinite(asked) && asked > 0 ? asked : undefined,
+    asked ? Math.ceil(asked / 1_000) : undefined,
   );
 }
 
