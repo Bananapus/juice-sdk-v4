@@ -1,3 +1,22 @@
+# One read per look for a held write, one retry for a rate-limited query (2026-11-16)
+
+Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. From jango's request of 2026-11-16 to audit every web client's network use ("yes, do them all" after the findings list).
+
+## Plan refinement
+
+- **Objective:** A held write costs one hold read per poll however many views show it, a held Safe proposal costs one service request per read, a hidden tab asks nothing at the slow pace, and a rate-limited indexer query is retried once instead of twice within a second. Success: two views of one held write make 4 reads a minute instead of 12, and a held proposal's read makes 1 service request instead of 2.
+- **System fit:** Owners: `review/heldWrite.ts` (the view timer and the shared follower), `review/writeHold.ts` (the Safe state read), `safeService.ts` (`lookAtSafeProposalEnd`, `listPendingSafeTransactions`), `utils/bendystraw.ts` (`requestBendystraw`). Consumers get it by a version bump. What the hold proves, settles, releases or offers as an exit is unchanged: the follower's checked reads now reach its views directly, so a view still hides an exit only on a checked answer.
+- **Reuse and simplicity:** The follower already reads at the view's pace; its views subscribe to those reads instead of repeating them. `lookAtSafeProposalEnd` takes the record its caller just read as an optional last argument; no new export. The expiry proof in `writeRecovery.ts` keeps its own fresh read. Left alone: the unshared `detach` follower and the per-read RPC count, each a larger change to the send path.
+- **Evidence and unknowns:** Read at origin/main (6.10.1): the view's interval and `followHeldWrite` both call `handle.state` every poll; `inspect` reads the proposal with `proposalOf` and again inside `lookAtSafeProposalEnd`; `requestBendystraw` retries a 429 at 250 and 750 ms; `listPendingSafeTransactions` retries any failed page. In the hold, `passed` and `live` are handled alike and `expired` is verified again by `verifyReviewedWriteExpiry`, so a record read a moment earlier decides nothing alone. Unknown: whether Bendystraw sends `Retry-After` (without it the one retry waits the longest configured delay).
+- **Verification:** Four tests that fail on main (confirmed by reverting the source): read counts for two views with a follower, checked answers reaching a view, the hidden pause, one service request per held-proposal read, 5xx-only page retry, one 429 retry no sooner than `Retry-After`. `npm run check`, Codex passes until clean, then both Next clients' checks on the packed tarball before release.
+- **Resource budget:** One writer in `.worktrees/sdk-safe-polling`, one patch release. Replan if a consumer suite shows a view depending on its own timer while a follower runs.
+
+- [x] source changes and tests
+- [x] changeset, `npm run check` (exit 0, against a Sticky checkout at the commit the fixture pins)
+- [x] Codex passes: pass 1 six findings (four fixed: a null record is read again, the hidden pause never applies to a direct write, the 429 retry is counted apart, a 408 page retries; two left as contrived: views of one reservation with different clients, HTTP-date `Retry-After`), pass 2 one fixed (the hidden pause applies only to a proposal not yet executed), pass 3 clean
+- [ ] consumers on the packed tarball
+- [ ] release (jango's word)
+
 # Held Safe proposals stop spending the service rate limit (2026-11-16)
 
 Workspace resources: `/Users/jango/Documents/jb/v6/evm/AGENTS.md`, `/Users/jango/Documents/jb/v6/evm/workflow/ponytail/SKILL.md`, `/Users/jango/Documents/jb/v6/evm/docs/PLAN_REFINEMENT.md`. Reported by jango on revnet.money: the Safe queue card never loads, Center answers 429 on `multisig-transactions/<hash>/`.

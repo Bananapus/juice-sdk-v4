@@ -3941,6 +3941,25 @@ describe("a held Safe proposal", () => {
     });
   });
 
+  it("asks Safe's service for a held proposal once a read", async () => {
+    const { hold, queue } = safeSetup();
+    const fixture = fakeChain();
+    const handle = hold.open(safeCall());
+    await handle.send(fixture.client, async (gate) => {
+      await gate.beforeSend();
+      gate.afterSubmit(queue.hash);
+    });
+    await handle.state(fixture.client);
+    queue.options.fetch.mockClear();
+    await handle.state(fixture.client);
+    expect(queue.options.fetch).toHaveBeenCalledTimes(1);
+    // A read that gave no record is asked again within the look.
+    queue.options.fetch.mockClear();
+    queue.options.fetch.mockResolvedValue(new Response("", { status: 404 }));
+    await handle.state(fixture.client);
+    expect(queue.options.fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("bounds a saved-nonce proposal's wait when not even the chain's id can be read", async () => {
     const { hold, queue } = safeSetup();
     const fixture = fakeChain();

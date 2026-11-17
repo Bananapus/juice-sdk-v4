@@ -11,6 +11,8 @@ export const BENDYSTRAW_CACHE_TTL_MS = {
 
 const RETRY_DELAYS_MS = [250, 750] as const;
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+/** The longest a rate-limited request waits before its one retry. */
+const MAX_RATE_LIMIT_WAIT_MS = 5_000;
 
 export type BendystrawFilter = Record<string, unknown>;
 export type BendystrawNetwork = "mainnet" | "testnet";
@@ -468,7 +470,9 @@ export async function requestBendystraw<
     );
   }
 
+  let limited = false;
   for (let attempt = 0; ; attempt += 1) {
+    let wait: number | undefined;
     const controller = new AbortController();
     const abort = () => controller.abort(options.signal?.reason);
     options.signal?.addEventListener("abort", abort, { once: true });
@@ -497,8 +501,18 @@ export async function requestBendystraw<
 
       if (
         RETRYABLE_STATUSES.has(response.status) &&
-        attempt < retryDelaysMs.length
+        attempt < retryDelaysMs.length &&
+        // A rate-limited request is asked again once, no sooner than it was told.
+        !(response.status === 429 && limited)
       ) {
+        if (response.status === 429) {
+          limited = true;
+          const asked = Number(response.headers?.get("retry-after")) * 1_000;
+          wait = Math.min(
+            MAX_RATE_LIMIT_WAIT_MS,
+            Math.max(retryDelaysMs[retryDelaysMs.length - 1], asked || 0),
+          );
+        }
         await response.body?.cancel();
       } else {
         const bytes = await readBoundedBody(response, maxResponseBytes);
@@ -572,7 +586,7 @@ export async function requestBendystraw<
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", abort);
     }
-    await delay(retryDelaysMs[attempt]);
+    await delay(wait ?? retryDelaysMs[attempt]);
   }
 }
 

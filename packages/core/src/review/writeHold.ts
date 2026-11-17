@@ -1087,12 +1087,15 @@ export function createWriteHold(
             hash,
             BigInt(record.safeNonce),
           ))) ||
+        // The record read above is the look's: the service is asked again
+        // only when that read gave none.
         (await lookAtSafeProposalEnd(
           client as never,
           record.chainId,
           record.account,
           hash,
           service,
+          proposal ?? undefined,
         ));
       // Another Safe transaction took its nonce, even after a saved execution
       // was reorganized away. It may have run the call too: the exit, never a release.
