@@ -998,6 +998,37 @@ describe("createFeeBuybackReview", () => {
     expect(await confirming).toBe(false);
   });
 
+  it("watches no blocks while the tab is hidden, and checks at once when it is shown", async () => {
+    const listeners = new Set<() => void>();
+    const page = {
+      visibilityState: "hidden",
+      addEventListener: (_: string, listener: () => void) =>
+        listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) =>
+        listeners.delete(listener),
+    };
+    vi.stubGlobal("document", page);
+    try {
+      const { context, client, unwatch } = chain();
+      const review = createFeeBuybackReview([pay], context, () => {});
+      await flush();
+      expect(client.watchBlockNumber).not.toHaveBeenCalled();
+      const before = client.request.mock.calls.length;
+      page.visibilityState = "visible";
+      for (const listener of listeners) listener();
+      await flush();
+      expect(client.watchBlockNumber).toHaveBeenCalledTimes(1);
+      expect(client.request.mock.calls.length).toBeGreaterThan(before);
+      page.visibilityState = "hidden";
+      for (const listener of listeners) listener();
+      expect(unwatch).toHaveBeenCalledTimes(1);
+      review.stop();
+      expect(listeners.size).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("reads an unsupported chain or a call without a sender as unknown and watches nothing", async () => {
     const { client } = chain();
     const review = createFeeBuybackReview(

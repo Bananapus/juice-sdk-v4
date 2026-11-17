@@ -1,3 +1,4 @@
+import { isRateLimited, retryAfterOf } from "../jbcenter/rateLimit.js";
 import { describe, expect, test, vi } from "vitest";
 import {
   BENDYSTRAW_CACHE_TTL_MS,
@@ -323,6 +324,43 @@ describe("requestBendystraw", () => {
       ),
     ).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  test("fails a plain-text refusal with its own status and the wait it named", async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response("Too many requests", {
+          status: 429,
+          headers: { "content-type": "text/plain", "Retry-After": "7" },
+        }),
+    );
+    const failure = await requestBendystraw(
+      "https://bendystraw.example/graphql",
+      "query { ok }",
+      {},
+      { fetch: fetchMock, retryDelaysMs: [] },
+    ).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ status: 429, retryAfter: 7 });
+    expect(isRateLimited(failure)).toBe(true);
+    expect(retryAfterOf(failure)).toBe(7);
+  });
+
+  test("reads a refusal's wait given as a date", async () => {
+    const at = new Date(Date.now() + 60_000).toUTCString();
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () =>
+        jsonResponse({}, { status: 429, headers: { "Retry-After": at } }),
+      );
+    const failure = await requestBendystraw(
+      "https://bendystraw.example/graphql",
+      "query { ok }",
+      {},
+      { fetch: fetchMock, retryDelaysMs: [] },
+    ).catch((error: unknown) => error);
+    const wait = retryAfterOf(failure);
+    expect(wait).toBeGreaterThan(55);
+    expect(wait).toBeLessThanOrEqual(60);
   });
 
   test("retries a rate-limited request once, no sooner than it was told", async () => {

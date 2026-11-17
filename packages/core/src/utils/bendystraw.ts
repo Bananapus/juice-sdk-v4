@@ -1,4 +1,5 @@
 import { JB_CHAINS } from "../constants.js";
+import { retryAfterMs } from "../untrusted.js";
 
 export const BENDYSTRAW_TIMEOUT_MS = 15_000;
 export const MAX_BENDYSTRAW_RESPONSE_BYTES = 5 * 1024 * 1024;
@@ -47,10 +48,22 @@ export class BendystrawRequestError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    /** How long the refusal asked to wait, in seconds, when it said. */
+    readonly retryAfter?: number,
   ) {
     super(message);
     this.name = "BendystrawRequestError";
   }
+}
+
+/** A response that is not a success, as its own status and the wait it named. */
+function refusalOf(response: Response): BendystrawRequestError {
+  const asked = retryAfterMs(response.headers?.get("retry-after"));
+  return new BendystrawRequestError(
+    `Bendystraw request failed (${response.status})`,
+    response.status,
+    asked ? Math.ceil(asked / 1_000) : undefined,
+  );
 }
 
 /**
@@ -515,6 +528,14 @@ export async function requestBendystraw<
         }
         await response.body?.cancel();
       } else {
+        // A refusal need not be JSON: the indexer's rate limiter answers in plain text.
+        if (
+          !response.ok &&
+          !response.headers?.get("content-type")?.toLowerCase().includes("json")
+        ) {
+          await response.body?.cancel();
+          throw refusalOf(response);
+        }
         const bytes = await readBoundedBody(response, maxResponseBytes);
         let envelope: {
           data?: TResult;
@@ -530,12 +551,7 @@ export async function requestBendystraw<
             502,
           );
         }
-        if (!response.ok) {
-          throw new BendystrawRequestError(
-            `Bendystraw request failed (${response.status})`,
-            response.status,
-          );
-        }
+        if (!response.ok) throw refusalOf(response);
         const message = envelope.errors?.find(
           (error) => typeof error?.message === "string",
         )?.message;
