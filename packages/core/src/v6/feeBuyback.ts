@@ -641,18 +641,37 @@ export function createFeeBuybackReview(
     if (context)
       chains.set(call.chainId, [...(chains.get(call.chainId) ?? []), index]);
   });
-  const stops = [...chains.values()].map((indexes) =>
-    checked[indexes[0]].context!.client.watchBlockNumber({
-      pollingInterval: FEE_WATCH_POLL_MS,
-      onBlockNumber: () => {
-        for (const index of indexes) void monitors[index].refresh();
-      },
-      onError: () => {
-        for (const index of indexes) results[index] = unknownResult();
-        publish();
-      },
-    }),
-  );
+  let stops: (() => void)[] = [];
+  const watch = () => {
+    stops = [...chains.values()].map((indexes) =>
+      checked[indexes[0]].context!.client.watchBlockNumber({
+        pollingInterval: FEE_WATCH_POLL_MS,
+        onBlockNumber: () => {
+          for (const index of indexes) void monitors[index].refresh();
+        },
+        onError: () => {
+          for (const index of indexes) results[index] = unknownResult();
+          publish();
+        },
+      }),
+    );
+  };
+  const unwatch = () => {
+    for (const stop of stops) stop();
+    stops = [];
+  };
+  // Blocks are watched while the review can be seen. Looked at again, every call is checked at
+  // once, then watched. `confirm` reads fresh whatever the tab showed.
+  const page = globalThis.document;
+  const hidden = () => page?.visibilityState === "hidden";
+  const looked = () => {
+    unwatch();
+    if (hidden()) return;
+    for (const monitor of monitors) void monitor.refresh();
+    watch();
+  };
+  if (!hidden()) watch();
+  page?.addEventListener?.("visibilitychange", looked);
 
   return {
     getState: () => state,
@@ -692,7 +711,8 @@ export function createFeeBuybackReview(
     stop() {
       alive = false;
       for (const monitor of monitors) monitor.stop();
-      for (const stop of stops) stop();
+      page?.removeEventListener?.("visibilitychange", looked);
+      unwatch();
     },
   };
 }
